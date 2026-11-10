@@ -7,8 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useUnistyles } from 'react-native-unistyles'
+import { LinkInput } from '@/shared/ui/link-input.view'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { mapsUrlSchema } from './maps-url'
 import { onlineManager } from '@tanstack/react-query'
@@ -103,7 +102,6 @@ function ImportScreen({ savedWizard }: { savedWizard: boolean }) {
 
 function PlaceImportContent({ prefillConsumedRef, entry }: { prefillConsumedRef: MutableRefObject<boolean>; entry?: SavedLinkHandoff }) {
   const { controller, state } = useImportFlow()
-  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const { status: actorStatus } = useSession()
   const router = useRouter()
@@ -362,13 +360,9 @@ function PlaceImportContent({ prefillConsumedRef, entry }: { prefillConsumedRef:
                       </Pressable>
                     </View>
                     <View style={styles.linkInputRow}>
-                      <View pointerEvents="none" style={styles.inputLocation}><MaterialIcon name="location" size={20} color="status.successText" /></View>
-                      <TextInput
+                      <LinkInput
                         ref={inputRef}
-                        testID="import-link-input"
-                        multiline={false}
-                        numberOfLines={1}
-                        scrollEnabled
+                        testID="import-link-input" clearTestID="import-clear-link" displayTestID="import-link-display"
                         onFocus={() => { setLinkFocused(true); revealFocused() }}
                         onBlur={() => setLinkFocused(false)}
                         value={url}
@@ -380,20 +374,13 @@ function PlaceImportContent({ prefillConsumedRef, entry }: { prefillConsumedRef:
                           setUrl(value)
                         }}
                         placeholder={t('placeImport.placeholder')}
-                        placeholderTextColor={theme.border.outline}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType="url"
                         returnKeyType="go"
                         onSubmitEditing={onResolve}
                         accessibilityLabel={t('placeImport.linkLabel')}
                         accessibilityHint={showValidation && !validFormat ? t('placeImport.invalidUrl') : undefined}
-                        style={[styles.input, styles.linkInput, !linkFocused && !!url && styles.linkInputUnfocused, showValidation && !validFormat && styles.inputError]}
+                        error={showValidation && !validFormat}
+                        onClear={() => exit.requestExit(changeLink)}
                       />
-                      {!linkFocused && !!url ? <View testID="import-link-display" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.linkDisplay}>
-                        <Text variant="bodySmall" numberOfLines={1} ellipsizeMode="tail">{url}</Text>
-                      </View> : null}
-                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} disabled={linkFrozen} onPress={() => exit.requestExit(changeLink)} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
                     </View>
                     {showValidation ? <View accessibilityLiveRegion="polite" style={[styles.validationBadge, !validFormat && styles.validationInvalid]}>
                       <MaterialIcon name={validFormat ? 'checkCircle' : 'info'} size={15} color={validFormat ? 'status.successText' : 'status.warningText'} />

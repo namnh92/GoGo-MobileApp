@@ -540,9 +540,19 @@
       "text.secondary"
     ],
     "src/features/tabs/saved.style.tsx": [
-      "surface.container",
-      "text.primary",
       "surface.subtle"
+    ],
+    "src/shared/ui/link-input.style.tsx": [
+      "surface.low",
+      "border.neutral",
+      "text.primary",
+      "surface.low",
+      "status.danger",
+      "surface.highest"
+    ],
+    "src/shared/ui/link-input.view.tsx": [
+      "status.successText",
+      "border.outline"
     ],
     "src/features/onboarding/splash-map.view.tsx": [
       "text.primary",
@@ -712,7 +722,6 @@
       "status.successContainer",
       "surface.low",
       "surface.container",
-      "surface.highest",
       "status.successSoft",
       "status.warningSoft",
       "surface.container",
@@ -731,10 +740,6 @@
       "surface.card",
       "border.neutral",
       "accent.text",
-      "surface.low",
-      "border.neutral",
-      "text.primary",
-      "status.danger",
       "status.successSoft",
       "status.successText",
       "surface.subtle",
@@ -794,8 +799,6 @@
       "text.primary",
       "accent.text",
       "accent.text",
-      "status.successText",
-      "border.outline",
       "status.successText",
       "status.warningText",
       "status.successText",

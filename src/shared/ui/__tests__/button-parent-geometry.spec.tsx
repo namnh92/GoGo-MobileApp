@@ -26,7 +26,7 @@ it('clips a small button to its parent even with generous hitSlop', () => {
 // the expanded target with the immediate parent's shortest content-driven box.
 const rows = [
   { name: 'saved province action', style: saved.groupHeader, siblingHeight: 24, icon: false },
-  { name: 'saved quick save', style: saved.linkRow, siblingHeight: Number(saved.linkInput.minHeight), icon: false },
+  { name: 'saved quick save', style: saved.linkRow, siblingHeight: Number(saved.linkField.height), icon: false },
   { name: 'onboarding back', style: onboarding.header, siblingHeight: 40, icon: true },
   { name: 'onboarding skip', style: onboarding.header, siblingHeight: 0, icon: false },
   { name: 'profile edit', style: profile.identity, siblingHeight: 64, icon: true },

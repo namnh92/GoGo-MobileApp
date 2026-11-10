@@ -1,6 +1,6 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native-unistyles'
-import { StyleSheet as RNStyleSheet } from 'react-native'
+import { StyleSheet as RNStyleSheet, TextInput as NativeTextInput } from 'react-native'
 import { buttonSizes, touchTarget } from '@/shared/ui/tokens'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
@@ -185,7 +185,38 @@ it('uses the compact row with no separate quick-save title', async () => {
   const save = view.getByRole('button', { name: 'Lưu' })
   const height = RNStyleSheet.flatten(save.props.style).minHeight
   expect(height).toBe(buttonSizes.small.minHeight)
+  expect(RNStyleSheet.flatten(save.props.style).height).toBe(52)
+  expect(RNStyleSheet.flatten(view.getByTestId('saved-link-input').props.style).height).toBe(52)
   expect(height + save.props.hitSlop.top + save.props.hitSlop.bottom).toBeGreaterThanOrEqual(touchTarget.min)
+})
+
+it.each(['orange', 'orangeDark'] as const)('uses the common import field and clears a long link while retaining focus (%s)', async themeName => {
+  const focus = jest.spyOn(NativeTextInput.prototype, 'focus').mockImplementation(() => {})
+  try {
+    const view = await renderScreen(<SavedLink onFeedback={mockFeedback} />)
+    expect(view.queryByRole('button', { name: 'Xóa liên kết' })).toBeNull()
+    const url = 'https://www.google.com/maps/place/' + 'long-place-name'.repeat(40)
+    await fireEvent.changeText(view.getByTestId('saved-link-input'), url)
+    const input = view.getByTestId('saved-link-input')
+    expect(input.props).toMatchObject({ value: url, editable: true })
+    const display = view.getByText(url, { includeHiddenElements: true })
+    expect(display.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
+    const create = jest.spyOn(StyleSheet, 'create')
+    jest.isolateModules(() => { jest.requireActual('@/shared/ui/link-input.style') })
+    const factory = create.mock.calls[0]![0] as (theme: AppTheme) => Record<string, Record<string, unknown>>
+    expect(factory(themes[themeName]).input).toMatchObject({ height: 52, backgroundColor: themes[themeName].surface.low, paddingLeft: 40, paddingRight: 48 })
+    create.mockRestore()
+    expect(input.props).toMatchObject({ value: url, multiline: false, numberOfLines: 1, scrollEnabled: true })
+    const clear = view.getByRole('button', { name: 'Xóa liên kết' })
+    expect(RNStyleSheet.flatten(clear.props.style)).toMatchObject({ width: 44, height: 44 })
+    await fireEvent.press(clear)
+    expect(view.getByTestId('saved-link-input').props.value).toBe('')
+    expect(view.queryByRole('button', { name: 'Xóa liên kết' })).toBeNull()
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(view.getByRole('button', { name: 'Lưu' })).toBeDisabled()
+    expect(mockResolve).not.toHaveBeenCalled()
+    expect(mockSave).not.toHaveBeenCalled()
+  } finally { focus.mockRestore() }
 })
 
 it.each(['orange', 'orangeDark'] as const)('keeps the quick-save row compact and uses theme colors (%s)', themeName => {
@@ -195,8 +226,9 @@ it.each(['orange', 'orangeDark'] as const)('keeps the quick-save row compact and
   const theme = themes[themeName]
   const styles = factory(theme)
   create.mockRestore()
-  expect(styles.linkRow).toMatchObject({ minHeight: 44, flexDirection: 'row' })
+  expect(styles.linkRow).toMatchObject({ minHeight: 52, flexDirection: 'row' })
   expect(styles.linkCard.padding).toBeUndefined()
-  expect(styles.linkInput).toMatchObject({ ...theme.type.bodySmall, color: theme.text.primary, backgroundColor: theme.surface.container })
+  expect(styles.linkField).toMatchObject({ flex: 1, minWidth: 0, height: 52 })
+  expect(styles.linkSave.height).toBe(52)
   expect(styles.countBadge).toMatchObject({ minWidth: 24, minHeight: 24, borderRadius: 12, backgroundColor: theme.surface.subtle })
 })

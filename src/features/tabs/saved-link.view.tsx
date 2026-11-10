@@ -11,8 +11,8 @@ import { prepareSavedLinkHandoff, type SavedLinkHandoff } from '@/features/place
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { PrimaryBtn } from '@/shared/ui/primitives'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
-import { MaterialIcon } from '@/shared/ui/material-icon'
-import { TextInput } from '@/shared/ui/text-input'
+import type { TextInputRef } from '@/shared/ui/text-input'
+import { LinkInput } from '@/shared/ui/link-input.view'
 import { styles } from './saved.style'
 
 /** Resolving never submits a new venue; new links continue through the shared wizard. */
@@ -20,6 +20,7 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
   const { t } = useTranslation()
   const router = useRouter()
   const [url, setUrl] = useState('')
+  const inputRef = useRef<TextInputRef>(null)
   const [failed, setFailed] = useState(false)
   const [controller] = useState(createImportFlowController)
   useEffect(() => { controller.mount(); return controller.dispose }, [controller])
@@ -85,10 +86,13 @@ export function SavedLink({ onFeedback }: { onFeedback: (message: string) => voi
   return <View style={styles.linkCard}>
     <BlockingLoadingOverlay visible={pending} onClosed={overlay.onClosed} />
     <View style={styles.linkRow}>
-      <MaterialIcon name="link" size={18} color="text.secondary" />
-      <TextInput testID="saved-link-input" value={url} onChangeText={setUrl} editable={!pending}
-        accessibilityLabel={t('placeImport.linkLabel')} placeholder={t('saved.linkPlaceholder')} autoCapitalize="none" autoCorrect={false} keyboardType="url" style={styles.linkInput} />
-      <PrimaryBtn label={t('saved.saveLink')} size="small" onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
+      <View style={styles.linkField}>
+        <LinkInput ref={inputRef} testID="saved-link-input" clearTestID="saved-clear-link" displayTestID="saved-link-display"
+          value={url} onChangeText={setUrl} editable={!pending}
+          accessibilityLabel={t('placeImport.linkLabel')} placeholder={t('saved.linkPlaceholder')}
+          onClear={() => { setUrl(''); inputRef.current?.focus() }} />
+      </View>
+      <PrimaryBtn label={t('saved.saveLink')} size="small" style={styles.linkSave} onPress={() => void save()} loading={pending} disabled={pending || !url.trim()} />
     </View>
     <ResultSheet visible={failed && overlay.closed} variant="error" title={t('saved.linkFailed')} body={t('saved.retryBody')}
       primaryAction={{ label: t('common.retry'), onPress: () => { setFailed(false); void save() } }} onClose={() => setFailed(false)} />
