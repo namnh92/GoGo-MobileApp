@@ -9,13 +9,14 @@ import { getSession } from '@/shared/api/session'
 import type { RecoveryAccountNotFoundResponse } from '@/shared/api/endpoints/password-recovery'
 import ForgotPassword from '../forgot-password.view'
 import ResetPassword from '../reset-password.view'
-import SignIn from '../sign-in.view'
 import { useRecoveryCountdown, useRecoveryFlow, useRecoveryRequests } from '../password-recovery'
 
+const mockNavigation = { reset: jest.fn() }
 const mockRouter = { replace: jest.fn(), push: jest.fn(), back: jest.fn() }
 let mockParams: { recovered?: string; next?: string } = {}
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  useNavigation: () => mockNavigation,
   useLocalSearchParams: () => mockParams,
   Redirect: ({ href }: { href: unknown }) => { mockRouter.replace(href); return null },
 }))
@@ -41,6 +42,7 @@ const accountNotFoundBody = {
 } satisfies RecoveryAccountNotFoundResponse
 async function fillReset() {
   await fireEvent.changeText(screen.getByLabelText('Mật khẩu mới'), 'GoGo2026!')
+  await fireEvent.changeText(screen.getByLabelText('Nhập lại mật khẩu mới'), 'GoGo2026!')
 }
 function seedFlow(resendAt = Date.now() + 60_000, code: string | undefined = "123456") {
   useRecoveryFlow.getState().setFlow({ email: 'binh@example.com', code, ...challenge(), ...(resendAt < Date.now() ? { expiresAt: new Date(resendAt).toISOString() } : {}), resendAvailableAt: new Date(resendAt).toISOString() })
@@ -195,14 +197,17 @@ it.each(['orange', 'orangeDark'] as const)('masks email and uses role tokens and
   expect(useRecoveryFlow.getState().flow?.code).toBe('123456')
 })
 
-it('shows only password and the checklist at the reset step', async () => {
+it('shows both passwords with independent visibility and the checklist at the reset step', async () => {
   seedFlow()
   await render(<ResetPassword />)
   expect(screen.queryByLabelText('Chữ số 1 trong 6 chữ số')).toBeNull()
   await fillReset()
   expect(screen.getByLabelText('Mật khẩu mới').props.secureTextEntry).toBe(true)
-  await fireEvent.press(button('Hiện mật khẩu'))
+  await fireEvent.press(screen.getAllByRole('button', { name: 'Hiện mật khẩu' })[0])
   expect(screen.getByLabelText('Mật khẩu mới').props.secureTextEntry).toBe(false)
+  expect(screen.getByLabelText('Nhập lại mật khẩu mới').props.secureTextEntry).toBe(true)
+  await fireEvent.press(button('Hiện mật khẩu'))
+  expect(screen.getByLabelText('Nhập lại mật khẩu mới').props.secureTextEntry).toBe(false)
   for (const rule of ['length', 'upper', 'lower', 'digit', 'special']) expect(screen.getByTestId(`password-requirement-${rule}`).props.accessibilityLabel).toMatch(/^Đã đạt:/)
 })
 
@@ -236,12 +241,14 @@ it('resends with a fresh intent, replaces challenge, clears old code, restarts c
   expect(button('Gửi lại mã sau 5:00').props.accessibilityState.disabled).toBe(true)
   await fireEvent.changeText(digit(1), '123456')
   await forgot.unmount()
+  mockRouter.replace.mockClear()
   await render(<ResetPassword />)
   await fillReset()
   fetchMock.mockResolvedValueOnce(response(204))
   const previousSession = getSession()
   await fireEvent.press(button('Đặt lại mật khẩu'))
-  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/auth/sign-in', params: { recovered: '1' } }))
+  expect(await screen.findByText('Đổi mật khẩu thành công')).toBeTruthy()
+  expect(mockRouter.replace).not.toHaveBeenCalled()
   const [url, options] = fetchMock.mock.calls[1]
   expect(url).toMatch(/\/auth\/password-recovery\/complete$/)
   expect(JSON.parse(options.body)).toEqual({ email: 'binh@example.com', challengeId: newChallenge.challengeId, code: '123456', password: 'GoGo2026!' })
@@ -290,13 +297,77 @@ it('returns RECOVERY_INVALID to cleared OTP boxes with an error and preserves ne
   expect(useRecoveryFlow.getState().flow?.invalidCode).toBe(false)
 })
 
-it('shows the reset success message at sign in in both locales', async () => {
-  mockParams = { recovered: '1' }
-  const view = await render(<SignIn />)
-  expect(screen.getByText('Đã đổi mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.')).toBeTruthy()
+it.each(['confirm', 'dismiss'] as const)('shows the common success sheet then resets to sign in on %s in both locales', async action => {
+  seedFlow()
+  useRecoveryFlow.setState(state => ({ flow: { ...state.flow!, next: '/saved' } }))
+  fetchMock.mockResolvedValueOnce(response(204))
+  const view = await render(<ResetPassword />)
+  await fillReset()
+  await fireEvent.press(button('Đặt lại mật khẩu'))
+  expect(await screen.findByText('Đổi mật khẩu thành công')).toBeTruthy()
+  expect(screen.getByText('Hãy đăng nhập bằng mật khẩu mới.')).toBeTruthy()
+  expect(mockNavigation.reset).not.toHaveBeenCalled()
+  expect(mockRouter.replace).not.toHaveBeenCalled()
   await act(async () => { await i18n.changeLanguage('en') })
-  expect(screen.getByText('Password changed. Please sign in with your new password.')).toBeTruthy()
+  expect(screen.getByText('Password changed successfully')).toBeTruthy()
+  expect(screen.getByText('Please sign in with your new password.')).toBeTruthy()
+  await fireEvent.press(action === 'confirm' ? button(i18n.t('auth.signInCta')) : screen.getByLabelText(i18n.t('common.close')))
+  expect(mockNavigation.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: 'auth/sign-in', params: { next: '/saved' } }] })
+  expect(fetchMock).toHaveBeenCalledTimes(1)
   await view.unmount()
+  expect(useRecoveryFlow.getState().flow).toBeNull()
+})
+
+it('blocks mismatches, delays inline feedback, and revalidates changes to either password', async () => {
+  seedFlow()
+  await render(<ResetPassword />)
+  const password = screen.getByLabelText('Mật khẩu mới')
+  const confirm = screen.getByLabelText('Nhập lại mật khẩu mới')
+  const submit = () => button('Đặt lại mật khẩu')
+  expect(submit().props.accessibilityState.disabled).toBe(true)
+  await fireEvent.changeText(password, 'GoGo2026!')
+  await fireEvent.changeText(confirm, 'Go')
+  expect(screen.queryByText('Mật khẩu nhập lại không khớp.')).toBeNull()
+  await fireEvent(confirm, 'blur')
+  expect(screen.getByText('Mật khẩu nhập lại không khớp.')).toBeTruthy()
+  await fireEvent.press(submit())
+  await fireEvent(confirm, 'submitEditing')
+  expect(fetchMock).not.toHaveBeenCalled()
+  expect(submit().props.accessibilityState.disabled).toBe(true)
+  await fireEvent.changeText(confirm, 'GoGo2026!')
+  expect(screen.queryByText('Mật khẩu nhập lại không khớp.')).toBeNull()
+  expect(submit().props.accessibilityState.disabled).toBe(false)
+  await fireEvent.changeText(password, 'GoGo2027!')
+  expect(submit().props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText('Mật khẩu nhập lại không khớp.')).toBeTruthy()
+  await fireEvent.changeText(confirm, 'GoGo2027!')
+  expect(submit().props.accessibilityState.disabled).toBe(false)
+  await fireEvent.changeText(password, 'weak')
+  await fireEvent.changeText(confirm, 'weak')
+  expect(submit().props.accessibilityState.disabled).toBe(true)
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each(['vi', 'en'])('shows a same-length mismatch before blur in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  seedFlow()
+  await render(<ResetPassword />)
+  await fireEvent.changeText(screen.getByLabelText(i18n.t('auth.recovery.newPassword')), 'GoGo2026!')
+  await fireEvent.changeText(screen.getByLabelText(i18n.t('auth.recovery.confirmPassword')), 'GoGo2027!')
+  expect(screen.getByText(i18n.t('auth.recovery.passwordMismatch'))).toBeTruthy()
+  expect(button(i18n.t('auth.recovery.resetTitle')).props.accessibilityState.disabled).toBe(true)
+})
+
+it('shows mismatch on keyboard submit before the confirmation is blurred or complete', async () => {
+  seedFlow()
+  await render(<ResetPassword />)
+  await fireEvent.changeText(screen.getByLabelText('Mật khẩu mới'), 'GoGo2026!')
+  const confirm = screen.getByLabelText('Nhập lại mật khẩu mới')
+  await fireEvent.changeText(confirm, 'Go')
+  expect(screen.queryByText('Mật khẩu nhập lại không khớp.')).toBeNull()
+  await fireEvent(confirm, 'submitEditing')
+  expect(screen.getByText('Mật khẩu nhập lại không khớp.')).toBeTruthy()
+  expect(fetchMock).not.toHaveBeenCalled()
 })
 
 it('redirects direct reset entry without a private challenge back to the request screen', async () => {
@@ -346,7 +417,8 @@ it('retries an ambiguous completion with the same key and clears private flow on
   expect(await screen.findByText(i18n.t('auth.networkError'))).toBeTruthy()
   expect(mockRouter.replace).not.toHaveBeenCalled()
   await fireEvent.press(button('Đặt lại mật khẩu'))
-  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/auth/sign-in', params: { recovered: '1' } }))
+  expect(await screen.findByText('Đổi mật khẩu thành công')).toBeTruthy()
+  expect(mockRouter.replace).not.toHaveBeenCalled()
   expect(fetchMock.mock.calls[0][1].headers['idempotency-key']).toBe(fetchMock.mock.calls[1][1].headers['idempotency-key'])
   await view.unmount()
   expect(useRecoveryFlow.getState().flow).toBeNull()

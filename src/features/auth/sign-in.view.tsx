@@ -57,7 +57,7 @@ export default function SignInScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { signIn, signUp } = useSession()
-  const { next, recovered } = useLocalSearchParams<{ next?: string; recovered?: string }>()
+  const { next } = useLocalSearchParams<{ next?: string }>()
 
   const [showPassword, setShowPassword] = useState(false)
   const [mode, setMode] = useState<Mode>('signIn')
@@ -208,7 +208,6 @@ export default function SignInScreen() {
             </View>
             <View style={styles.coffee}><InfoBanner coffee title={t('auth.coffeeTitle')} body={t('auth.coffeeBody')} /></View>
             <View style={styles.form}>
-              {recovered === '1' && <Text color="status.successText" accessibilityLiveRegion="polite">{t('auth.recovery.success')}</Text>}
               {mode === 'signUp' && <Controller control={signUpForm.control} name="displayName" render={({ field, fieldState }) => (
                 <LabelledInput {...fieldVisibility('displayName')} label={t('auth.displayName')} icon="badge" ref={field.ref} value={field.value}
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('displayName').onBlur() }} placeholder={t('auth.displayNamePlaceholder')}

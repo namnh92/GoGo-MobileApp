@@ -1004,7 +1004,6 @@
     "src/features/auth/sign-in.view.tsx": [
       "text.primary",
       "text.secondary",
-      "status.successText",
       "accent.primary",
       "border.outline",
       "status.dangerText"
@@ -1020,6 +1019,7 @@
     ],
     "src/features/auth/reset-password.view.tsx": [
       "accent.primary",
+      "text.secondary",
       "text.secondary",
       "text.secondary",
       "status.dangerText",
