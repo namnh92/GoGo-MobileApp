@@ -26,6 +26,8 @@ export type AppHeaderProps = {
   rightAction?: ReactNode
   /** Context below the title, such as the discovery area picker. */
   titleAccessory?: ReactNode
+  /** Reserve vertical space so an interactive accessory can expand its hitSlop. */
+  titleAccessoryInteractive?: boolean
   leading?: ReactNode
   testID?: string
   bellTestID?: string
@@ -33,7 +35,7 @@ export type AppHeaderProps = {
 }
 
 /** The only application navigation bar. Screen titles are localized by callers. */
-export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
+export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" size={24} /></AppHeaderAction> : null
@@ -41,12 +43,12 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
   return <View testID={testID} style={[styles.root, variant === 'tab-root' && styles.tabRoot, variant === 'sheet' && styles.sheetRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>
       {back}{leading}
-      <View style={styles.identity}>
+      <View style={[styles.identity, Boolean(titleAccessory) && titleAccessoryInteractive && styles.accessoryIdentity]}>
         <View style={variant === 'tab-root' ? styles.brandRow : undefined}>
           {variant === 'tab-root' ? <><GoGoLogo variant="compact" size={32} testID={`${testID}-logo`} /><View testID={`${testID}-brand-divider`} accessible={false} style={styles.brandDivider} /></> : null}
           <Text variant="introHeading" color="text.primary" accessibilityRole="header" style={styles.title}>{title}</Text>
         </View>
-        {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'text.secondary'} style={styles.subtitle}>{subtitle}</Text> : null}
+        {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'text.secondary'}>{subtitle}</Text> : null}
         {titleAccessory}
       </View>
       <View style={styles.actions}>{actions}</View>

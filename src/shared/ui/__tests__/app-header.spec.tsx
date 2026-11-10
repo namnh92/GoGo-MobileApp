@@ -2,11 +2,12 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }))
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
 
 import { fireEvent, render, screen, within } from '@testing-library/react-native'
-import { StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import i18n from '@/shared/i18n'
 import { AppHeader, AppHeaderAction, type AppHeaderProps } from '../app-header.view'
 import { MaterialIcon } from '../material-icon'
-import { touchTarget } from '../tokens'
+import { spacing, touchTarget } from '../tokens'
+import { scopeHitSlop, styles as searchStyles } from '@/features/search/search.style'
 
 const mockPush = jest.fn()
 let mockUnread = { count: 0, more: false }
@@ -89,4 +90,29 @@ it('honors disabled back and modal-owned safe area', async () => {
   expect(flat(screen.getByTestId('app-header').props.style).paddingTop).toBe(0)
   await fireEvent.press(screen.getByRole('button', { name: i18n.t('common.back') }))
   expect(back).not.toHaveBeenCalled()
+})
+
+it('keeps the shared subtitle 4pt below the title and centers the group with the actions', async () => {
+  await render(<AppHeader title="Title" subtitle="Area" onBack={jest.fn()} />)
+  const identity = screen.getByText('Area').parent!
+  expect(flat(identity.props.style).gap).toBe(4)
+  expect(flat(screen.getByText('Area').props.style).marginTop ?? 0).toBe(0)
+  expect(flat(identity.parent!.props.style).alignItems).toBe('center')
+})
+
+it('keeps the discovery area compact with a 44pt touch target inside the centered header', async () => {
+  const chooseArea = jest.fn()
+  await render(<AppHeader title="Title" onBack={jest.fn()} titleAccessoryInteractive titleAccessory={<Pressable accessibilityLabel="Choose area" onPress={chooseArea} style={searchStyles.scope} hitSlop={scopeHitSlop}><View style={{ height: spacing[4] }} /></Pressable>} />)
+  const area = screen.getByLabelText('Choose area')
+  const identity = area.parent!
+  expect(flat(identity.props.style)).toMatchObject({ gap: 4, paddingVertical: 16 })
+  expect(flat(identity.parent!.props.style).alignItems).toBe('center')
+  const rowStyle = flat(area.props.style)
+  expect(rowStyle.flex).toBeUndefined()
+  expect(rowStyle.minHeight).toBe(16)
+  expect(Number(rowStyle.minHeight) + area.props.hitSlop.top + area.props.hitSlop.bottom).toBe(44)
+  // RN clips hitSlop at parent bounds; both extensions fit inside identity padding.
+  expect(Number(flat(identity.props.style).paddingVertical)).toBeGreaterThanOrEqual(area.props.hitSlop.bottom)
+  await fireEvent.press(area)
+  expect(chooseArea).toHaveBeenCalledTimes(1)
 })

@@ -38,7 +38,7 @@ import { useAppAreaStore } from '@/shared/location/app-area'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { SearchMapPanel } from './search-map-panel.view'
 import { discoveryMap, viewportSearchScope } from './discovery-map'
-import { styles } from './search.style'
+import { scopeHitSlop, styles } from './search.style'
 import { DiscoveryLocationSheet } from './discovery-location.view'
 import { SearchEmpty } from './search-empty.view'
 import { emptyFilters, filterParams, validateFilters, type DiscoveryFilters } from './discovery-filters'
@@ -270,7 +270,8 @@ export default function SearchScreen() {
   }
   return <Atmosphere redesign>
     {!mapExpanded ? <><AppHeader testID="search-header" title={t('discovery.searchTitle')} onBack={() => router.back()} bellTestID="search-bell" unreadDotTestID="search-unread-dot"
-      titleAccessory={!isPicker ? <Pressable style={styles.scope} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setLocationOpen(true)}>
+      titleAccessoryInteractive={!isPicker}
+      titleAccessory={!isPicker ? <Pressable style={styles.scope} hitSlop={scopeHitSlop} accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setLocationOpen(true)}>
         <View style={styles.scopeLabel}><MaterialIcon name="location" size={14} color="accent.text" /><Text variant="introCaptionMedium" color="text.secondary" numberOfLines={1}>{scopeLabel}</Text><MaterialIcon name="expandMore" size={16} color="text.secondary" /></View>
       </Pressable> : undefined} />
     <View style={styles.searchRow}>
