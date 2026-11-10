@@ -19,7 +19,7 @@ import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/a
 import { SegmentedTabs } from '@/shared/ui/segmented-tabs.view'
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { Atmosphere, GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
+import { PlanListSkeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './plans.style'
@@ -172,7 +172,7 @@ export default function PlansScreen() {
           <OfflineState />
         ) : rooms.isPending ? (
           <View style={{ paddingTop: spacing[4] }}>
-            <RoomMemberSkeleton count={Math.max(Math.min(recent.length, 3), 2)} />
+            <PlanListSkeleton count={Math.max(Math.min(recent.length, 3), 2)} />
           </View>
         ) : rooms.isError && items.length === 0 ? (
           <ErrorState error={rooms.error} onRetry={() => void rooms.refetch()} />
@@ -212,7 +212,7 @@ export default function PlansScreen() {
                 />
               )
             })}
-            {rooms.isFetching && visible.length === 0 ? <RoomMemberSkeleton count={2} /> : null}
+            {rooms.isFetching && visible.length === 0 ? <PlanListSkeleton count={2} /> : null}
             {rooms.isFetchNextPageError ? (
               <ErrorState error={rooms.error} onRetry={() => void rooms.fetchNextPage()} />
             ) : null}

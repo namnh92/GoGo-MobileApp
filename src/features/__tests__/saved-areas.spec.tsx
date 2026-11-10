@@ -259,6 +259,8 @@ describe('Saved by area', () => {
     expect(view.getByText(HCM[1])).toBeTruthy()
     expect(view.getByLabelText('Quay lại')).toBeTruthy()
     expect(view.queryByTestId('saved-list')).toBeNull()
+    expect(view.getAllByTestId('place-card-skeleton')).toHaveLength(4)
+    expect(view.queryByTestId('loading-indicator')).toBeNull()
     expect(view.queryByText('Chưa có địa điểm đã lưu')).toBeNull()
   })
 
@@ -350,6 +352,8 @@ describe('Saved by area', () => {
     const view = await renderScreen(<SavedScreen />)
     expect(view.queryByText('Chưa lưu gì cả')).toBeNull()
     expect(view.queryByTestId('saved-list')).toBeNull()
+    expect(view.getAllByTestId('place-card-skeleton')).toHaveLength(4)
+    expect(view.queryByTestId('loading-indicator')).toBeNull()
   })
 
   it('shows a retryable error when the saved list fails', async () => {

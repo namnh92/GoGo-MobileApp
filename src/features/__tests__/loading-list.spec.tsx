@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react-native'
+import { act, render, screen, within } from '@testing-library/react-native'
 import { AccessibilityInfo, StyleSheet as NativeStyles } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
@@ -9,6 +9,7 @@ scriptedTime()
 
 let mockPending = true
 let mockNextPage = false
+let mockSystemPending = false
 const mockRefetch = jest.fn()
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -19,7 +20,7 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => ({}),
-  useSystemNotificationsQuery: () => ({ status: 'unsupported', refetch: jest.fn() }),
+  useSystemNotificationsQuery: () => ({ status: mockSystemPending ? 'supported' : 'unsupported', isPending: mockSystemPending, refetch: jest.fn() }),
   useNotificationSummary: () => ({ data: undefined, refetch: jest.fn() }),
   useReadAllNotifications: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useNotifications: () => ({
@@ -36,6 +37,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s list loading', name => {
     StyleSheet.configure({ themes: { [name]: themes[name] } as unknown as typeof themes })
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
     mockPending = true
+    mockSystemPending = false
     mockNextPage = false
     mockRefetch.mockReset()
   })
@@ -53,6 +55,14 @@ describe.each(['orange', 'orangeDark'] as const)('%s list loading', name => {
     mockNextPage = false
     await view.rerender(<NotificationsScreen />)
     expect(screen.queryByTestId('notifications-loading-more')).toBeNull()
+  })
+
+  it('uses skeletons for the system feed first load as well', async () => {
+    mockSystemPending = true
+    await render(<NotificationsScreen />)
+    expect(within(screen.getByTestId('system-notifications-loading')).getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('loading-indicator')).toBeNull()
+    expect(screen.queryByTestId('system-notifications-loading-more')).toBeNull()
   })
 
   it('uses the branded refresh overlay while keeping loaded inbox rows', async () => {

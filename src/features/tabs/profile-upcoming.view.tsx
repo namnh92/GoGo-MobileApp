@@ -8,6 +8,7 @@ import { useMyRooms } from '@/shared/api'
 import { GhostBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { UPCOMING } from './room-status'
 import { nearestUpcomingRoom } from './profile-upcoming'
 import { styles } from './profile.style'
@@ -30,7 +31,8 @@ export function ProfileUpcoming({ enabled }: { enabled: boolean }) {
   if (!enabled) return null
   if (!online && (rooms.isPending || rooms.hasNextPage)) return <OfflineState />
   if (rooms.isError) return <View style={styles.banner}><Text variant="bodySmall" color="text.secondary">{t('g11.upcomingFailed')}</Text><GhostBtn label={t('common.retry')} onPress={() => void (rooms.isFetchNextPageError ? rooms.fetchNextPage() : rooms.refetch())} /></View>
-  if (rooms.isPending || rooms.hasNextPage) return <Text variant="bodySmall" color="text.secondary" style={styles.banner}>{t('common.loading')}</Text>
+  if (rooms.isPending) return <View testID="profile-upcoming-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.banner}><View style={styles.identityText}><RoomMemberSkeleton count={1} /></View></View>
+  if (rooms.hasNextPage) return <Text variant="bodySmall" color="text.secondary" style={styles.banner}>{t('common.loading')}</Text>
   const room = nearestUpcomingRoom(rooms.data?.pages.flatMap(page => page.items) ?? [], now)
   if (!room) return null
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(room.startAt ?? room.scheduledDate!))

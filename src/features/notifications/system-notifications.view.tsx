@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/a
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
-import { Skeleton } from '@/shared/ui/skeleton.view'
+import { NotificationListSkeleton } from '@/shared/ui/skeleton.view'
 import { NotificationRow } from './notification-row.view'
 import { formatNotificationTime } from './notification-time'
 import { styles } from './system-notifications.style'
@@ -24,7 +24,7 @@ export function SystemNotificationsSection({ inbox, illustration }: Props) {
     <Text accessibilityRole="header" variant="introHeading" color="text.primary" style={styles.sectionTitle}>{t('g10.systemTitle')}</Text>
     {inbox.status === 'unsupported' ? <View testID="system-notifications-unsupported" style={styles.empty}>
       <EmptyState appearance="stitch" title={t('g10.systemUnavailableTitle')} body={t('g10.systemUnavailableBody')} illustration={illustration} />
-    </View> : inbox.isPaused && !inbox.data ? <OfflineState /> : inbox.isPending ? <View testID="system-notifications-loading"><Skeleton width="100%" height={96} /></View>
+    </View> : inbox.isPaused && !inbox.data ? <OfflineState /> : inbox.isPending ? <NotificationListSkeleton testID="system-notifications-loading" />
       : inbox.isError && !inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.refetch()} /> : <>
         <StaleNotice hasData={!!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
         {items.map(item => <SystemNotificationRow key={item.id} item={item} />)}

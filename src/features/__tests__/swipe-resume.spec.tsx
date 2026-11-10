@@ -31,7 +31,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
 }))
 jest.mock('@/shared/ui/place-photo.view', () => ({ PlacePhoto: () => null }))
-jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: () => true }))
+jest.mock('@/shared/ui/feedback', () => ({ ...jest.requireActual('@/shared/ui/feedback'), haptic: jest.fn(), useReducedMotion: () => true }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockLoaded(mockRoomFor('group-host', { status: 'matching', decisionMode: 'vote' })),
