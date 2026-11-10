@@ -23,6 +23,8 @@ export default function ForgotPasswordScreen() {
   const email = useWatch({ control: form.control, name: 'email' })
   const validEmail = recoveryEmailSchema.safeParse({ email }).success
   const remaining = useRecoveryRequestCountdown(email)
+  const requestError = request.error ? recoveryErrorKey(request.error) : undefined
+  const accountNotFound = requestError === 'auth.recovery.accountNotFound'
   const back = () => router.replace({ pathname: '/auth/sign-in', params: next ? { next } : {} })
   function submit() {
     if (request.isPending || recoveryRequestDeadline(email) > Date.now()) return
@@ -42,10 +44,10 @@ export default function ForgotPasswordScreen() {
         <Text variant="introSection" style={styles.title}>{t('auth.recovery.forgotTitle')}</Text>
         <Text variant="introBody" color="text.secondary" style={styles.subtitle}>{t('auth.recovery.forgotBody')}</Text>
         <Controller control={form.control} name="email" render={({ field, fieldState }) => <LabelledInput
-          ref={field.ref} label={t('auth.email')} icon="mail" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} onSubmitEditing={submit}
+          groupTestID="recovery-email-field" ref={field.ref} label={t('auth.email')} icon="mail" value={field.value} onChangeText={value => { request.reset(); field.onChange(value) }} onBlur={field.onBlur} onSubmitEditing={submit}
           autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address"
-          editable={!request.isPending} error={fieldState.error ? t('auth.emailInvalid') : undefined} /> } />
-        {request.error && <Text color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t(recoveryErrorKey(request.error))}</Text>}
+          editable={!request.isPending} error={fieldState.error ? t('auth.emailInvalid') : accountNotFound ? t('auth.recovery.accountNotFound') : undefined} /> } />
+        {request.error && !accountNotFound && <Text color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t(recoveryErrorKey(request.error))}</Text>}
         <View style={styles.actions}>
           <PrimaryBtn label={t('auth.recovery.sendCode')} onPress={submit} loading={request.isPending} disabled={!validEmail || remaining > 0} />
           {remaining > 0 && <Text color="text.secondary" style={styles.centered}>{t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) })}</Text>}

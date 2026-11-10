@@ -1,4 +1,4 @@
-import { act, fireEvent, renderHook, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react-native'
 import { AppState, StyleSheet as NativeStyleSheet, type AppStateStatus } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import { render } from '@/shared/ui/__tests__/query-render'
@@ -82,6 +82,44 @@ it('validates email, loads inside the send button, navigates only after 202, and
   expect(options.headers.authorization).toBeUndefined()
   expect(useRecoveryFlow.getState().flow?.challengeId).toBe(challenge().challengeId)
   expect(screen.getByText('Mã hết hạn sau 5 phút.')).toBeTruthy()
+})
+
+it.each([
+  ['vi', 'Nhập email đã đăng ký. GoGo sẽ gửi mã 6 số để bạn đặt lại mật khẩu.', 'Tài khoản không tồn tại.', 'Gửi mã'],
+  ['en', 'Enter your registered email. GoGo will send a 6-digit password reset code.', 'Account does not exist.', 'Send code'],
+])('shows the exact recovery subtitle and inline missing-account error in %s', async (locale, subtitle, error, send) => {
+  await i18n.changeLanguage(locale)
+  fetchMock.mockResolvedValueOnce(response(404, errorBody('RECOVERY_ACCOUNT_NOT_FOUND')))
+  await render(<ForgotPassword />)
+  expect(screen.getByText(subtitle)).toBeTruthy()
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'absent@example.com')
+  await fireEvent.press(button(send))
+  expect(await within(screen.getByTestId('recovery-email-field')).findByText(error)).toBeTruthy()
+  expect(screen.getAllByText(error)).toHaveLength(1)
+  expect(mockRouter.push).not.toHaveBeenCalled()
+  expect(useRecoveryFlow.getState().flow).toBeNull()
+  expect(screen.queryByText(/NEVER DISPLAY/)).toBeNull()
+  // A corrected email must not inherit the previous account's error.
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'binh@example.com')
+  expect(screen.queryByText(error)).toBeNull()
+  await fireEvent.press(button(send))
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/auth/reset-password'))
+  expect(fetchMock.mock.calls[0][1].headers['idempotency-key']).not.toBe(fetchMock.mock.calls[1][1].headers['idempotency-key'])
+})
+
+it.each([
+  [200, 'UNEXPECTED_SUCCESS'],
+  [204, 'UNEXPECTED_SUCCESS'],
+  [404, 'NOT_FOUND'],
+  [400, 'RECOVERY_ACCOUNT_NOT_FOUND'],
+])('requires both the HTTP status and envelope code for the account error (%s %s)', async (status, code) => {
+  fetchMock.mockResolvedValueOnce(response(status, errorBody(code)))
+  await render(<ForgotPassword />)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'absent@example.com')
+  await fireEvent.press(button('Gửi mã'))
+  expect(await screen.findByText(i18n.t('auth.genericError'))).toBeTruthy()
+  expect(screen.queryByText('Tài khoản không tồn tại.')).toBeNull()
+  expect(mockRouter.push).not.toHaveBeenCalled()
 })
 
 it.each([

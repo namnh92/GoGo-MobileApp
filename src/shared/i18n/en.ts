@@ -10,12 +10,12 @@ type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "auth.recovery.forgotTitle": "Forgot password",
-  "auth.recovery.forgotBody": "Enter your registered email. If the account is eligible, GoGo will send a 6-digit password reset code.",
+  "auth.recovery.forgotBody": "Enter your registered email. GoGo will send a 6-digit password reset code.",
   "auth.recovery.sendCode": "Send code",
   "auth.recovery.expiry": "The code expires after 5 minutes.",
   "auth.recovery.backToSignIn": "Back to sign in",
   "auth.recovery.resetTitle": "Reset password",
-  "auth.recovery.resetBody": "Enter the 6-digit code for {{email}}. Eligible accounts will receive a code.",
+  "auth.recovery.resetBody": "Enter the 6-digit code for {{email}}.",
   "auth.recovery.codeDigit": "Digit {{position}} of 6",
   "auth.recovery.codeRequired": "Enter all 6 digits.",
   "auth.recovery.resendCountdown": "Resend code in {{time}}",
@@ -25,6 +25,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "auth.recovery.newPassword": "New password",
   "auth.recovery.passwordPlaceholder": "Enter a new password",
   "auth.recovery.success": "Password changed. Please sign in with your new password.",
+  "auth.recovery.accountNotFound": "Account does not exist.",
   "auth.recovery.rateLimited": "Too many attempts. Please wait before trying again.",
   "auth.recovery.mailNotConfigured": "GoGo has not configured recovery email delivery yet. Please try again later.",
   "auth.recovery.unavailable": "Password recovery is temporarily unavailable. Please try again later.",

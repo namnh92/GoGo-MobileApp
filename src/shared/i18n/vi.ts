@@ -1,12 +1,12 @@
 // Vietnamese is the source locale: message keys are derived from this object.
 export const viMessages = {
   "auth.recovery.forgotTitle": "Quên mật khẩu",
-  "auth.recovery.forgotBody": "Nhập email đã đăng ký. Nếu tài khoản đủ điều kiện, GoGo sẽ gửi mã 6 số để bạn đặt lại mật khẩu.",
+  "auth.recovery.forgotBody": "Nhập email đã đăng ký. GoGo sẽ gửi mã 6 số để bạn đặt lại mật khẩu.",
   "auth.recovery.sendCode": "Gửi mã",
   "auth.recovery.expiry": "Mã hết hạn sau 5 phút.",
   "auth.recovery.backToSignIn": "Quay lại đăng nhập",
   "auth.recovery.resetTitle": "Đặt lại mật khẩu",
-  "auth.recovery.resetBody": "Nhập mã 6 số đã gửi tới {{email}}. Nếu email đủ điều kiện, bạn sẽ nhận được mã.",
+  "auth.recovery.resetBody": "Nhập mã 6 số đã gửi tới {{email}}.",
   "auth.recovery.codeDigit": "Chữ số {{position}} trong 6 chữ số",
   "auth.recovery.codeRequired": "Nhập đủ mã gồm 6 chữ số.",
   "auth.recovery.resendCountdown": "Gửi lại mã sau {{time}}",
@@ -16,6 +16,7 @@ export const viMessages = {
   "auth.recovery.newPassword": "Mật khẩu mới",
   "auth.recovery.passwordPlaceholder": "Nhập mật khẩu mới",
   "auth.recovery.success": "Đã đổi mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.",
+  "auth.recovery.accountNotFound": "Tài khoản không tồn tại.",
   "auth.recovery.rateLimited": "Bạn đã thử quá nhiều lần. Vui lòng chờ trước khi thử lại.",
   "auth.recovery.mailNotConfigured": "GoGo chưa cấu hình dịch vụ gửi email khôi phục. Vui lòng thử lại sau.",
   "auth.recovery.unavailable": "Dịch vụ khôi phục mật khẩu tạm thời không khả dụng. Vui lòng thử lại sau.",

@@ -67,6 +67,7 @@ export function maskRecoveryEmail(email: string) {
 export function recoveryErrorKey(error: unknown): MessageKey {
   if (isOffline(error)) return 'auth.networkError'
   if (error instanceof ApiError) {
+    if (error.status === 404 && error.code === 'RECOVERY_ACCOUNT_NOT_FOUND') return 'auth.recovery.accountNotFound'
     if (error.status === 429) return 'auth.recovery.rateLimited'
     if (error.code === 'RECOVERY_MAIL_NOT_CONFIGURED') return 'auth.recovery.mailNotConfigured'
     if (error.status === 503) return 'auth.recovery.unavailable'

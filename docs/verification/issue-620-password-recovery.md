@@ -23,9 +23,12 @@
   và hiện thông báo. Cooldown quota riêng hiển thị thời gian gửi lại khả dụng.
 - Resend thành công thay challenge, xóa mã cũ, dùng `resendAvailableAt` mới.
   Deadline được cập nhật khi foreground, không trừ bộ đếm theo thời gian nền.
-- RECOVERY_INVALID, offline, 429, 503 mail chưa cấu hình/unavailable đều có copy
-  vi/en. Không vẽ server message hay xác nhận tài khoản tồn tại; 503 không
-  chuyển sang màn reset.
+- Owner 2026-11-10 / BE#835: bỏ copy anti-enumeration vi/en. Chỉ request
+  202 mới chuyển sang màn reset; 404 + RECOVERY_ACCOUNT_NOT_FOUND hiện
+  “Tài khoản không tồn tại.” dưới email, giữ màn hiện tại và xóa lỗi khi sửa email.
+  Dùng status/code của ApiError từ shared error envelope; không chép tay types
+  khi generated contract chưa có 404. RECOVERY_INVALID, offline, 429, 503 mail
+  chưa cấu hình/unavailable giữ copy vi/en; không vẽ server message.
 - Sáu ô mã có nhãn, tự chuyển focus, dán/autofill 6 số, backspace quay về ô trước.
   PasswordRequirements hiện có kiểm tra năm điều kiện; mật khẩu có hiện/ẩn.
 - AppHeader có opt-in căn giữa/màu tiêu đề; các màn cũ giữ mặc định. Bổ sung
@@ -48,7 +51,7 @@ phỏng việc chuyển theme native trực tiếp.
 `src/features/auth/__tests__/password-recovery.spec.tsx` chạy API wrapper và
 HTTP client thật qua fetch giả lập: email validation/trim, loading/disable,
 payload/header anonymous/idempotency, không chuyển màn trước 202, retry request
-và complete, lỗi 429/503/offline/RECOVERY_INVALID, dán mã, password validation,
+và complete, lỗi 404/429/503/offline/RECOVERY_INVALID, dán mã, password validation,
 checklist/visibility, email che, role tokens Light/Dark, deadline foreground,
 resend thay proof và giữ proof khi lỗi, 204 không cài phiên, xóa flow khi unmount,
 success copy vi/en, direct reset thiếu flow. Fake timers kiểm countdown, expiry
@@ -71,12 +74,14 @@ seconds/HTTP date và fallback 60 giây.
    thông báo; mật khẩu mới đăng nhập được, mật khẩu cũ bị từ chối. Kiểm tra trên
    phiên thiết bị khác rằng BE đã thu hồi session/refresh token.
 5. Thử mã sai/hết hạn, offline, quota 429 và môi trường mail chưa cấu hình 503.
-   Kiểm tra lỗi rõ ràng, không giả thành công hoặc lộ sự tồn tại email.
+   Thử email không có tài khoản password hợp lệ: 404 RECOVERY_ACCOUNT_NOT_FOUND
+   hiện “Tài khoản không tồn tại.” dưới email và không chuyển màn. Chỉ 202 mở
+   màn nhập mã. Kiểm tra subtitle vi/en không còn điều kiện eligibility.
 6. Lặp lại Dark/en; kiểm bố cục trên màn hình nhỏ và khi mở bàn phím.
 
 Không chạy git. Unit/UI tests không xác nhận giao nhận email hoặc nghiệm thu DEV.
 
-## Kết quả local 2026-11-10
+## Kết quả local trước cập nhật BE#835 — 2026-11-10
 
 | Lệnh | Kết quả |
 | --- | --- |
@@ -89,3 +94,18 @@ Lượt UI đầu phát hiện thiếu hai route trong allowlist Sentry và thi�
 computed i18n keys. Đã bổ sung, chạy lại nguyên bộ UI và đạt kết quả trên.
 Không tìm thấy `RTK.md` trong worktree, các thư mục cha đã kiểm tra, hoặc các
 thư mục cấu hình `.agents`/`.codex`; dùng `CLAUDE.md` và yêu cầu issue hiện tại.
+
+## Cập nhật owner / BE#835 — 2026-11-10
+
+- Subtitle quên mật khẩu vi đúng Stitch: “Nhập email đã đăng ký. GoGo sẽ gửi
+  mã 6 số để bạn đặt lại mật khẩu.”; en tương đương. Bỏ eligibility copy
+  khỏi màn nhập mã ở cả hai locale.
+- Regression bổ sung: lỗi 404 inline vi/en, giữ màn/email, không tạo flow;
+  sửa email xóa lỗi và request 202 tiếp theo điều hướng thành công với intent
+  mới. Sai status/code hoặc status thành công ngoài 202 không điều hướng.
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS, không warning lint.
+- `pnpm test:ui --runInBand`: PASS — 237 suites, 3516 tests, 11 snapshots.
+  Recovery: 33 tests. Full run đầu bắt lỗi computed i18n expression; đã sửa
+  và chạy lại toàn bộ các kiểm tra trên thành công.
+- Không chạy git. Chưa kiểm simulator/DEV hoặc xác nhận BE#835 đã triển khai.

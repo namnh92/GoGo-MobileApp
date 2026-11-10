@@ -2,7 +2,7 @@ import { api } from '../client'
 import type { OpBody, OpResponse } from '../types'
 
 export function requestPasswordRecovery(body: OpBody<'requestPasswordRecovery'>, idempotencyKey: string) {
-  return api.post<OpResponse<'requestPasswordRecovery'>>('/auth/password-recovery/request', body, { anonymous: true, idempotencyKey })
+  return api.post<OpResponse<'requestPasswordRecovery'>>('/auth/password-recovery/request', body, { anonymous: true, idempotencyKey, expectedStatus: 202 })
 }
 
 /** A successful reset revokes sessions server-side and never installs a new one. */
