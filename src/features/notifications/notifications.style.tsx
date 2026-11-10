@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { buttonSizes, spacing } from '@/shared/ui/tokens'
+import { chipRowGap, buttonSizes, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   pinnedToolbar: { paddingHorizontal: spacing[4], paddingTop: spacing[3], backgroundColor: theme.surface.canvas },
@@ -10,7 +10,7 @@ export const styles = StyleSheet.create(theme => ({
   unreadBadge: { flexShrink: 0 },
   hiddenBadge: { opacity: 0 },
   readAll: { height: buttonSizes.small.minHeight, flexShrink: 0 },
-  filters: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
+  filters: { flexDirection: 'row', alignItems: 'center', gap: chipRowGap, paddingVertical: spacing[1] },
   systemRetry: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[1] },
   loadingFooter: { marginVertical: spacing[4] },
   sectionTitle: { marginBottom: spacing[2] },

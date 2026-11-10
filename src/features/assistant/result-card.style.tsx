@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
+import { chipRowGap } from '@/shared/ui/tokens'
 
 /** Solid card (#295): `radius-card`, `shadow-card`, `space-4` inside. */
 export const styles = StyleSheet.create(theme => ({
@@ -23,5 +24,5 @@ export const styles = StyleSheet.create(theme => ({
   titles: { flex: 1, minWidth: 0 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
   metaText: { flexShrink: 1 },
-  badges: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
+  badges: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
 }))

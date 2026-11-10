@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, tabRootSpacing, touchTarget, shadows } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, tabRootSpacing, touchTarget, shadows } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  interests: { flexDirection: 'row', gap: spacing[2] },
+  interests: { flexDirection: 'row', gap: chipRowGap },
   groupTitle: { marginHorizontal: spacing[5], marginBottom: tabRootSpacing.headingContent, textTransform: 'uppercase' },
   settingsCard: { marginHorizontal: spacing[4], marginBottom: tabRootSpacing.section, borderRadius: 12, overflow: 'hidden', ...shadows.subtle },
   rowValue: { maxWidth: '28%' },

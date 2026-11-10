@@ -1,0 +1,16 @@
+  ✕ resolves official ward/province names through existing BFF endpoints, without JSON or technical keys (1059 ms)
+  ✕ renders a province-only area and English count/labels (1010 ms)
+  ✕ does not invent names or leak JSON on version failure (1012 ms)
+  ✕ does not invent names or leak JSON on parent failure (1009 ms)
+  ✕ does not invent names or leak JSON on network failure (1012 ms)
+  ✕ uses the same safe rows for saved task summaries (1008 ms)
+  ✕ never renders unrecognized technical fields/objects or invents a zero budget (6 ms)
+              accessibilityLabel="administrativeArea, {\"datasetVersion\":\"v1\",\"provinceCode\":\"79\",\"communeCode\":\"26734\"}"
+              accessibilityLabel="seedPlaceIds, [\"place-a\",\"place-b\"]"
+              accessibilityLabel="administrativeArea, {\"datasetVersion\":\"v1\",\"provinceCode\":\"79\",\"communeCode\":null}"
+              accessibilityLabel="seedPlaceIds, [\"place-a\"]"
+            accessibilityLabel="administrativeArea, {\"datasetVersion\":\"v1\",\"provinceCode\":\"79\",\"communeCode\":\"26734\"}"
+            accessibilityLabel="seedPlaceIds, [\"place-a\",\"place-b\"]"
+Test Suites: 1 failed, 1 total
+Tests:       7 failed, 7 total
+Time:        9.821 s, estimated 46 s
