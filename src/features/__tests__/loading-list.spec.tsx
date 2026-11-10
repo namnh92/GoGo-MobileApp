@@ -9,6 +9,7 @@ scriptedTime()
 
 let mockPending = true
 let mockNextPage = false
+let mockRefetching = false
 let mockSystemPending = false
 const mockRefetch = jest.fn()
 jest.mock('expo-router', () => ({
@@ -24,7 +25,7 @@ jest.mock('@/shared/api', () => ({
   useNotificationSummary: () => ({ data: undefined, refetch: jest.fn() }),
   useReadAllNotifications: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useNotifications: () => ({
-    isPending: mockPending, isError: false, isFetchingNextPage: mockNextPage,
+    isPending: mockPending, isRefetching: mockRefetching, isError: false, isFetchingNextPage: mockNextPage,
     refetch: mockRefetch,
     data: mockPending ? undefined : { pages: [{ notifications: [{ id: 'n1', kind: 'campaign', createdAt: '2026-11-09T00:00:00Z' }] }] },
   }),
@@ -39,13 +40,17 @@ describe.each(['orange', 'orangeDark'] as const)('%s list loading', name => {
     mockPending = true
     mockSystemPending = false
     mockNextPage = false
+    mockRefetching = false
     mockRefetch.mockReset()
   })
   afterEach(() => jest.restoreAllMocks())
 
   it('uses row skeletons for page one and the mark only while loading another page', async () => {
+    mockRefetching = true
     const view = await render(<NotificationsScreen />)
     expect(screen.getByTestId('notifications-loading')).toBeTruthy()
+    expect(screen.getByTestId('notifications-feed').props.refreshControl.props.refreshing).toBe(false)
+    expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
     expect(screen.queryByTestId('notifications-loading-more')).toBeNull()
     mockPending = false
     mockNextPage = true
