@@ -1,6 +1,8 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { AppState, Linking, type AppStateStatus } from 'react-native'
 import { renderScreen } from './harness'
+import type { NotificationSettingsResource } from '@/shared/api/endpoints/me'
+import type { OpBody } from '@/shared/api/types'
 
 /**
  * NTF-APP-010 (#215) — one switch for the account, device permission shown
@@ -9,9 +11,9 @@ import { renderScreen } from './harness'
 
 const mockStatus = jest.fn()
 const mockMutate = jest.fn()
-type Settings = { pushEnabled: boolean; source: string; updatedAt: string | null }
-let mockSettings: { data: Settings | undefined; isPending: boolean; isError: boolean; refetch: jest.Mock }
-let mockSave: { mutate: jest.Mock; isPending: boolean; isError: boolean; variables?: { pushEnabled: boolean } }
+type Settings = NotificationSettingsResource
+let mockSettings: { data: Settings | undefined; isPending: boolean; isError: boolean; refetch: jest.Mock; isFetching?: boolean; isPaused?: boolean }
+let mockSave: { mutate: jest.Mock; isPending: boolean; isError: boolean; variables?: OpBody<'patchNotificationSettings'> }
 jest.mock('@/features/settings/device-promotions.view', () => {
   const { Text } = jest.requireActual('react-native')
   return { DevicePromotionsSection: () => <Text>device-promotions-section</Text> }
@@ -34,7 +36,7 @@ jest.mock('expo-router', () => ({
 import NotificationSettings from '@/features/notifications/notification-settings.view'
 
 const loaded = (settings: Partial<Settings> = {}) => ({
-  data: { pushEnabled: true, source: 'explicit', updatedAt: '2026-09-14T00:00:00Z', ...settings },
+  data: { pushEnabled: true, source: 'explicit' as const, updatedAt: '2026-09-14T00:00:00Z', ...settings },
   isPending: false,
   isError: false,
   refetch: jest.fn(),
@@ -174,4 +176,65 @@ it('shows a recoverable error when Settings cannot be opened, and drops it once 
   mockStatus.mockResolvedValue('granted')
   await act(async () => { resume?.('active') })
   expect(screen.queryByText(/Không mở được cài đặt/)).toBeNull()
+})
+
+const quietSettings = (enabled = false, timezone: string | null = null): Partial<Settings> => ({
+  quietHours: { enabled, timezone }, version: '12', etag: '"quiet-v12"',
+  categories: { invite: true, preference_reminder: true, plan_ready: true, plan_changed: true, date_reminder: true },
+})
+
+it('reads quiet hours and enables with device timezone without changing master/categories', async () => {
+  mockSettings = loaded({ ...quietSettings(), pushEnabled: false })
+  const screen = await renderScreen(<NotificationSettings />)
+  const control = screen.getByTestId('notification-quiet-hours')
+  expect(control.props.value).toBe(false)
+  expect(control.props.disabled).toBe(false)
+  await fireEvent(control, 'valueChange', true)
+  expect(mockMutate).toHaveBeenCalledWith({ quietHours: { enabled: true, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } })
+})
+
+it('retains the account timezone when enabling, and sends only enabled when disabling', async () => {
+  mockSettings = loaded(quietSettings(false, 'Asia/Ho_Chi_Minh'))
+  const screen = await renderScreen(<NotificationSettings />)
+  await fireEvent(screen.getByTestId('notification-quiet-hours'), 'valueChange', true)
+  expect(mockMutate).toHaveBeenLastCalledWith({ quietHours: { enabled: true, timezone: 'Asia/Ho_Chi_Minh' } })
+  mockSettings = loaded(quietSettings(true, 'Asia/Ho_Chi_Minh'))
+  const enabled = await renderScreen(<NotificationSettings />)
+  expect(enabled.getByTestId('notification-quiet-hours').props.value).toBe(true)
+  await fireEvent(enabled.getByTestId('notification-quiet-hours'), 'valueChange', false)
+  expect(mockMutate).toHaveBeenLastCalledWith({ quietHours: { enabled: false } })
+})
+
+it.each(['saving', 'fetching', 'offline', 'missing-validator', 'missing-field'] as const)('locks quiet hours while %s', async state => {
+  mockSettings = loaded(quietSettings())
+  if (state === 'saving') mockSave.isPending = true
+  if (state === 'fetching') mockSettings.isFetching = true
+  if (state === 'offline') mockSettings.isPaused = true
+  if (state === 'missing-validator') mockSettings.data!.etag = undefined
+  if (state === 'missing-field') mockSettings.data!.quietHours = undefined
+  const screen = await renderScreen(<NotificationSettings />)
+  const control = screen.getByTestId('notification-quiet-hours')
+  expect(control.props.disabled).toBe(true)
+  await fireEvent(control, 'valueChange', true)
+  expect(mockMutate).not.toHaveBeenCalled()
+})
+
+it('explains and retries the failed quiet-hours intent after rollback', async () => {
+  mockSettings = loaded(quietSettings())
+  const variables = { quietHours: { enabled: true, timezone: 'Asia/Ho_Chi_Minh' } }
+  mockSave = { mutate: mockMutate, isPending: false, isError: true, variables }
+  const screen = await renderScreen(<NotificationSettings />)
+  expect(screen.getByTestId('notification-quiet-hours').props.value).toBe(false)
+  await fireEvent.press(screen.getAllByText('Thử lưu lại').at(-1)!)
+  expect(mockMutate).toHaveBeenCalledWith(variables)
+})
+
+it('keeps quiet hours off when the device timezone cannot be resolved', async () => {
+  mockSettings = loaded(quietSettings())
+  jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => { throw new Error('unavailable') })
+  const screen = await renderScreen(<NotificationSettings />)
+  expect(screen.getByTestId('notification-quiet-hours').props.disabled).toBe(true)
+  expect(screen.getByText(/Không xác định được múi giờ/)).toBeTruthy()
+  await fireEvent(screen.getByTestId('notification-quiet-hours'), 'valueChange', true)
+  expect(mockMutate).not.toHaveBeenCalled()
 })

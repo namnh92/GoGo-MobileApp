@@ -62,3 +62,20 @@ it('uses the BFF strong ETag verbatim for the authenticated category PATCH and r
   expect(request?.headers).toMatchObject({ authorization: 'Bearer token-A', 'if-match': before.etag, 'idempotency-key': 'category-intent-123' })
   expect(request?.body).toBe(JSON.stringify({ categories: { invite: true } }))
 })
+
+it('reads quiet hours and sends a quiet-only PATCH with If-Match and idempotency, retaining the new ETag', async () => {
+  const settings = { pushEnabled: false, source: 'default', updatedAt: null, quietHours: { enabled: false, timezone: null } }
+  const quietHours = { enabled: true, timezone: 'Asia/Ho_Chi_Minh' }
+  const fetch = vi.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(JSON.stringify(settings), { headers: { 'content-type': 'application/json', ETag: '"quiet-get"' } }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ...settings, quietHours }), { headers: { 'content-type': 'application/json', ETag: '"quiet-patch"' } }))
+  const before = await getNotificationSettings()
+  expect(before.quietHours).toEqual({ enabled: false, timezone: null })
+  const after = await patchNotificationSettings({ quietHours }, before.etag!, 'quiet-intent-123', getSessionGeneration())
+  expect(after).toMatchObject({ pushEnabled: false, quietHours, etag: '"quiet-patch"' })
+  const [url, request] = fetch.mock.calls[1]!
+  expect(url).toBe('http://localhost:3000/v1/me/notification-settings')
+  expect(request?.method).toBe('PATCH')
+  expect(request?.headers).toMatchObject({ authorization: 'Bearer token-A', 'if-match': '"quiet-get"', 'idempotency-key': 'quiet-intent-123' })
+  expect(request?.body).toBe(JSON.stringify({ quietHours }))
+})
