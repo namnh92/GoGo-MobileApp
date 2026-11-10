@@ -1,5 +1,5 @@
 import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react-native'
-import { AppState, StyleSheet as NativeStyleSheet, type AppStateStatus } from 'react-native'
+import { AppState, Keyboard, ScrollView, View, StyleSheet as NativeStyleSheet, type AppStateStatus, type KeyboardEvent, type KeyboardEventName } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import { render } from '@/shared/ui/__tests__/query-render'
 import i18n from '@/shared/i18n'
@@ -209,6 +209,64 @@ it('shows both passwords with independent visibility and the checklist at the re
   await fireEvent.press(button('Hiện mật khẩu'))
   expect(screen.getByLabelText('Nhập lại mật khẩu mới').props.secureTextEntry).toBe(false)
   for (const rule of ['length', 'upper', 'lower', 'digit', 'special']) expect(screen.getByTestId(`password-requirement-${rule}`).props.accessibilityLabel).toMatch(/^Đã đạt:/)
+})
+
+it('places the checklist after confirmation and evaluates only the new password', async () => {
+  seedFlow()
+  await render(<ResetPassword />)
+  const tree = JSON.stringify(screen.toJSON())
+  expect(tree.indexOf('Nhập lại mật khẩu mới')).toBeLessThan(tree.indexOf('password-requirements'))
+  await fireEvent.changeText(screen.getByLabelText('Mật khẩu mới'), 'GoGo2026!')
+  await fireEvent.changeText(screen.getByLabelText('Nhập lại mật khẩu mới'), 'weak')
+  for (const rule of ['length', 'upper', 'lower', 'digit', 'special']) {
+    expect(screen.getByTestId(`password-requirement-${rule}`).props.accessibilityLabel).toMatch(/^Đã đạt:/)
+  }
+})
+
+it.each(['send', 'resend', 'reset'])('blocks the full screen while %s is pending and removes the overlay on error', async kind => {
+  if (kind === 'reset') seedFlow()
+  if (kind === 'resend') seedFlow(Date.now() - 1)
+  let resolve!: (value: unknown) => void
+  fetchMock.mockImplementation(() => new Promise(done => { resolve = done }))
+  await render(kind === 'reset' ? <ResetPassword /> : <ForgotPassword />)
+  if (kind === 'reset') await fillReset()
+  if (kind === 'send') await fireEvent.changeText(screen.getByLabelText('Email'), 'binh@example.com')
+  const label = kind === 'reset' ? 'Đặt lại mật khẩu' : kind === 'send' ? 'Gửi mã' : 'Gửi lại mã'
+  expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull()
+  await fireEvent.press(button(label))
+  expect(screen.getByTestId('blocking-loading-overlay').props.accessibilityState.busy).toBe(true)
+  expect(button(kind === 'resend' ? 'Gửi lại mã sau 1:00' : label).props.accessibilityState.busy).toBe(true)
+  await act(async () => { resolve(response(503, errorBody('RECOVERY_UNAVAILABLE'))) })
+  await waitFor(() => expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull())
+})
+
+it.each(['password', 'confirmPassword', 'email', 'code'])('scrolls the focused %s and its following hints above the keyboard', async field => {
+  if (field === 'password' || field === 'confirmPassword') seedFlow()
+  if (field === 'code') seedFlow(Date.now() - 1)
+  let keyboard: ((event: KeyboardEvent) => void) | undefined
+  jest.spyOn(Keyboard, 'addListener').mockImplementation(((name: KeyboardEventName, listener: (event: KeyboardEvent) => void) => {
+    if (name === 'keyboardDidShow') keyboard = listener
+    return { remove: jest.fn() }
+  }) as unknown as typeof Keyboard.addListener)
+  const move = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {})
+  const groupID = field === 'email' ? 'recovery-email-field' : `auth-field-${field}`
+  jest.spyOn(View.prototype, 'measureInWindow').mockImplementation(function (this: { props: { testID?: string } }, callback) {
+    if (this.props.testID === 'auth-viewport') callback(0, 100, 390, 650)
+    else if (this.props.testID === groupID) callback(16, 400, 358, 240)
+    else callback(16, 400, 358, 80)
+  })
+  await render(field === 'password' || field === 'confirmPassword' ? <ResetPassword /> : <ForgotPassword />)
+  if (field === 'password' || field === 'confirmPassword') {
+    expect(within(screen.getByTestId(groupID)).getByTestId('password-requirements')).toBeTruthy()
+  }
+  if (field === 'code') expect(within(screen.getByTestId(groupID)).getByText(i18n.t('auth.recovery.codeExpired'))).toBeTruthy()
+  const input = field === 'password' ? screen.getByLabelText('Mật khẩu mới')
+    : field === 'confirmPassword' ? screen.getByLabelText('Nhập lại mật khẩu mới')
+    : field === 'email' ? screen.getByLabelText('Email') : digit(1)
+  await fireEvent(input, 'focus', {})
+  await act(async () => { keyboard?.({ endCoordinates: { screenY: 550 } } as KeyboardEvent); jest.runOnlyPendingTimers() })
+  // The measured field + hints ends at 640; keyboard begins at 550, plus 8pt clearance.
+  expect(move).toHaveBeenLastCalledWith(expect.objectContaining({ y: 98 }))
 })
 
 it('uses absolute deadlines on foreground resume', async () => {

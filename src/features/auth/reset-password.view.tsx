@@ -8,6 +8,9 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { completePasswordRecovery } from '@/shared/api/endpoints/password-recovery'
 import { AppHeader } from '@/shared/ui/app-header.view'
+import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
+import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
+import { spacing } from '@/shared/ui/tokens'
 import { PrimaryBtn } from '@/shared/ui/button.view'
 import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
@@ -40,6 +43,10 @@ export default function ResetPasswordScreen() {
   const handingOff = useRef(false)
   useEffect(() => () => { if (!handingOff.current) useRecoveryFlow.getState().setFlow(null) }, [])
   const pending = complete.isPending || completed
+  const overlay = useSubmitOverlay(complete.isPending)
+  const { scrollRef, viewportRef, schedule, onScroll, onScrollBeginDrag, field: fieldVisibility } = useFieldVisibility('reset')
+  const passwordVisibility = fieldVisibility('password')
+  const confirmVisibility = fieldVisibility('confirmPassword')
   if (!flow?.code || !/^[0-9]{6}$/.test(flow.code)) return <Redirect href="/auth/forgot-password" />
   function submit() {
     if (!flow || pending || blocked || Date.now() >= expiresAt) return
@@ -69,41 +76,48 @@ export default function ResetPasswordScreen() {
     useRecoveryFlow.getState().setFlow({ ...flow, code: undefined, invalidCode })
   }
   return <Atmosphere redesign>
+    <BlockingLoadingOverlay visible={complete.isPending} onClosed={overlay.onClosed} />
     <AppHeader title={t('auth.recovery.resetTitle')} centerTitle titleColor="accent.primary" showNotifications={false}
       onBack={() => returnToCode()} backDisabled={pending} />
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
-        <Text variant="introSection" style={styles.title}>{t('auth.recovery.resetTitle')}</Text>
-        <Text variant="introBody" color="text.secondary" style={styles.subtitle}>{t('auth.recovery.resetBody', { email: maskRecoveryEmail(flow.email) })}</Text>
-        <View style={styles.form}>
-          <Controller control={form.control} name="password" render={({ field, fieldState }) => <>
-            <LabelledInput ref={field.ref} label={t('auth.recovery.newPassword')} icon="lock" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur}
-              placeholder={t('auth.recovery.passwordPlaceholder')} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" maxLength={128}
-              secureTextEntry={!showPassword} editable={!pending} error={fieldState.error ? t('auth.passwordInvalid') : undefined}
-              trailing={<Pressable accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
-                disabled={pending} onPress={() => setShowPassword(shown => !shown)} style={styles.visibility}>
-                <MaterialIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="text.secondary" />
-              </Pressable>} />
-            <View style={styles.requirements}><PasswordRequirements value={field.value} /></View>
-          </>} />
-          <Controller control={form.control} name="confirmPassword" render={({ field, fieldState }) => <LabelledInput
-            ref={field.ref} label={t('auth.recovery.confirmPassword')} icon="lock" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur}
-            autoCapitalize="none" autoCorrect={false} autoComplete="new-password" maxLength={128} onSubmitEditing={submit}
-            secureTextEntry={!showConfirmPassword} editable={!pending}
-            error={mismatch && (fieldState.isTouched || (field.value.length > 0 && field.value.length === values.password?.length) || form.formState.submitCount > 0) ? t('auth.recovery.passwordMismatch') : undefined}
-            trailing={<Pressable accessibilityRole="button" accessibilityLabel={t(showConfirmPassword ? 'auth.hidePassword' : 'auth.showPassword')}
-              disabled={pending} onPress={() => setShowConfirmPassword(shown => !shown)} style={styles.visibility}>
-              <MaterialIcon name={showConfirmPassword ? 'eyeOff' : 'eye'} size={20} color="text.secondary" />
-            </Pressable>} />} />
-        </View>
-        {complete.error && <Text color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t(recoveryErrorKey(complete.error))}</Text>}
-        {remaining === 0 && <Pressable accessibilityRole="button" onPress={() => returnToCode()} style={styles.link}>
-          <Text color="accent.primary">{t('auth.recovery.codeExpired')}</Text>
-        </Pressable>}
-        <View style={styles.actions}><PrimaryBtn label={t('auth.recovery.resetTitle')} onPress={submit} loading={complete.isPending} disabled={pending || !validation.success || blocked > 0 || remaining === 0} /></View>
-      </ScrollView>
+      <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>
+        <ScrollView ref={scrollRef} onLayout={schedule} onContentSizeChange={schedule} onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag}
+          scrollEventThrottle={16} keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing[4] }]} keyboardShouldPersistTaps="handled">
+          <Text variant="introSection" style={styles.title}>{t('auth.recovery.resetTitle')}</Text>
+          <Text variant="introBody" color="text.secondary" style={styles.subtitle}>{t('auth.recovery.resetBody', { email: maskRecoveryEmail(flow.email) })}</Text>
+          <View style={styles.form}>
+            <Controller control={form.control} name="password" render={({ field, fieldState }) => <LabelledInput {...passwordVisibility} ref={field.ref} label={t('auth.recovery.newPassword')} icon="lock" value={field.value} onChangeText={field.onChange} onBlur={() => { field.onBlur(); passwordVisibility.onBlur() }}
+                placeholder={t('auth.recovery.passwordPlaceholder')} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" maxLength={128}
+                secureTextEntry={!showPassword} editable={!pending} error={fieldState.error ? t('auth.passwordInvalid') : undefined}
+                trailing={<Pressable accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+                  disabled={pending} onPress={() => setShowPassword(shown => !shown)} style={styles.visibility}>
+                  <MaterialIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="text.secondary" />
+                </Pressable>}>
+              <View style={styles.confirmation}>
+                <Controller control={form.control} name="confirmPassword" render={({ field, fieldState }) => <LabelledInput
+                  {...confirmVisibility}
+                  ref={field.ref} label={t('auth.recovery.confirmPassword')} icon="lock" value={field.value} onChangeText={field.onChange} onBlur={() => { field.onBlur(); confirmVisibility.onBlur() }}
+                  autoCapitalize="none" autoCorrect={false} autoComplete="new-password" maxLength={128} onSubmitEditing={submit}
+                  secureTextEntry={!showConfirmPassword} editable={!pending}
+                  error={mismatch && (fieldState.isTouched || (field.value.length > 0 && field.value.length === values.password?.length) || form.formState.submitCount > 0) ? t('auth.recovery.passwordMismatch') : undefined}
+                  trailing={<Pressable accessibilityRole="button" accessibilityLabel={t(showConfirmPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+                    disabled={pending} onPress={() => setShowConfirmPassword(shown => !shown)} style={styles.visibility}>
+                    <MaterialIcon name={showConfirmPassword ? 'eyeOff' : 'eye'} size={20} color="text.secondary" />
+                  </Pressable>}>
+                    <View style={styles.requirements}><PasswordRequirements value={values.password ?? ''} /></View>
+                  </LabelledInput>} />
+              </View>
+            </LabelledInput>} />
+          </View>
+          {complete.error && <Text color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t(recoveryErrorKey(complete.error))}</Text>}
+          {remaining === 0 && <Pressable accessibilityRole="button" onPress={() => returnToCode()} style={styles.link}>
+            <Text color="accent.primary">{t('auth.recovery.codeExpired')}</Text>
+          </Pressable>}
+          <View style={styles.actions}><PrimaryBtn label={t('auth.recovery.resetTitle')} onPress={submit} loading={complete.isPending} disabled={pending || !validation.success || blocked > 0 || remaining === 0} /></View>
+        </ScrollView>
+      </View>
     </KeyboardAvoidingView>
-    <ResultSheet visible={completed} variant="success" title={t('auth.recovery.successTitle')} body={t('auth.recovery.successBody')}
+    <ResultSheet visible={completed && overlay.closed} variant="success" title={t('auth.recovery.successTitle')} body={t('auth.recovery.successBody')}
       primaryAction={{ label: t('auth.signInCta'), onPress: signIn }} onClose={signIn} />
   </Atmosphere>
 }

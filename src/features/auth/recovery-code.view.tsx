@@ -4,7 +4,7 @@ import { View } from 'react-native'
 import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
 import { styles } from './password-recovery.style'
 
-export function RecoveryCode({ value, onChange, disabled }: { value: string[]; onChange: (value: string[]) => void; disabled: boolean }) {
+export function RecoveryCode({ value, onChange, disabled, onFocus, onBlur }: { value: string[]; onChange: (value: string[]) => void; disabled: boolean; onFocus?: () => void; onBlur?: () => void }) {
   const { t } = useTranslation()
   const inputs = useRef<(TextInputRef | null)[]>([])
   const [focused, setFocused] = useState<number | null>(0)
@@ -24,7 +24,7 @@ export function RecoveryCode({ value, onChange, disabled }: { value: string[]; o
     value={digit} editable={!disabled} keyboardType="number-pad" inputMode="numeric"
     autoComplete={index === 0 ? 'one-time-code' : 'off'} textContentType={index === 0 ? 'oneTimeCode' : 'none'}
     autoFocus={index === 0} selectTextOnFocus maxLength={6}
-    onChangeText={text => change(index, text)} onFocus={() => setFocused(index)} onBlur={() => setFocused(null)}
+    onChangeText={text => change(index, text)} onFocus={() => { setFocused(index); onFocus?.() }} onBlur={() => { setFocused(null); onBlur?.() }}
     onKeyPress={({ nativeEvent }) => { if (nativeEvent.key === 'Backspace' && !digit && index > 0) inputs.current[index - 1]?.focus() }}
     style={[styles.digit, focused === index && styles.digitFocused]} />)}</View>
 }
