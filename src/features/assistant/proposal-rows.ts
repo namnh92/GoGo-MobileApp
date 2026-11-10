@@ -128,7 +128,14 @@ export function proposalRows(values: ProposalValueLike[], { t, locale, placeName
 
   const amount = take('budgetAmount')
   const mode = take('budgetMode')
-  if (amount && typeof amount.value === 'number') {
+  // #401 / core.md 13: zero is not a known budget. Keep both fields
+  // consumed when the amount or scope is unknown, so neither leaks through
+  // the generic field/JSON fallback below. This only changes presentation.
+  if (
+    amount && typeof amount.value === 'number'
+    && Number.isSafeInteger(amount.value) && amount.value > 0
+    && (mode?.value === 'per_person' || mode?.value === 'total')
+  ) {
     const money = formatMoney(amount.value)
     rows.push({
       key: 'budget',
@@ -145,8 +152,6 @@ export function proposalRows(values: ProposalValueLike[], { t, locale, placeName
         ? { edit: { kind: 'budget', label: t('assistant.field.budget'), hasMode: mode !== undefined } }
         : {}),
     })
-  } else if (mode) {
-    used.delete('budgetMode')
   }
 
   const room = take('roomId')
