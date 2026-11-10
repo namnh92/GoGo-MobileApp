@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { spacing, type } from '@/shared/ui/tokens'
+import { chipRowGap, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
   // Keep the three equal-width commands readable down to 320pt.
@@ -73,7 +73,7 @@ export const styles = StyleSheet.create((theme) => ({
     borderWidth: 2,
     backgroundColor: theme.surface.subtle,
   },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   field: { flex: 1, minWidth: 100 },
   input: {
     ...type.bodySmall,

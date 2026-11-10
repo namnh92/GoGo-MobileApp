@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { overlay, spacing, touchTarget } from './tokens'
+import { chipRowGap, overlay, spacing, touchTarget } from './tokens'
 
 export const styles = StyleSheet.create(theme => ({
   inverseBadge: { backgroundColor: overlay.scrimText },
@@ -10,12 +10,12 @@ export const styles = StyleSheet.create(theme => ({
   savedFooter: { padding: spacing[3], gap: spacing[2], backgroundColor: theme.surface.card, borderBottomLeftRadius: theme.radius.card, borderBottomRightRadius: theme.radius.card },
   importActions: { marginTop: spacing[6], gap: spacing[3] },
   verifiedBadge: { position: 'absolute', top: spacing[3], left: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[1], borderRadius: theme.radius.pill, paddingHorizontal: spacing[2] + spacing[1] / 2, paddingVertical: spacing[1], backgroundColor: theme.status.successStrongFill },
-  discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[1] + spacing[1] / 2 },
+  discoveryTags: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   discoveryCard: { backgroundColor: theme.surface.card, borderRadius: theme.radius.card, overflow: 'hidden', ...theme.shadows.card },
   discoveryPrice: { flexShrink: 1 },
   addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[1] },
   addressText: { flex: 1, minWidth: 0 },
-  photoBadges: { flexDirection: 'row', flexWrap: 'wrap-reverse', alignItems: 'flex-start', gap: spacing[2] },
+  photoBadges: { flexDirection: 'row', flexWrap: 'wrap-reverse', alignItems: 'flex-start', gap: chipRowGap },
   photoBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], maxWidth: '100%', minWidth: 0, flexShrink: 0, paddingHorizontal: spacing[2] + spacing[1] / 2, paddingVertical: spacing[1], borderRadius: theme.radius.pill, backgroundColor: theme.surface.card },
   openDot: { width: spacing[1] + spacing[1] / 2, height: spacing[1] + spacing[1] / 2, borderRadius: theme.radius.pill, backgroundColor: theme.status.successText },
   closedDot: { backgroundColor: theme.status.dangerText },

@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { shadows, spacing } from '@/shared/ui/tokens'
+import { chipRowGap, shadows, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   areaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], minHeight: 64, padding: spacing[3], borderRadius: 8, backgroundColor: theme.surface.low },
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create(theme => ({
   budgetGroup: { gap: spacing[2] },
   valueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   value: { flex: 1 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   budgetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], minHeight: 44, padding: spacing[3], borderRadius: 8, backgroundColor: theme.surface.low },
   budgetSelected: { backgroundColor: theme.accent.soft },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: theme.border.outline, alignItems: 'center', justifyContent: 'center' },

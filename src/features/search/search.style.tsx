@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { overlay, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { chipRowGap, overlay, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 // The visible row is 16pt; expand its touch height to 44pt without separating the text.
 export const scopeHitSlop = { top: (touchTarget.min - spacing[4]) / 2, bottom: (touchTarget.min - spacing[4]) / 2, left: spacing[2], right: spacing[2] }
@@ -49,7 +49,7 @@ export const styles = StyleSheet.create(theme => ({
   sheetFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surface.card },
   priceHeading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 4, marginTop: 24, marginBottom: 8 },
   sheetSection: { marginTop: 24, marginBottom: 8 },
-  sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  sheetOptionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap, marginTop: 8 },
   priceRow: { flexDirection: 'row', gap: 8 },
   priceField: { flex: 1, gap: 4, padding: 12, borderRadius: 16, backgroundColor: theme.surface.low },
   priceInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },

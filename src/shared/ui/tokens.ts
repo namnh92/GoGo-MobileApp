@@ -572,6 +572,9 @@ export const fill = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0
 
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48] as const
 
+/** Owner 2026-11-10: horizontal and wrapped chip rows share a maximum 4pt gap. */
+export const chipRowGap = spacing[1]
+
 /** Outer rhythm shared by the four tab roots; card internals keep their own scale. */
 export const tabRootSpacing = {
   headerContent: spacing[4],

@@ -1,13 +1,13 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, tabRootSpacing, touchTarget, type } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, tabRootSpacing, touchTarget, type } from '@/shared/ui/tokens'
 
 // Home discovery surfaces follow the approved Stitch design.
 
 export const styles = StyleSheet.create(theme => ({
   suggestions: { paddingHorizontal: spacing[4], marginTop: tabRootSpacing.section },
   moreAction: { minHeight: touchTarget.min, flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-  moods: { gap: spacing[2], paddingVertical: spacing[1], marginBottom: spacing[3] },
+  moods: { gap: chipRowGap, paddingVertical: spacing[1], marginBottom: spacing[3] },
   roomIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.surface.card, alignItems: 'center', justifyContent: 'center' },
   roomStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   roomDot: { width: spacing[1], height: spacing[1], borderRadius: radius.pill, backgroundColor: theme.status.infoText },

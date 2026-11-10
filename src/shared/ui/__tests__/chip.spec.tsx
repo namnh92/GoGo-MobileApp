@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import type { ChipVariant } from '../chip.view'
 import { themes, type AppTheme } from '../theme'
-import { touchTarget } from '../tokens'
+import { chipRowGap, spacing, touchTarget } from '../tokens'
 
 const flat = (node: { props: { style?: any } }) => StyleSheet.flatten(node.props.style)
 const variants: ChipVariant[] = ['default', 'selected', 'disabled', 'info', 'positive', 'warning']
@@ -68,17 +68,22 @@ it('gives an independent removal action its own 44pt layout target', async () =>
   expect(remove.height).toBeUndefined()
 })
 
-it('keeps assistant quick replies at 44pt in a single wrapping row without relying on hitSlop', async () => {
+it.each([
+  { label: 'Hỏi tiếp', labels: ['Gợi ý khác', 'Xem thêm'] },
+  { label: 'Số người', labels: ['3', '4', '5', '6 trở lên'] },
+  { label: 'Ngân sách', labels: ['Dưới 300k', '300k–500k', 'Trên 500k'] },
+])('keeps $label chips 4pt apart in a wrapping row with 44pt touch targets', async ({ label, labels }) => {
   const onSelect = jest.fn()
-  await render(<FollowUps items={[{ label: 'A', text: 'one' }, { label: 'B', text: 'two', accent: true }]} onSelect={onSelect} />)
+  await render(<FollowUps label={label} items={labels.map((label, index) => ({ label, text: String(index), accent: index === 1 }))} onSelect={onSelect} />)
   const buttons = screen.getAllByRole('button')
-  expect(buttons).toHaveLength(2)
+  expect(buttons).toHaveLength(labels.length)
   // Walk the rendered parents to the actual flex row. No native Yoga layout
   // runs in Jest: assert the layout constraints that make its one-row height >=44.
   let row = buttons[0]!.parent
   while (row && flat(row)?.flexDirection !== 'row') row = row.parent
   expect(row).not.toBeNull()
   expect(flat(row!).flexWrap).toBe('wrap')
+  expect(flat(row!).gap).toBe(4)
   expect(flat(row!).height).toBeUndefined()
   expect(flat(row!).maxHeight).toBeUndefined()
   for (const button of buttons) {
@@ -86,7 +91,7 @@ it('keeps assistant quick replies at 44pt in a single wrapping row without relyi
     expect(flat(button).minWidth).toBeGreaterThanOrEqual(touchTarget.min)
   }
   await fireEvent.press(buttons[0]!)
-  expect(onSelect).toHaveBeenCalledWith('one')
+  expect(onSelect).toHaveBeenCalledWith('0')
 })
 
 it.each(Object.entries(themes))('keeps every variant single-line and selected heavier without a check in %s', async (name, theme) => {
@@ -135,4 +140,59 @@ it('dispatches press and the separate remove action with their accessible labels
   await fireEvent.press(screen.getByRole('button', { name: 'Remove place' }))
   expect(onPress).toHaveBeenCalledTimes(1)
   expect(onRemove).toHaveBeenCalledTimes(1)
+})
+
+// Audit inventory: row geometry is shared even where the row has screen-specific padding.
+const chipRows = [
+  ['features/assistant/follow-ups.chips', () => jest.requireActual('@/features/assistant/follow-ups.style').styles.chips],
+  ['features/assistant/proposal-edit.chips', () => jest.requireActual('@/features/assistant/proposal-edit.style').styles.chips],
+  ['features/assistant/assistant-place-card.questions', () => jest.requireActual('@/features/assistant/assistant-place-card.style').styles.questions],
+  ['features/home/home.moods', () => jest.requireActual('@/features/home/home.style').styles.moods],
+  ['features/search/search.sheetOptionRow', () => jest.requireActual('@/features/search/search.style').styles.sheetOptionRow],
+  ['features/notifications/notifications.filters', () => jest.requireActual('@/features/notifications/notifications.style').styles.filters],
+  ['features/account/profile-defaults.chips', () => jest.requireActual('@/features/account/profile-defaults.style').styles.chips],
+  ['features/tabs/profile.interests', () => jest.requireActual('@/features/tabs/profile.style').styles.interests],
+  ['features/contributions/my-contributions.filters', () => jest.requireActual('@/features/contributions/my-contributions.style').styles.filters],
+  ['features/review/my-reviews.filterRow', () => jest.requireActual('@/features/review/my-reviews.style').styles.filterRow],
+  ['features/create-date/create-mood.grid', () => jest.requireActual('@/features/create-date/create-mood.style').styles.grid],
+  ['features/create-date/create-mood.seedRow', () => jest.requireActual('@/features/create-date/create-mood.style').styles.seedRow],
+  ['features/create-date/date-time-sheet.shortcutRow', () => jest.requireActual('@/features/create-date/date-time-sheet.style').styles.shortcutRow],
+  ['features/create-date/date-time-sheet.timeRow', () => jest.requireActual('@/features/create-date/date-time-sheet.style').styles.timeRow],
+  ['features/matching/preference.grid', () => jest.requireActual('@/features/matching/preference.style').styles.grid],
+  ['features/matching/match-result.reasonChips', () => jest.requireActual('@/features/matching/match-result.style').styles.reasonChips],
+  ['features/matching/suggestion-run-notice.constraintRow', () => jest.requireActual('@/features/matching/suggestion-run-notice.style').styles.constraintRow],
+  ['features/place-import/contribution-wizard.row', () => jest.requireActual('@/features/place-import/contribution-wizard.style').styles.row],
+  ['features/active-date/checkin-sheet.tagRow', () => jest.requireActual('@/features/active-date/checkin-sheet.style').styles.tagRow],
+  ['features/active-date/active-date.factRow', () => jest.requireActual('@/features/active-date/active-date.style').styles.factRow],
+  ['features/date-plan/place-detail.tagRow', () => jest.requireActual('@/features/date-plan/place-detail.style').styles.tagRow],
+  ['features/date-plan/place-reviews.orderRow', () => jest.requireActual('@/features/date-plan/place-reviews.style').styles.orderRow],
+  ['features/date-plan/place-report.reasons', () => jest.requireActual('@/features/date-plan/place-report.style').styles.reasons],
+  ['features/date-plan/date-plan.stopBadges', () => jest.requireActual('@/features/date-plan/date-plan.style').styles.stopBadges],
+  ['features/gogo-room/room-manage.tierRow', () => jest.requireActual('@/features/gogo-room/room-manage.style').styles.tierRow],
+  ['features/gogo-room/gogo-room.memberNameRow', () => jest.requireActual('@/features/gogo-room/gogo-room.style').styles.memberNameRow],
+  ['features/gogo-room/gogo-room.memberRow', () => jest.requireActual('@/features/gogo-room/gogo-room.style').styles.memberRow],
+  ['shared/ui/rating-chips.row', () => jest.requireActual('@/shared/ui/rating-chips.style').styles.row],
+  ['shared/ui/rating-chips.compactRow', () => jest.requireActual('@/shared/ui/rating-chips.style').styles.compactRow],
+  ['shared/ui/place-card.discoveryTags', () => jest.requireActual('@/shared/ui/place-card.style').styles.discoveryTags],
+  ['shared/ui/place-card.photoBadges', () => jest.requireActual('@/shared/ui/place-card.style').styles.photoBadges],
+  ['features/place-import/import.chipRow', () => jest.requireActual('@/features/place-import/import.style').styles.chipRow],
+  ['features/date-plan/place-detail.ratingRow', () => jest.requireActual('@/features/date-plan/place-detail.style').styles.ratingRow],
+  ['features/matching/swipe.tagRow', () => jest.requireActual('@/features/matching/swipe.style').styles.tagRow],
+  ['features/assistant/result-card.badges', () => jest.requireActual('@/features/assistant/result-card.style').styles.badges],
+] as const
+
+it('backs the app-wide chip gap with the 4pt spacing token', () => {
+  expect(chipRowGap).toBe(spacing[1])
+  expect(chipRowGap).toBe(4)
+})
+
+it.each(chipRows)('%s uses 4pt on both axes in every theme', (_name, getRow) => {
+  for (const theme of Object.values(themes)) {
+    currentTheme = theme
+    const style = StyleSheet.flatten(getRow())
+    expect(style.gap).toBe(4)
+    expect(style.columnGap ?? style.gap).toBe(4)
+    expect(style.rowGap ?? style.gap).toBe(4)
+    expect(['space-between', 'space-around', 'space-evenly']).not.toContain(style.justifyContent)
+  }
 })

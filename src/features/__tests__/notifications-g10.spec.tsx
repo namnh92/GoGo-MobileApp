@@ -129,7 +129,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   // Without centering, Yoga stretches the bare selected chip to the siblings'
   // 44pt touch hosts, while their visual chip bodies remain 32pt.
   expect(rowStyle.alignItems).toBe('center')
-  expect(rowStyle.gap).toBe(spacing[2])
+  expect(rowStyle.gap).toBe(4)
   expect(rowStyle.paddingVertical).toBe(spacing[1])
   expect(rowStyle.paddingHorizontal ?? 0).toBe(0)
   expect(rowStyle.marginHorizontal ?? 0).toBe(0)

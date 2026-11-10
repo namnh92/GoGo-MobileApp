@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { fill, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, fill, overlay, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 /** The hero sits inside the page margin, as the Stitch draft draws it. */
 export const GALLERY_MARGIN = spacing[4]
@@ -80,7 +80,7 @@ export const styles = StyleSheet.create(theme => {
   facts: { marginTop: spacing[4], gap: spacing[3] },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   priceText: { flexShrink: 1 },
-  ratingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  ratingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   ratingChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -118,7 +118,7 @@ export const styles = StyleSheet.create(theme => {
   infoBody: { flex: 1, gap: 2 },
   updatedIcon: { width: 40, alignItems: 'center', justifyContent: 'center' },
   updated: { flex: 1 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: 2 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap, marginTop: 2 },
 
   // --- trust ---------------------------------------------------------------
   attribution: { marginTop: spacing[3], flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[3] },

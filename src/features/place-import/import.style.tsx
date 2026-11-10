@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1 },
@@ -132,7 +132,7 @@ export const styles = StyleSheet.create((theme) => ({
   candidateRowActive: { borderColor: theme.accent.primary, backgroundColor: theme.accent.soft },
   metaSection: { marginTop: spacing[4], gap: spacing[2] },
   metaLabel: { marginTop: spacing[2] },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   priceRow: { flexDirection: 'row', gap: spacing[2] },
   priceInput: { flex: 1 },
   noteInput: { height: 96, minHeight: 72, textAlignVertical: 'top', paddingTop: spacing[3] },
