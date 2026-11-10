@@ -7,6 +7,7 @@ import { darkSurface, motion, overlay } from '../tokens'
 
 // Audited form owners, including forms inside sheets. Keep this inventory when
 // adding a submit/save/send flow; local-only wizard navigation has no mutation.
+// Owner #625: AI chat sends are not form submissions; their pending state stays in chat.
 const submitScreens = {
   'auth/sign-in': 'pending', // sign-in + sign-up; recovery is unavailable
   'tabs/profile': 'signingOut',
@@ -38,7 +39,6 @@ const submitScreens = {
   'notifications/notification-settings': 'save.isPending',
   'notifications/notification-switch': 'save.isPending',
   'tabs/saved-link': 'pending',
-  'assistant/assistant': 'sending', // POST acknowledgement, not the reply stream/Stop
   'assistant/history': 'saving',
   'assistant/assistant-reply': 'confirm.isPending || dismiss.isPending',
 } as const
