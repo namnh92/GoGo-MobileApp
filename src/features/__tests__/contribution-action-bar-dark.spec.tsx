@@ -33,7 +33,7 @@ it('uses dark role tokens in the wizard and keeps every action in the shared row
   expect(rule.parent!.children).toHaveLength(2)
   expect(rule.parent!.children[0]).toBe(title)
   expect(rule.parent!.children[1]).toBe(rule)
-  expect(StyleSheet.flatten(rule.parent!.props.style)).toMatchObject({ alignItems: 'flex-start', gap: spacing[0] })
+  expect(StyleSheet.flatten(rule.parent!.props.style)).toMatchObject({ alignItems: 'flex-start', gap: spacing[1] })
   expect(screen.queryByText('Cảm giác thực tế khi ngồi tại quán:')).toBeNull()
   await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   await fireEvent.press(bar.getByRole('button', { name: 'Tiếp tục' }))

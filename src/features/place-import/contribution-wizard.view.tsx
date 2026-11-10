@@ -133,7 +133,7 @@ function Wizard(props: WizardProps) {
     return (
       <View style={styles.heading}>
         <MaterialIcon name={icon} size={18} color="accent.primary" />
-        <View style={[styles.headingText, icon === 'mood' && styles.vibeHeadingText]}>
+        <View style={styles.headingText}>
           {action ? <View style={styles.titleRow}>
             <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1} style={styles.sectionTitle}>{title}</Text>
             {action}
