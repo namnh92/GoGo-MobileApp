@@ -1,3 +1,5 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { clearSavedLinkHandoff, readSavedLinkHandoff, type SavedLinkHandoff } from './saved-link-handoff'
 import { Chip } from '@/shared/ui/chip.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
@@ -76,13 +78,30 @@ function providerUnavailable(error: unknown): boolean {
  * in between; it is a fact about the place, not a failure to retry.
  */
 export default function PlaceImportScreen() {
+  return <ImportScreen savedWizard={false} />
+}
+
+export function SavedContributionScreen() {
+  return <ImportScreen savedWizard />
+}
+
+function ImportScreen({ savedWizard }: { savedWizard: boolean }) {
+  const router = useRouter()
+  const { savedLink } = useLocalSearchParams<{ savedLink?: string }>()
+  const [entry] = useState(() => readSavedLinkHandoff(savedLink))
+  const redirect = !savedWizard && entry?.resolution?.status === 'RESOLVED' && !!entry.resolution.candidate
+  useEffect(() => {
+    if (redirect) router.replace({ pathname: '/places/contribution', params: { savedLink } })
+    else clearSavedLinkHandoff(savedLink)
+  }, [redirect, router, savedLink])
   const { status } = useSession()
   const prefillConsumedRef = useRef(false)
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
-  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent prefillConsumedRef={prefillConsumedRef} /></ImportFlowProvider>
+  if (redirect) return <Atmosphere redesign style={styles.handoffLoading}><LoadingIndicator /></Atmosphere>
+  return <ImportFlowProvider online={online} registered={status === 'user'} initialLink={entry?.url} initialResolution={entry?.resolution}><PlaceImportContent prefillConsumedRef={prefillConsumedRef} entry={entry} /></ImportFlowProvider>
 }
 
-function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: MutableRefObject<boolean> }) {
+function PlaceImportContent({ prefillConsumedRef, entry }: { prefillConsumedRef: MutableRefObject<boolean>; entry?: SavedLinkHandoff }) {
   const { controller, state } = useImportFlow()
   const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
@@ -124,20 +143,22 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
     return () => subscription.remove()
   }, [revealFocused])
 
+  const [entryError, setEntryError] = useState<unknown>()
   const url = state.link
-  const setUrl = (value: string) => controller.reset(value)
+  const setUrl = (value: string) => { setEntryError(undefined); controller.reset(value) }
   const currentUrl = useRef('')
   useEffect(() => {
     // Consume route input once across session-driven content remounts. The
     // wizard controller remains the sole owner of the link and flow lifetime.
     if (prefillConsumedRef.current) return
     prefillConsumedRef.current = true
-    const parsed = mapsUrlSchema.safeParse(prefilledUrl)
-    if (parsed.success) {
-      controller.reset(parsed.data)
-      currentUrl.current = parsed.data
+    setEntryError(entry?.error)
+    const link = entry?.url ?? prefilledUrl
+    if (typeof link === 'string') {
+      if (!entry) controller.reset(link)
+      currentUrl.current = link
     }
-  }, [controller, prefilledUrl, prefillConsumedRef])
+  }, [controller, entry, prefilledUrl, prefillConsumedRef])
   const attemptGeneration = useRef(0)
   const formGeneration = state.flowGeneration
   const linkFrozen = state.phase === 'retiring' || state.phase === 'submissionUnknown'
@@ -153,6 +174,8 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
 
   const taxonomies = useTaxonomies({ kinds: 'category' })
   const resolve = useResolveGoogleMapsLink()
+  const resolutionError = resolve.isError ? resolve.error : entryError
+  const resolutionFailed = resolve.isError || entryError !== undefined
   const accepted = state.phase === 'retiring' || state.phase === 'completed'
   const wizard = useRef<{ saveDraft: () => Promise<boolean> }>(null)
   const exit = useContributionExit(async () => await wizard.current?.saveDraft() ?? false)
@@ -201,6 +224,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
     if (!ticket) return
     const generation = attemptGeneration.current
     setInvalid(false)
+    setEntryError(undefined)
     setResolvedUrl(parsed.data)
     setSelectedGooglePlaceId(null)
     track('place_import_submitted')
@@ -251,7 +275,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   const verified = result?.status === 'RESOLVED' && !!candidate
   const contributionPlaceId = verified ? candidate.googlePlaceId : result?.status === 'CANDIDATE_SELECTION' ? selectedGooglePlaceId : undefined
   const branchSelectionDisabled = foregroundBusy(state) || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
-  const offline = !online || resolve.isPaused || (resolve.isError && resolve.error instanceof NetworkError)
+  const offline = !online || resolve.isPaused || (resolutionFailed && resolutionError instanceof NetworkError)
   const validFormat = mapsUrlSchema.safeParse(url).success
   const showValidation = url.trim().length > 0 || invalid
 
@@ -269,7 +293,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   const wizardProps = {
     googlePlaceId: contributionPlaceId ?? '', registered: actorStatus === 'user', online,
     submitting: state.phase === 'submitting', blocked: notOpenYet || accepted,
-    onBack: changeLink, onFocus: revealFocused, onSubmit: () => { void onSubmitPlace() },
+    onBack: entry ? () => router.back() : changeLink, onFocus: revealFocused, onSubmit: () => { void onSubmitPlace() },
   }
 
   async function pasteLink() {
@@ -291,7 +315,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   return (
     <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
       <AppHeader testID="import-header" title={t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}
-        onBack={() => exit.requestExit(verified ? changeLink : () => router.back())} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
+        onBack={() => exit.requestExit(verified && !entry ? changeLink : () => router.back())} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
         bellTestID="import-bell" unreadDotTestID="import-unread-dot"
         rightAction={!verified ? <AppHeaderAction accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }}><MaterialIcon name="help" size={24} color="text.secondary" /></AppHeaderAction> : undefined} />
       <FocusedFieldGroup.Provider value={focusedGroup}>
@@ -385,15 +409,15 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                   </View>
                 </>}
 
-                {resolve.isError && !offline ? (
+                {resolutionFailed && !offline ? (
                   <View style={styles.rejectedCard}>
                     <Text variant="title2" color="status.dangerText">
-                      {t(providerUnavailable(resolve.error) ? 'placeImport.providerUnavailableTitle' : 'placeImport.rejectedTitle')}
+                      {t(providerUnavailable(resolutionError) ? 'placeImport.providerUnavailableTitle' : 'placeImport.rejectedTitle')}
                     </Text>
                     <Text variant="bodySmall" style={styles.rejectedReason}>
-                      {providerUnavailable(resolve.error)
+                      {providerUnavailable(resolutionError)
                         ? t('placeImport.providerUnavailable')
-                        : isApiError(resolve.error) && resolve.error.status === 429
+                        : isApiError(resolutionError) && resolutionError.status === 429
                           ? t('placeImport.rateLimited')
                           : t('common.errorBody')}
                     </Text>

@@ -30,6 +30,7 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/onboarding',
   '/places/[placeId]',
   '/places/import',
+  '/places/contribution',
   '/places/search',
   '/places/reviews/[placeId]',
   '/plans/[planId]',

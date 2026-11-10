@@ -4,6 +4,7 @@ import { radius, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1 },
+  handoffLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   resultPreview: { width: '100%', backgroundColor: theme.surface.high },
   resultPreviewContent: { padding: theme.spacing[2], borderWidth: 0, backgroundColor: theme.surface.high },
   inputCanvas: { backgroundColor: theme.surface.inset },
