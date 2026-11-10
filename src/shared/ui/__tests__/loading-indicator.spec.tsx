@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { AccessibilityInfo, Platform, RefreshControl, StyleSheet, ScrollView } from 'react-native'
+import { AccessibilityInfo, Platform, RefreshControl, StyleSheet, ScrollView, FlatList, SectionList } from 'react-native'
 import { cancelAnimation, useAnimatedProps, withRepeat } from 'react-native-reanimated'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
@@ -9,6 +9,7 @@ import { logoPaths } from '../gogo-logo.asset'
 import { LoadingIndicator } from '../loading-indicator.view'
 import { PrimaryBtn } from '../button.view'
 import { PullToRefresh } from '../refresh-control.view'
+import { NotificationListSkeleton } from '../skeleton.view'
 
 jest.mock('react-native-reanimated', () => {
   const mock = jest.requireActual('react-native-reanimated/mock')
@@ -77,6 +78,37 @@ describe.each(['orange', 'orangeDark'] as const)('%s loading', name => {
     expect(control().props.refreshing).toBe(true)
     expect(StyleSheet.flatten(screen.getByTestId('refresh-loading-indicator').props.style)).toMatchObject({ width: 48, height: 48 })
     await act(async () => { if (outcome === 'resolve') finish(); else fail(new Error('offline')) })
+    expect(control().props.refreshing).toBe(false)
+    expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
+  })
+
+  it.each(['ScrollView', 'FlatList', 'SectionList'] as const)('%s shows only skeletons on first load and refreshes only after a pull', async kind => {
+    let finish!: () => void
+    const refresh = jest.fn(() => new Promise<void>(resolve => { finish = resolve }))
+    const element = (fetching: boolean, firstLoad: boolean) => {
+      const skeleton = firstLoad ? <NotificationListSkeleton /> : null
+      const list = kind === 'ScrollView' ? <ScrollView testID="list">{skeleton}</ScrollView>
+        : kind === 'FlatList' ? <FlatList testID="list" data={[]} renderItem={() => null} ListEmptyComponent={skeleton} />
+          : <SectionList testID="list" sections={[]} renderItem={() => null} ListEmptyComponent={skeleton} />
+      return <PullToRefresh refreshing={fetching} onRefresh={refresh}>{list}</PullToRefresh>
+    }
+    const view = await render(element(true, true))
+    const control = () => screen.getByTestId('list').props.refreshControl
+    expect(screen.getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
+    expect(control().props.refreshing).toBe(false)
+    expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
+    await view.rerender(element(false, false))
+    await view.rerender(element(true, false))
+    expect(control().props.refreshing).toBe(false)
+    expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
+    await view.rerender(element(false, false))
+    await act(async () => { control().props.onRefresh() })
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(control().props.refreshing).toBe(true)
+    expect(screen.getByTestId('refresh-loading-indicator')).toBeTruthy()
+    await view.rerender(element(true, false))
+    expect(control().props.refreshing).toBe(true)
+    await act(async () => { finish() })
     expect(control().props.refreshing).toBe(false)
     expect(screen.queryByTestId('refresh-loading-indicator')).toBeNull()
   })

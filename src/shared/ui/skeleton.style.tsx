@@ -11,7 +11,7 @@ export const styles = StyleSheet.create(theme => ({
   listCard: { overflow: 'hidden' },
   // The pulsing thumb is its own opacity layer, which the card's clip can miss
   // at the corners in light mode: round its top corners itself.
-  listThumb: { aspectRatio: 1.6, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card },
+  listThumb: { width: '100%', height: undefined, aspectRatio: 1.6, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card },
   listBody: { padding: spacing[4], gap: spacing[2] },
 
 
@@ -21,6 +21,11 @@ export const styles = StyleSheet.create(theme => ({
   memberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   memberAvatar: { width: 48, height: 48, borderRadius: 24 },
   memberLines: { flex: 1, gap: spacing[2] },
+  notificationCard: { flexDirection: 'row', gap: spacing[3], padding: spacing[4], borderRadius: 16, backgroundColor: theme.surface.low },
+  planListCard: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
+  reviewCard: { padding: spacing[5], gap: spacing[3] },
+  stopListCard: { gap: spacing[3] },
+  stopActions: { flexDirection: 'row', gap: spacing[2] },
 
   planRow: { flexDirection: 'row', gap: spacing[3] },
   planRail: { width: 40, alignItems: 'center', gap: spacing[2] },

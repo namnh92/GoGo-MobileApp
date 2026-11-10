@@ -158,3 +158,11 @@ it('loads the next page inside detail, deduplicates rows, and has no separate pa
   expect(screen.getAllByText('Người viết 1')).toHaveLength(1)
   expect(screen.getByText('Người viết 2')).toBeTruthy()
 })
+
+
+it('renders review rows as skeletons without the loading mark on page one (#619)', async () => {
+  mockReviews = mockPending()
+  await renderScreen(<PlaceDetailScreen />)
+  expect(section().getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
+  expect(section().queryByTestId('loading-indicator')).toBeNull()
+})

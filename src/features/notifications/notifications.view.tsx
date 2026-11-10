@@ -26,7 +26,7 @@ import { notificationCapabilities } from './notification-capabilities'
 import { Chip } from '@/shared/ui/chip.view'
 import { Icon } from '@/shared/ui/icons'
 import { MaterialIcon } from '@/shared/ui/material-icon'
-import { Skeleton } from '@/shared/ui/skeleton.view'
+import { NotificationListSkeleton } from '@/shared/ui/skeleton.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { styles } from './notifications.style'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -195,9 +195,7 @@ export default function NotificationsScreen() {
             title={t(systemInbox.status === 'unsupported' ? 'g10.systemUnavailableTitle' : 'g10.systemEmpty')}
             body={t('g10.systemEmptyBody')} illustration={emptyIllustration} /></View>
   ) : inbox.isPaused && !inbox.data ? <OfflineState />
-    : inbox.isPending ? <View testID="notifications-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}>
-      {[0, 1, 2].map(key => <View key={key} style={styles.skeletonRow}><Skeleton width={48} height={48} radius={24} /><View style={styles.content}><Skeleton width="65%" height={14} /><Skeleton width="100%" height={48} /></View></View>)}
-    </View> : inbox.isError && !inbox.data ? <View testID="notifications-error" style={styles.empty}>
+    : inbox.isPending ? <NotificationListSkeleton /> : inbox.isError && !inbox.data ? <View testID="notifications-error" style={styles.empty}>
       <ErrorState error={inbox.error} onRetry={retryInbox} />
     </View> : category !== 'all' && inbox.hasNextPage && inbox.isPaused ? <OfflineState />
       : filling || (category !== 'all' && inbox.hasNextPage && inbox.isError)
@@ -256,7 +254,7 @@ export default function NotificationsScreen() {
             <Text variant="bodySmall" color="text.secondary">{t('g10.systemFetchFailed')}</Text>
             <GhostBtn label={t('common.retry')} loading={systemInbox.isFetching} onPress={() => void systemInbox.refetch()} />
           </View> : null}
-          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) && !systemInbox.isFetchingNextPage ? <LoadingIndicator testID="system-notifications-loading" accessibilityLabel={t('common.loading')} style={styles.loadingFooter} /> : null}
+          {showSystemStatus && !systemInbox.isPaused && (systemInbox.isPending || systemInbox.loadingAll) && !systemInbox.isFetchingNextPage ? <NotificationListSkeleton testID="system-notifications-loading" /> : null}
         </View> : null}</View>}
         ListEmptyComponent={listState}
         ListFooterComponent={<>

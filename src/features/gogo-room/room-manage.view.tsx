@@ -19,7 +19,7 @@ import {
   useUpdateRoomConstraints,
 } from '@/shared/api'
 import { formatMoney } from '@/shared/pricing/money'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
@@ -29,6 +29,7 @@ import { spacing } from '@/shared/ui/tokens'
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
 import { RoomScheduleEditor } from './room-schedule-editor.view'
 import { RoomTitleEditor } from './room-title-editor.view'
+import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { styles } from './room-manage.style'
 
 export default function RoomManageScreen() {
@@ -62,7 +63,10 @@ export default function RoomManageScreen() {
     return (
       <Atmosphere>
         {header}
-        <LoadingState />
+        <View testID="room-manage-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.card}>
+          <Skeleton width="60%" height={20} /><Skeleton width="100%" height={88} />
+          <Skeleton width="45%" height={20} /><RoomMemberSkeleton />
+        </View>
       </Atmosphere>
     )
   }

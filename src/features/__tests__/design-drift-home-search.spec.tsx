@@ -1422,3 +1422,14 @@ it('pulls to refresh the explore list and requests pages of ten', async () => {
   expect(refetch).toHaveBeenCalledTimes(1)
   expect(mockQueries.at(-1)).toMatchObject({ limit: 10 })
 })
+
+
+it.each(['home', 'search-list', 'search-map'])('%s uses place-card skeletons without a loading mark on page one (#619)', async screen => {
+  mockSearch.value = { ...emptyPage(), data: undefined, isPending: true, isSuccess: false }
+  mockPreview.value = { isPending: true, isFetching: true, data: undefined }
+  const view = await renderScreen(screen === 'home' ? <HomeScreen /> : <SearchScreen />)
+  if (screen === 'search-list') await fireEvent.press(view.getByRole('tab', { name: 'Danh sách' }))
+  expect(view.getAllByTestId('place-card-skeleton').length).toBeGreaterThan(0)
+  expect(view.queryByTestId('loading-indicator')).toBeNull()
+  expect(view.queryByTestId('search-loading-more')).toBeNull()
+})

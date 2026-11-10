@@ -16,7 +16,9 @@ export function PullToRefresh({ children, onRefresh, refreshing = false, enabled
   const inFlight = useRef(false)
   const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  const busy = pulling || refreshing
+  // Query activity can be initial loading or a background refetch. Only the
+  // native pull gesture owns this indicator; its promise determines completion.
+  const busy = pulling
   async function refresh() {
     if (!enabled || inFlight.current || refreshing) return
     inFlight.current = true
