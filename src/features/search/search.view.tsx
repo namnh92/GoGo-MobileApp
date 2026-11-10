@@ -3,7 +3,6 @@ import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
-import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
@@ -254,7 +253,7 @@ export default function SearchScreen() {
     return <View style={styles.mapBlock}><SearchMapPanel expanded={mapExpanded} onExpandedChange={setMapExpanded}><View testID="search-map" style={styles.mapBlock}>
       <View style={styles.mapBlock}>
         <MapCanvas pins={map.pins.map(pin => ({ ...pin, selected: pin.id === selectedMarker }))} cameraRegion={viewport ?? map.region} cameraScopeKey={mapScopeKey} onRegionChangeComplete={exploreRegion} showsUserLocation={!isPicker && map.showsUserLocation} onSelect={id => setMarkerSelection({ data: search.data, scopeKey: mapScopeKey, mode, id })} onDeselect={dismissMapCard} style={styles.map} fallback={renderResults(true)} />
-        {selectedPlace ? <GestureDetector gesture={dismissCardGesture}><View testID="search-map-card" style={[styles.mapPreview, { bottom: (isPicker || mapExpanded ? insets.bottom : 0) + 16 }]} onAccessibilityEscape={dismissMapCard}>
+        {selectedPlace ? <GestureDetector gesture={dismissCardGesture}><View testID="search-map-card" style={[styles.mapPreview, { bottom: insets.bottom + 16 }]} onAccessibilityEscape={dismissMapCard}>
           <PlaceCardSmall place={selectedPlace} onPress={() => onPlacePress(selectedPlace)}
             accessibilityLabel={t('discovery.openPlace')} accessibilityHint={selectedPlace.name}
             saved={canSave ? isSaved(saved.data, 'place', selectedPlace.id) : undefined}
@@ -267,7 +266,7 @@ export default function SearchScreen() {
       {search.isFetching || search.isFetchNextPageError ? <View testID="search-map-pagination" style={[styles.mapPagination, selectedPlace ? styles.mapPaginationAboveCard : { bottom: insets.bottom + 8 }]}>
         {search.isFetching ? <LoadingIndicator testID="search-loading-more" size={loadingIndicator.compactSize} /> : <GhostBtn label={t('common.retry')} disabled={search.isFetching || search.isPaused} onPress={() => { if (!search.isFetching && !search.isPaused) void search.fetchNextPage({ cancelRefetch: false }) }} />}
       </View> : null}
-    </View></SearchMapPanel>{!isPicker && !mapExpanded ? <AppTabDock active="home" /> : null}</View>
+    </View></SearchMapPanel></View>
   }
   return <Atmosphere redesign>
     {!mapExpanded ? <><AppHeader testID="search-header" title={t('discovery.searchTitle')} onBack={() => router.back()} bellTestID="search-bell" unreadDotTestID="search-unread-dot"

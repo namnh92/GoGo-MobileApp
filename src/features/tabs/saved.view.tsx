@@ -17,7 +17,6 @@ import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, Card, GhostBtn } from '@/shared/ui/primitives'
 import { PlaceCardSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { TAB_BAR_HEIGHT } from '@/shared/ui/bottom-bar-inset'
 import { styles as cityStyles } from './saved-city.style'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -28,10 +27,9 @@ import { savedDistance, savedUnavailable } from './saved-facts'
 import { SavedLink } from './saved-link.view'
 
 /** One Saved renderer for the city overview and the pushed ward list. */
-export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
+export function SavedPlacesScreen({ city, renderHeader }: {
   city?: { provinceCode: string; name: string }
   renderHeader?: (title: string, count: number | undefined) => ReactNode
-  renderBottomBar?: () => ReactNode
 }) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -150,7 +148,7 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           testID="saved-list"
           onScroll={city ? undefined : fab.onScroll}
           scrollEventThrottle={fab.scrollEventThrottle}
-          contentContainerStyle={[styles.list, city && cityStyles.list, { paddingBottom: city ? insets.bottom + TAB_BAR_HEIGHT + spacing[6] : fab.bottomInset }]}
+          contentContainerStyle={[styles.list, city && cityStyles.list, { paddingBottom: city ? insets.bottom + spacing[6] : fab.bottomInset }]}
         >
           {visibleGroups.map(group => (
             <View key={group.key} style={styles.group}>
@@ -182,7 +180,6 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           ))}
         </ScrollView></PullToRefresh>
       )}
-      {renderBottomBar?.()}
       <ResultSheet visible={resultError} variant="error" title={t('saved.actionFailed')} body={t('saved.retryBody')}
         primaryAction={{ label: t('common.close'), onPress: () => setResultError(false) }} onClose={() => setResultError(false)} />
     </Atmosphere>

@@ -664,8 +664,8 @@ describe('#561 marker selection and compact map card', () => {
       }], meta: {} }] } }
       const view = await renderScreen(<SearchScreen />)
       await fireEvent.press(view.getByText(i18n.t('discovery.map')))
-      expect(view.getByTestId('app-tab-dock')).toBeTruthy()
-      expect(view.getByRole('tab', { name: i18n.t('tabs.home') }).props.accessibilityState.selected).toBe(true)
+      expect(view.queryByTestId('app-tab-dock')).toBeNull()
+      expect(view.queryByRole('tab', { name: i18n.t('tabs.home') })).toBeNull()
       expect(view.queryByTestId('search-map-card')).toBeNull()
       const select = async () => fireEvent.press(within(view.getByTestId('discovery-native-map')).getByLabelText('Top place'))
       await select()
@@ -685,7 +685,7 @@ describe('#561 marker selection and compact map card', () => {
       }
       for (const text of ['Cà phê', 'Mở đến 20:00']) expect(card.queryByText(text)).toBeNull()
       for (const id of ['place-card-price', 'place-card-hours-badge', 'place-card-tags', 'place-card-distance']) expect(card.queryByTestId(id)).toBeNull()
-      expect(StyleSheet.flatten(view.getByTestId('search-map-card').props.style).bottom).toBe(16)
+      expect(StyleSheet.flatten(view.getByTestId('search-map-card').props.style).bottom).toBe(34 + 16)
       await fireEvent.press(card.getByTestId('place-card-save'))
       expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'top', saved: false })
       expect(mockPush).not.toHaveBeenCalled()
@@ -711,8 +711,7 @@ describe('#561 marker selection and compact map card', () => {
       await select()
       await fireEvent.press(view.getByTestId('place-card-open-target'))
       expect(mockPush).toHaveBeenCalledWith('/places/top')
-      await fireEvent.press(view.getByRole('tab', { name: i18n.t('tabs.plans') }))
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/plans')
+      expect(view.queryByRole('tab', { name: i18n.t('tabs.plans') })).toBeNull()
     } finally { UnistylesStyleSheet.configure({ themes }) }
   })
 })

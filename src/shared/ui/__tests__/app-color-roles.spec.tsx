@@ -17,7 +17,6 @@ jest.spyOn(unistyles.StyleSheet, 'create').mockImplementation(factory => {
 const { Chip } = jest.requireActual<typeof import('../chip.view')>('../chip.view')
 const { styles: input } = jest.requireActual<typeof import('@/features/place-import/import.style')>('@/features/place-import/import.style')
 const { styles: wizard } = jest.requireActual<typeof import('@/features/place-import/contribution-wizard.style')>('@/features/place-import/contribution-wizard.style')
-const { styles: saved } = jest.requireActual<typeof import('@/features/tabs/saved-city.style')>('@/features/tabs/saved-city.style')
 const { styles: notification } = jest.requireActual<typeof import('../header-notification-button.style')>('../header-notification-button.style')
 const { styles: home } = jest.requireActual<typeof import('@/features/home/home.style')>('@/features/home/home.style')
 
@@ -35,7 +34,6 @@ describe.each(Object.entries(themes))('%s real accent bindings (#556)', (_name, 
     expect(input.inputPrimary.backgroundColor).toBe(theme.accent.primaryMuted)
     expect(input.photoPicker.borderColor).toBe(theme.accent.text)
     expect(input.benefitIcon.backgroundColor).toBe(theme.accent.container)
-    expect(saved.activeDot.backgroundColor).toBe(theme.accent.primary)
     expect(notification.unreadDot.backgroundColor).toBe(theme.accent.primary)
     expect(home.heroPrimary.backgroundColor).toBe(theme.accent.primaryDeep)
     expect(resolveColor(theme, 'accent.textMuted')).toBe(theme.accent.textMuted)
