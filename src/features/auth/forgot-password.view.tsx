@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
@@ -46,12 +46,6 @@ export default function ForgotPasswordScreen() {
     useRecoveryFlow.getState().setFlow(null)
     router.replace({ pathname: '/auth/sign-in', params: destination ? { next: destination } : {} })
   }
-  function changeEmail() {
-    if (request.isPending) return
-    useRecoveryFlow.getState().setFlow(null)
-    setDigits(Array(6).fill(''))
-    request.reset()
-  }
   function enterCode(value: string[]) {
     setDigits(value)
     if (!flow || handingOff.current || request.isPending) return
@@ -89,9 +83,6 @@ export default function ForgotPasswordScreen() {
             </View>
             {flow.invalidCode && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('auth.recovery.invalidCode')}</Text>}
             {expiryRemaining === 0 && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('auth.recovery.codeExpired')}</Text>}
-            <Pressable accessibilityRole="button" disabled={request.isPending} accessibilityState={{ disabled: request.isPending }} onPress={changeEmail} style={styles.link}>
-              <Text variant="introCaption" color="accent.primary">{t('auth.recovery.changeEmail')}</Text>
-            </Pressable>
           </View> : <Controller control={form.control} name="email" render={({ field, fieldState }) => <LabelledInput
             {...fieldVisibility('email')} groupTestID="recovery-email-field" ref={field.ref} label={t('auth.email')} icon="mail" value={field.value} onChangeText={value => { request.reset(); field.onChange(value) }} onBlur={() => { field.onBlur(); fieldVisibility('email').onBlur() }} onSubmitEditing={submit}
             autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address"

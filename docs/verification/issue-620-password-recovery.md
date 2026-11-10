@@ -66,13 +66,13 @@ seconds/HTTP date và fallback 60 giây.
 
 1. Light/vi: Đăng nhập → Quên? → nhập email → Gửi mã. Kiểm tra header, nút busy,
    không có note 5 phút/link quay lại đăng nhập; bàn phím không che CTA.
-   Sau 202 vẫn cùng màn, chỉ hiện email che + OTP và “Đổi email”.
+   Sau 202 vẫn cùng màn, chỉ hiện email che + OTP, không có “Đổi email”.
 2. Kiểm tra email che, nhập từng số, dán toàn bộ 6 số vào các ô, autofill trên
    thiết bị nếu có, backspace và VoiceOver đọc nhãn từng ô.
 3. Kiểm countdown từ thời điểm API, ví dụ 4:59. Sau 60 giây nút vẫn khóa với label countdown expiry;
    sau 300 giây nút bật “Gửi lại mã” nếu quota cho phép; thông báo hết hạn.
    Đủ 6 số trước expiry chuyển sang password/checklist, không còn ô code.
-   “Đổi email” khôi phục email input, cho sửa typo; không xóa quota email cũ. Thử đưa app
+   Không có action “Đổi email” trong OTP. Thử đưa app
    xuống nền rồi quay lại. Gửi lại mã xóa mã cũ và bắt đầu countdown mới.
    Sau request thứ ba trong giờ, kiểm nút gửi lại bị khóa với thời gian chờ;
    rời màn rồi nhập lại cùng email vẫn bị khóa, email khác có quota riêng.
@@ -123,7 +123,7 @@ Quyết định owner trong yêu cầu hiện tại là sai khác có chủ ý v
 
 - Bỏ link “Quay lại đăng nhập” và note “Mã hết hạn sau 5 phút.”; dùng header back.
 - 202 giữ nguyên màn forgot-password: email input → OTP 6 ô, context email che,
-  action chữ nhỏ “Đổi email” để sửa typo. Không điều hướng trên request 202.
+  không còn action “Đổi email”. Không điều hướng trên request 202.
 - Primary CTA chứa countdown từ expiry API, ví dụ “Gửi lại mã sau 4:59”; về 0
   bật “Gửi lại mã” nếu 1/phút, 3/giờ/email và Retry-After không còn khóa.
 - Đủ 6 chữ số trước expiry chuyển sang reset-password, chỉ password/checklist.

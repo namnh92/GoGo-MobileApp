@@ -97,7 +97,7 @@ export default function ResetPasswordScreen() {
                 <Controller control={form.control} name="confirmPassword" render={({ field, fieldState }) => <LabelledInput
                   {...confirmVisibility}
                   ref={field.ref} label={t('auth.recovery.confirmPassword')} icon="lock" value={field.value} onChangeText={field.onChange} onBlur={() => { field.onBlur(); confirmVisibility.onBlur() }}
-                  autoCapitalize="none" autoCorrect={false} autoComplete="new-password" maxLength={128} onSubmitEditing={submit}
+                  placeholder={t('auth.recovery.confirmPasswordPlaceholder')} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" maxLength={128} onSubmitEditing={submit}
                   secureTextEntry={!showConfirmPassword} editable={!pending}
                   error={mismatch && (fieldState.isTouched || (field.value.length > 0 && field.value.length === values.password?.length) || form.formState.submitCount > 0) ? t('auth.recovery.passwordMismatch') : undefined}
                   trailing={<Pressable accessibilityRole="button" accessibilityLabel={t(showConfirmPassword ? 'auth.hidePassword' : 'auth.showPassword')}

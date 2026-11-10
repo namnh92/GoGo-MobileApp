@@ -583,7 +583,7 @@ it('validates an invalid email on keyboard submit', async () => {
 it.each([
   ['vi', 'Mã đã gửi tới b***@example.com', 'Đổi email', 'Gửi lại mã sau 5:00'],
   ['en', 'Code sent to b***@example.com', 'Change email', 'Resend code in 5:00'],
-])('lets a typo be corrected without losing quota in %s', async (locale, context, change, countdown) => {
+])('shows OTP without a change-email action in %s', async (locale, context, change, countdown) => {
   mockParams = { next: '/saved' }
   await i18n.changeLanguage(locale)
   await render(<ForgotPassword />)
@@ -593,16 +593,9 @@ it.each([
   expect(button(countdown).props.accessibilityState.disabled).toBe(true)
   expect(screen.queryByText(i18n.t('auth.recovery.expiry'))).toBeNull()
   expect(screen.queryByText(i18n.t('auth.recovery.backToSignIn'))).toBeNull()
-  await fireEvent.press(button(change))
-  expect(screen.getByLabelText('Email').props.value).toBe('binh@example.com')
-  expect(button(i18n.t('auth.recovery.sendCode')).props.accessibilityState.disabled).toBe(true)
-  expect(useRecoveryFlow.getState().flow).toBeNull()
-  await fireEvent.changeText(screen.getByLabelText('Email'), 'correct@example.com')
-  expect(button(i18n.t('auth.recovery.sendCode')).props.accessibilityState.disabled).toBe(false)
-  fetchMock.mockResolvedValueOnce(response(202, challenge()))
-  await fireEvent.press(button(i18n.t('auth.recovery.sendCode')))
-  await waitFor(() => expect(screen.queryByLabelText('Email')).toBeNull())
-  expect(useRecoveryFlow.getState().flow?.email).toBe('correct@example.com')
+  expect(screen.queryByRole('button', { name: change })).toBeNull()
+  expect(screen.queryByLabelText('Email')).toBeNull()
+  expect(useRecoveryFlow.getState().flow?.email).toBe('binh@example.com')
   expect(useRecoveryFlow.getState().flow?.next).toBe('/saved')
   for (let n = 1; n <= 6; n++) expect(screen.getByLabelText(i18n.t('auth.recovery.codeDigit', { position: n })).props.value).toBe('')
 })
@@ -617,4 +610,18 @@ it('returns from password to OTP with header back, then clears the challenge on 
   expect(digit(1).props.value).toBe('')
   await forgot.unmount()
   expect(useRecoveryFlow.getState().flow).toBeNull()
+})
+
+it.each([
+  ['vi', 'Nhập lại mật khẩu mới'],
+  ['en', 'Re-enter new password'],
+])('shows the confirmation placeholder using the password input style in %s', async (locale, placeholder) => {
+  await i18n.changeLanguage(locale)
+  seedFlow()
+  await render(<ResetPassword />)
+  const password = screen.getByLabelText(i18n.t('auth.recovery.newPassword'))
+  const confirm = screen.getByLabelText(i18n.t('auth.recovery.confirmPassword'))
+  expect(confirm.props.placeholder).toBe(placeholder)
+  expect(confirm.props.placeholderTextColor).toBe(password.props.placeholderTextColor)
+  expect(confirm.props.style).toEqual(password.props.style)
 })
