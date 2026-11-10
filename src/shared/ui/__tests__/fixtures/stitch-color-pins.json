@@ -483,8 +483,7 @@
     ],
     "src/features/tabs/saved-city.style.tsx": [
       "surface.inset",
-      "surface.disabled",
-      "accent.primary"
+      "surface.disabled"
     ],
     "src/features/tabs/profile.style.tsx": [
       "status.infoSoft",
@@ -521,10 +520,7 @@
       "text.secondary"
     ],
     "src/features/tabs/saved-city.view.tsx": [
-      "text.secondary",
-      "accent.textMuted",
-      "accent.text",
-      "text.secondary"
+      "accent.textMuted"
     ],
     "src/features/tabs/profile-upcoming.view.tsx": [
       "text.secondary",
