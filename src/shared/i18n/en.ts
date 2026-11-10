@@ -162,7 +162,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "g11.unlock": "Unlock all of GoGo",
   "g11.unlockBody": "Sign in or register to save places, sync your profile and create rooms with friends.",
   "g11.signIn": "Sign in / register",
-  "g11.userOnly": "An account is required for this feature.",
   "g11.guestHint": "Guests can accept invitations, choose preferences and vote in rooms they have joined.",
   "g11.settings": "Settings & utilities",
   "g11.experience": "Experience",

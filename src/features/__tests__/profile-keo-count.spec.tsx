@@ -53,11 +53,21 @@ describe.each(['orange', 'orangeDark'] as const)('profile identity in %s', theme
     expect(screen.queryByText('An')).toBeNull()
     expect(screen.getByText('Mở khóa trọn vẹn GoGo')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Đăng nhập / đăng ký' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Vào phòng bằng mã' })).toBeTruthy()
+    expect(screen.queryByTestId('profile-shortcut-row')).toBeNull()
+    for (const label of ['Đã lưu', 'Kèo', 'Đánh giá', 'Đóng góp']) {
+      expect(screen.queryByRole('button', { name: new RegExp(`^${label}(:|$)`) })).toBeNull()
+    }
   })
 
   it('keeps the signed-in identity and removes it when the mounted tab becomes signed out', async () => {
     const view = await render(<ProfileScreen />)
     const identity = within(screen.getByTestId('profile-identity-card'))
+    const shortcuts = within(screen.getByTestId('profile-shortcut-row'))
+    expect(shortcuts.getAllByRole('button')).toHaveLength(4)
+    for (const label of ['Đã lưu: 2', 'Kèo: 0', 'Đánh giá: 0', 'Đóng góp: 0']) {
+      expect(shortcuts.getByRole('button', { name: label })).toBeTruthy()
+    }
     expect(identity.getByText('A')).toBeTruthy()
     expect(identity.getByText('An')).toBeTruthy()
     expect(identity.getByText('Hà Nội')).toBeTruthy()
@@ -68,12 +78,17 @@ describe.each(['orange', 'orangeDark'] as const)('profile identity in %s', theme
     await view.rerender(<ProfileScreen />)
     expect(screen.queryByTestId('profile-identity-card')).toBeNull()
     expect(screen.queryByText('A')).toBeNull()
+    expect(screen.queryByTestId('profile-shortcut-row')).toBeNull()
+    mockSession.status = 'user'
+    await view.rerender(<ProfileScreen />)
+    expect(within(screen.getByTestId('profile-shortcut-row')).getAllByRole('button')).toHaveLength(4)
+    mockSession.status = 'anonymous'
+    await view.rerender(<ProfileScreen />)
     expect(screen.getByText('Mở khóa trọn vẹn GoGo')).toBeTruthy()
   })
 })
 
-it.each(['user', 'guest'])('%s: shows zero rooms and still opens upcoming', async status => {
-  mockSession.status = status
+it('signed-in: shows zero rooms and still opens upcoming', async () => {
   await render(<ProfileScreen />)
   expect(mockUseMyRooms).toHaveBeenCalledWith({ enabled: true })
   const shortcut = screen.getByRole('button', { name: 'Kèo: 0' })
@@ -128,8 +143,7 @@ it('anonymous: disables the room query and omits cached counts', async () => {
   mockRooms.data.pages = [{ items: [{ id: 'a' }], nextCursor: null }]
   await render(<ProfileScreen />)
   expect(mockUseMyRooms).toHaveBeenCalledWith({ enabled: false })
-  expect(screen.getByRole('button', { name: 'Kèo' })).toBeTruthy()
-  expect(screen.queryByRole('button', { name: /^Kèo:/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Kèo/ })).toBeNull()
 })
 it('shows only real profile fields, resolved interests and full saved/review counts', async () => {
   await render(<ProfileScreen />)
@@ -142,7 +156,7 @@ it('shows only real profile fields, resolved interests and full saved/review cou
   expect(screen.getByTestId('profile-bell').props.accessibilityLabel).toBe('Thông báo, 8+ chưa đọc')
   expect(screen.getByTestId('profile-unread')).toBeTruthy()
 })
-it('guests have a sign-in card, locks with a reason and CTA, and accessible local theme settings', async () => {
+it('guests keep sign-in, join-by-code and local theme navigation', async () => {
   mockSession.status = 'guest'
   await render(<ProfileScreen />)
   expect(screen.getByRole('button', { name: 'Đăng nhập / đăng ký' })).toBeTruthy()
@@ -150,10 +164,9 @@ it('guests have a sign-in card, locks with a reason and CTA, and accessible loca
   await fireEvent.press(screen.getByTestId('profile-setting-Màu chủ đề'))
   expect(mockPush).toHaveBeenCalledWith('/settings/theme')
   mockPush.mockReset()
-  await fireEvent.press(screen.getByRole('button', { name: 'Đã lưu' }))
-  expect(mockPush).not.toHaveBeenCalled()
-  expect(screen.getByTestId('result-sheet')).toBeTruthy()
-  await fireEvent.press(screen.getByRole('button', { name: 'Đăng nhập' }))
+  await fireEvent.press(screen.getByRole('button', { name: 'Vào phòng bằng mã' }))
+  expect(mockPush).toHaveBeenCalledWith('/join')
+  await fireEvent.press(screen.getByRole('button', { name: 'Đăng nhập / đăng ký' }))
   expect(mockPush).toHaveBeenCalledWith('/auth/sign-in')
 })
 it('logout asks first and cancel leaves the session intact', async () => {
@@ -221,9 +234,8 @@ it('shows a contribution skeleton while loading and hides cached counts for gues
   await view.rerender(<ProfileScreen />)
   expect(mockSubmissionEnabled).toHaveBeenLastCalledWith(false)
   expect(screen.queryByRole('button', { name: /^Đóng góp:/ })).toBeNull()
-  await fireEvent.press(screen.getByRole('button', { name: 'Đóng góp' }))
-  expect(mockPush).not.toHaveBeenCalled()
-  expect(screen.getByTestId('result-sheet')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Đóng góp' })).toBeNull()
+  expect(screen.queryByTestId('profile-contributions-loading')).toBeNull()
 })
 it.each(['orange', 'orangeDark'] as const)('balances four tiles in one row with English labels in %s', async name => {
   UnistylesSheet.configure({ themes: { [name]: themes[name] } as unknown as typeof themes })
