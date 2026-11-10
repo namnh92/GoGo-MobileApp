@@ -76,11 +76,8 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
       <PlaceCardSmall
         place={place}
         onPress={card.available ? () => onOpen(card.placeId) : undefined}
-        showPrice
-        showStatus
-        hideMissingRating
-        caption={!card.available ? <Badge tone="warning" label={t('assistant.card.unavailable')} /> : undefined}
       />
+      {!card.available ? <Badge tone="warning" label={t('assistant.card.unavailable')} /> : null}
     </View>
   )
 }
