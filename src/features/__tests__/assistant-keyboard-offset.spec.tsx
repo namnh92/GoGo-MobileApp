@@ -1,18 +1,7 @@
 import { act, fireEvent } from '@testing-library/react-native'
 import { Dimensions } from 'react-native'
 
-/**
- * iOS acceptance BUG2 (GoGo-MobileApp#378): in the page sheet the keyboard
- * covered the composer, the disclaimer and the "Dừng sẽ giữ phần đã viết."
- * hint. `KeyboardAvoidingView` measures itself relative to the sheet but the
- * keyboard in window coordinates, and was never told the sheet starts lower
- * than the window. The sheet's gap — window height minus sheet height — is
- * now its `keyboardVerticalOffset`.
- *
- * jest has no keyboard or page sheet: this checks the wiring (the measured
- * gap reaches the avoiding view); the resulting position was checked on the
- * iPhone SE simulator.
- */
+/** #627: full-screen keyboard avoidance must not infer a sheet gap from window height. */
 
 // The real one renders a plain View and drops its own props; this keeps the
 // offset readable on the host view, so the spec sees what the screen passed.
@@ -45,14 +34,15 @@ syncTanstackNotifications()
 
 beforeEach(() => resetAssistantSpecState())
 
-it('before the sheet is measured there is no offset', async () => {
+it('uses window coordinates with no modal offset', async () => {
   installBackend()
   const view = await renderAssistant(<AssistantRoute />)
   expect(view.getByTestId('keyboard-avoiding').props.keyboardVerticalOffset).toBe(0)
+  expect(view.getByTestId('assistant-screen')).toHaveStyle({ paddingTop: 47 })
   await settle()
 })
 
-it('the avoiding view is offset by the gap between the window top and the sheet', async () => {
+it('does not infer an offset from a smaller screen layout', async () => {
   installBackend()
   const view = await renderAssistant(<AssistantRoute />)
   const windowHeight = Dimensions.get('window').height
@@ -61,6 +51,6 @@ it('the avoiding view is offset by the gap between the window top and the sheet'
       nativeEvent: { layout: { x: 0, y: 0, width: 375, height: windowHeight - 40 } },
     })
   })
-  expect(view.getByTestId('keyboard-avoiding').props.keyboardVerticalOffset).toBe(40)
+  expect(view.getByTestId('keyboard-avoiding').props.keyboardVerticalOffset).toBe(0)
   await settle()
 })
