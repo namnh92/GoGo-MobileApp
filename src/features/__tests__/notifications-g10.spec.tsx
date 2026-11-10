@@ -3,6 +3,7 @@ import { AppState, Linking, StyleSheet, type AppStateStatus } from 'react-native
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { buttonSizes, spacing, fontFamily } from '@/shared/ui/tokens'
 import { renderScreen } from './harness'
+import { scriptedTime } from './scripted-time'
 import i18n from '@/shared/i18n'
 import { viMessages } from '@/shared/i18n/vi'
 
@@ -72,6 +73,8 @@ const PermissionsScreen = jest.requireActual<typeof import('@/features/settings/
 const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:00:00Z', payload: { roomName: 'Phòng thật', inviterName: 'Lan', roomId: '11111111-1111-4111-8111-111111111111' } }
 const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
 const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications, clientFilter: false }] }, isPending: false, isError: false, refetch: mockRefetch })
+
+scriptedTime()
 
 beforeEach(() => {
   currentTheme = themes.orange
@@ -522,8 +525,7 @@ it.each([
 const NotificationCard = jest.requireActual<typeof import('@/features/notifications/notification-card.view')>('@/features/notifications/notification-card.view').NotificationCard
 const fullCase = require('../../../test/fixtures/notifications-full-case.json') as { notifications: import('@/shared/api').Notification[] }
 describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture', mode => {
-  beforeEach(() => { jest.useFakeTimers(); currentTheme = themes[mode]; mockInbox = loadedInbox(fullCase.notifications) })
-  afterEach(async () => { await act(async () => { jest.runOnlyPendingTimers() }); jest.useRealTimers() })
+  beforeEach(() => { currentTheme = themes[mode]; mockInbox = loadedInbox(fullCase.notifications) })
   it('taps every chip, uses selected weight/highlight/a11y and restores all rows', async () => {
     const screen = await renderScreen(<NotificationsScreen />)
     for (const [label, kinds] of [

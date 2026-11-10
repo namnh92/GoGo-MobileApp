@@ -6,6 +6,9 @@ import i18n from '@/shared/i18n'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { ToastProvider } from '@/shared/ui/toast.view'
 import type { AssistantMessage, AssistantProposal, AssistantConversation } from '@/shared/api'
+import { scriptedTime } from './scripted-time'
+
+scriptedTime()
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn(), canGoBack: () => true }
 let mockSignedIn = true

@@ -2,6 +2,9 @@ import { fireEvent, render, screen, within } from '@testing-library/react-native
 import { StyleSheet } from 'react-native'
 import { themes, type AppTheme } from '../theme'
 import i18n from '@/shared/i18n'
+import { scriptedTime } from '@/features/__tests__/scripted-time'
+
+scriptedTime()
 
 // Exercise the rendered controls with the real style factories in all accents
 // and both modes. These are component checks, not native screenshots.
