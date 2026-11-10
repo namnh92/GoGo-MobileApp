@@ -176,6 +176,12 @@ function AssistantChat({ account, keyboardOffset }: { account: string; keyboardO
         locale,
         ...(context ? { context: { placeId: context.placeId } } : {}),
         images: ready,
+      }).then(result => {
+        if (!result || result.accepted || text !== draft) return
+        const store = useAssistantDraftStore.getState()
+        const key = result.conversationId ?? NEW_CHAT
+        // A failed send restores the exact input without replacing a newer draft.
+        if (!store.drafts[key]) store.setDraft(key, text)
       })
       setImages([])
       if (text === draft) setDraft('')

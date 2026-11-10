@@ -1,8 +1,9 @@
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useTranslation } from 'react-i18next'
 import { Image } from 'expo-image'
-import { Pressable, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
+import { useRef } from 'react'
+import { Keyboard, Pressable, View } from 'react-native'
+import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 
@@ -68,8 +69,15 @@ export function Composer({
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
   const keyboard = useKeyboardVisible()
+  const inputRef = useRef<TextInputRef>(null)
   const uploading = images.some(image => image.uploadKey === null)
   const canSend = !disabled && !uploading && value.trim().length > 0
+  const submit = () => {
+    if (!canSend || generating) return
+    Keyboard.dismiss()
+    inputRef.current?.blur()
+    onSend()
+  }
   const attachDisabled = disabled || images.length >= MAX_IMAGES
 
   return (
@@ -116,6 +124,7 @@ export function Composer({
         </Pressable>
         <View style={styles.field}>
           <TextInput
+            ref={inputRef}
             testID="assistant-input"
             accessibilityLabel={t('assistant.composer.label')}
             placeholder={t('assistant.composer.placeholder')}
@@ -123,6 +132,8 @@ export function Composer({
             value={value}
             onChangeText={onChangeText}
             multiline
+            submitBehavior="submit"
+            onSubmitEditing={submit}
             maxLength={2000}
             style={styles.input}
           />
@@ -157,7 +168,7 @@ export function Composer({
             accessibilityLabel={t('assistant.composer.send')}
             accessibilityState={{ disabled: !canSend }}
             disabled={!canSend}
-            onPress={onSend}
+            onPress={submit}
             style={[styles.send, !canSend && styles.sendDisabled]}
           >
             <Icon name="send" size={20} color={canSend ? 'accent.onAccent' : 'text.secondary'} />

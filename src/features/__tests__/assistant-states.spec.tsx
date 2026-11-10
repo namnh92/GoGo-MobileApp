@@ -1,4 +1,5 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
+import { Keyboard } from 'react-native'
 
 /**
  * GoGo-MobileApp#378 (AI-APP-001) — the states around sending (design
@@ -76,6 +77,28 @@ it('sending stays in chat without a blocking overlay and disables Send', async (
     expect(view.queryByTestId('blocking-loading-modal')).toBeNull()
   } finally {
     await act(async () => { release() })
+    await settle()
+  }
+})
+
+it.each(['send button', 'keyboard submit'])('%s dismisses the keyboard and preserves failed input', async method => {
+  const dismiss = jest.spyOn(Keyboard, 'dismiss')
+  installBackend({ seed: false })
+  const view = await renderAssistant(<AssistantRoute />)
+  const text = '  Thử mất mạng  '
+  try {
+    await act(async () => {
+      await fireEvent.changeText(view.getByTestId('assistant-input'), text)
+    })
+    await act(async () => {
+      if (method === 'send button') await fireEvent.press(view.getByTestId('assistant-send'))
+      else await fireEvent(view.getByTestId('assistant-input'), 'submitEditing')
+    })
+    expect(dismiss).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(view.getByText('Chưa gửi. Chạm để thử lại')).toBeTruthy())
+    expect(view.getByTestId('assistant-input').props.value).toBe(text)
+  } finally {
+    dismiss.mockRestore()
     await settle()
   }
 })

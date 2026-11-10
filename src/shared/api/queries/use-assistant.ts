@@ -215,8 +215,8 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
       if (!item) return
       store.updateOutgoing(localId, { status: 'sending', error: undefined })
       const backend = getAssistantBackend()
+      let target = item.conversationId
       try {
-        let target = item.conversationId
         if (!target) {
           const conversation = await backend.createConversation(item.context ? { context: item.context } : {}, item.createKey)
           scope.assert()
@@ -241,12 +241,14 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
         insertTurn(client, target, turn)
         useAssistantDraftStore.getState().removeOutgoing(localId)
         void client.invalidateQueries({ queryKey: queryKeys.assistantConversations() })
+        return { accepted: true, conversationId: target }
       } catch (error) {
         if (scope.signal.aborted) return
         useAssistantDraftStore.getState().updateOutgoing(localId, { status: 'failed', error })
         if (isApiError(error) && (error.status === 429 || error.status === 503)) {
           void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
         }
+        return { accepted: false, conversationId: target }
       }
     },
     [client],
