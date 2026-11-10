@@ -3,7 +3,7 @@
 ## Thay đổi
 
 - Copy nguyên spec từ `../be-829/openapi/gogo.v1.yaml`, contract
-  `9.1.0-alpha.1`, và generate bằng `pnpm api:types`. Checkout này không có
+  `9.1.1-alpha.1`, và generate bằng `pnpm api:types`. Checkout này không có
   script `api:sync`/`api:generate`; không dùng sibling BE cũ.
 - Capability compile-check theo `NotificationSettings.quietHours` trong client
   generated. Chỉ mở công tắc khi response có giá trị, version và strong ETag;
