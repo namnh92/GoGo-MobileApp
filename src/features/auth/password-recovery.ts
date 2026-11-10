@@ -9,7 +9,7 @@ import type { OpResponse } from '@/shared/api/types'
 import type { MessageKey } from '@/shared/i18n/types'
 
 // Transient navigation state only: no persistence, URL parameters or analytics.
-export type RecoveryFlow = OpResponse<'requestPasswordRecovery'> & { email: string; next?: string }
+export type RecoveryFlow = OpResponse<'requestPasswordRecovery'> & { email: string; next?: string; code?: string; invalidCode?: boolean }
 export const useRecoveryFlow = create<{ flow: RecoveryFlow | null; setFlow: (flow: RecoveryFlow | null) => void }>(set => ({
   flow: null,
   setFlow: flow => set({ flow }),

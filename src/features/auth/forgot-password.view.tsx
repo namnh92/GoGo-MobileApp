@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
@@ -10,7 +11,8 @@ import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { Atmosphere } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { recoveryEmailSchema } from './auth-schema'
-import { formatRecoveryCountdown, recoveryErrorKey, recoveryRequestDeadline, useRecoveryRequestCountdown, useRecoveryFlow, useRecoveryRequest } from './password-recovery'
+import { formatRecoveryCountdown, maskRecoveryEmail, recoveryErrorKey, recoveryRequestDeadline, useRecoveryCountdown, useRecoveryRequestCountdown, useRecoveryFlow, useRecoveryRequest } from './password-recovery'
+import { RecoveryCode } from './recovery-code.view'
 import { styles } from './password-recovery.style'
 
 export default function ForgotPasswordScreen() {
@@ -18,21 +20,52 @@ export default function ForgotPasswordScreen() {
   const router = useRouter()
   const { next } = useLocalSearchParams<{ next?: string }>()
   const insets = useSafeAreaInsets()
+  const initialNext = useRef(useRecoveryFlow.getState().flow?.next ?? next)
   const request = useRecoveryRequest()
-  const form = useForm<{ email: string }>({ resolver: zodResolver(recoveryEmailSchema), defaultValues: { email: '' }, mode: 'onTouched' })
+  const flow = useRecoveryFlow(state => state.flow)
+  const [digits, setDigits] = useState<string[]>(Array(6).fill(''))
+  const handingOff = useRef(false)
+  useEffect(() => () => {
+    if (!handingOff.current) useRecoveryFlow.getState().setFlow(null)
+  }, [])
+  const form = useForm<{ email: string }>({ resolver: zodResolver(recoveryEmailSchema), defaultValues: { email: flow?.email ?? '' }, mode: 'onTouched' })
   const email = useWatch({ control: form.control, name: 'email' })
   const validEmail = recoveryEmailSchema.safeParse({ email }).success
-  const remaining = useRecoveryRequestCountdown(email)
+  const quotaRemaining = useRecoveryRequestCountdown(flow?.email ?? email)
+  const expiresAt = Date.parse(flow?.expiresAt ?? '') || 0
+  const expiryRemaining = useRecoveryCountdown(expiresAt)
+  const remaining = Math.max(quotaRemaining, flow ? expiryRemaining : 0)
   const requestError = request.error ? recoveryErrorKey(request.error) : undefined
   const accountNotFound = requestError === 'auth.recovery.accountNotFound'
-  const back = () => router.replace({ pathname: '/auth/sign-in', params: next ? { next } : {} })
+  const destination = flow?.next ?? initialNext.current
+  const back = () => {
+    useRecoveryFlow.getState().setFlow(null)
+    router.replace({ pathname: '/auth/sign-in', params: destination ? { next: destination } : {} })
+  }
+  function changeEmail() {
+    if (request.isPending) return
+    useRecoveryFlow.getState().setFlow(null)
+    setDigits(Array(6).fill(''))
+    request.reset()
+  }
+  function enterCode(value: string[]) {
+    setDigits(value)
+    if (!flow || handingOff.current || request.isPending) return
+    const code = value.join('')
+    if (flow.invalidCode) useRecoveryFlow.getState().setFlow({ ...flow, invalidCode: false })
+    if (/^[0-9]{6}$/.test(code) && Date.now() < expiresAt) {
+      handingOff.current = true
+      useRecoveryFlow.getState().setFlow({ ...flow, code, invalidCode: false })
+      router.replace('/auth/reset-password')
+    }
+  }
   function submit() {
-    if (request.isPending || recoveryRequestDeadline(email) > Date.now()) return
+    if (request.isPending || recoveryRequestDeadline(email) > Date.now() || (flow && Date.now() < expiresAt)) return
     return form.handleSubmit(body => {
       request.mutate(body, {
         onSuccess: challenge => {
-          useRecoveryFlow.getState().setFlow({ ...challenge, email: body.email, next })
-          router.push('/auth/reset-password')
+          useRecoveryFlow.getState().setFlow({ ...challenge, email: body.email, next: destination })
+          setDigits(Array(6).fill(''))
         },
       })
     })()
@@ -42,19 +75,24 @@ export default function ForgotPasswordScreen() {
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
         <Text variant="introSection" style={styles.title}>{t('auth.recovery.forgotTitle')}</Text>
-        <Text variant="introBody" color="text.secondary" style={styles.subtitle}>{t('auth.recovery.forgotBody')}</Text>
-        <Controller control={form.control} name="email" render={({ field, fieldState }) => <LabelledInput
+        <Text variant="introBody" color="text.secondary" style={styles.subtitle}>{flow ? t('auth.recovery.codeSent', { email: maskRecoveryEmail(flow.email) }) : t('auth.recovery.forgotBody')}</Text>
+        {flow ? <View style={styles.form}>
+          <RecoveryCode value={digits} onChange={enterCode} disabled={request.isPending} />
+          {flow.invalidCode && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('auth.recovery.invalidCode')}</Text>}
+          {expiryRemaining === 0 && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('auth.recovery.codeExpired')}</Text>}
+          <Pressable accessibilityRole="button" disabled={request.isPending} accessibilityState={{ disabled: request.isPending }} onPress={changeEmail} style={styles.link}>
+            <Text variant="introCaption" color="accent.primary">{t('auth.recovery.changeEmail')}</Text>
+          </Pressable>
+        </View> : <Controller control={form.control} name="email" render={({ field, fieldState }) => <LabelledInput
           groupTestID="recovery-email-field" ref={field.ref} label={t('auth.email')} icon="mail" value={field.value} onChangeText={value => { request.reset(); field.onChange(value) }} onBlur={field.onBlur} onSubmitEditing={submit}
           autoCapitalize="none" autoCorrect={false} autoComplete="email" keyboardType="email-address"
-          editable={!request.isPending} error={fieldState.error ? t('auth.emailInvalid') : accountNotFound ? t('auth.recovery.accountNotFound') : undefined} /> } />
-        {request.error && !accountNotFound && <Text color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t(recoveryErrorKey(request.error))}</Text>}
+          editable={!request.isPending} error={fieldState.error ? t('auth.emailInvalid') : accountNotFound ? t('auth.recovery.accountNotFound') : undefined} /> } />}
+        {request.error && (!accountNotFound || flow) && <Text color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t(recoveryErrorKey(request.error))}</Text>}
         <View style={styles.actions}>
-          <PrimaryBtn label={t('auth.recovery.sendCode')} onPress={submit} loading={request.isPending} disabled={!validEmail || remaining > 0} />
-          {remaining > 0 && <Text color="text.secondary" style={styles.centered}>{t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) })}</Text>}
-          <Text variant="introCaption" color="text.secondary" style={styles.centered}>{t('auth.recovery.expiry')}</Text>
-          <Pressable accessibilityRole="link" disabled={request.isPending} accessibilityState={{ disabled: request.isPending }} onPress={back} style={styles.link}>
-            <Text color="accent.primary" style={styles.linkText}>{t('auth.recovery.backToSignIn')}</Text>
-          </Pressable>
+          <PrimaryBtn label={flow
+            ? remaining > 0 ? t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) }) : t('auth.recovery.resend')
+            : t('auth.recovery.sendCode')} onPress={submit} loading={request.isPending} disabled={!validEmail || remaining > 0} />
+          {!flow && remaining > 0 && <Text color="text.secondary" style={styles.centered}>{t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) })}</Text>}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
