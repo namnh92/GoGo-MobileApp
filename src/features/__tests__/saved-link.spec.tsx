@@ -4,6 +4,7 @@ import { StyleSheet as RNStyleSheet } from 'react-native'
 import { buttonSizes, touchTarget } from '@/shared/ui/tokens'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
+import { readSavedLinkHandoff } from '@/features/place-import/saved-link-handoff'
 import { SavedLink } from '@/features/tabs/saved-link.view'
 const mockPush = jest.fn()
 const mockResolve = jest.fn()
@@ -21,7 +22,7 @@ jest.mock('expo-router', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  useResolveGoogleMapsLink: () => ({ mutateAsync: mockResolve }),
+  resolveGoogleMapsLink: (body: unknown) => mockResolve(body),
   useToggleSaved: () => ({ mutateAsync: mockSave }),
   useSaved: () => ({ data: mockSaved }),
 }))
@@ -67,16 +68,17 @@ it('confirms a save through PUT after the place is removed while its link resolv
   await act(async () => { finishSave() })
   expect(mockFeedback).toHaveBeenCalledWith('Đã lưu địa điểm')
 })
-it('opens the real add-place flow with a prefilled link for a new place', async () => {
+it('hands the resolved new place to the import flow without a second resolve', async () => {
   mockResolve.mockResolvedValue({ status: 'RESOLVED', candidate: { name: 'New café' } })
   await enterAndSave('https://maps.app.goo.gl/new')
   expect(mockSave).not.toHaveBeenCalled()
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/import', params: { url: 'https://maps.app.goo.gl/new' } })
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/import', params: { savedLink: expect.any(String) } })
+  expect(readSavedLinkHandoff(mockPush.mock.calls[0][0].params.savedLink)).toMatchObject({ url: 'https://maps.app.goo.gl/new', resolution: { status: 'RESOLVED' } })
 })
-it('rejects TikTok and Instagram before resolving', async () => {
-  const view = await enterAndSave('https://instagram.com/place')
+it('opens import with an invalid link before resolving', async () => {
+  await enterAndSave('https://instagram.com/place')
   expect(mockResolve).not.toHaveBeenCalled()
-  expect(view.getByText('Chỉ hỗ trợ link Google Maps.')).toBeTruthy()
+  expect(readSavedLinkHandoff(mockPush.mock.calls[0][0].params.savedLink)).toEqual({ url: 'https://instagram.com/place' })
 })
 it('shows a shared result error and never claims a failed save succeeded', async () => {
   mockSave.mockRejectedValue(new Error('offline'))
@@ -131,7 +133,8 @@ it('keeps a new attempt pending when an older blurred attempt settles', async ()
   expect(view.getByTestId('saved-link-input').props.editable).toBe(false)
   await act(async () => { finishNew({ status: 'RESOLVED' }) })
   expect(mockPush).toHaveBeenCalledTimes(1)
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/import', params: { url: 'https://maps.app.goo.gl/new' } })
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/import', params: { savedLink: expect.any(String) } })
+  expect(readSavedLinkHandoff(mockPush.mock.calls[0][0].params.savedLink)).toMatchObject({ url: 'https://maps.app.goo.gl/new', resolution: { status: 'RESOLVED' } })
 })
 
 it('does not save a late existing-place result after tab blur and refocus', async () => {

@@ -1,19 +1,26 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { listContributionDrafts, getContributionDraft, saveContributionDraft, deleteContributionDraft, submitPlace, resolveGoogleMapsLink, newIdempotencyKey } from '@/shared/api'
+import { listContributionDrafts, getContributionDraft, saveContributionDraft, deleteContributionDraft, submitPlace, resolveGoogleMapsLink, newIdempotencyKey, type ResolveLinkResult } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { captureSessionScope, getSessionGeneration } from '@/shared/api/session'
 import { ImportFlowController } from './import-flow'
 
 const Context = createContext<ImportFlowController | null>(null)
-export function ImportFlowProvider({ children, online, registered, initialPlaceId }: {
-  children: ReactNode; online: boolean; registered: boolean; initialPlaceId?: string
+export function createImportFlowController() {
+  return new ImportFlowController({
+    uuid: newIdempotencyKey, now: Date.now, list: listContributionDrafts, read: getContributionDraft,
+    save: ({ id, body }) => saveContributionDraft(id, body), remove: ({ id, version }) => deleteContributionDraft(id, version),
+    submit: submitPlace, resolve: resolveGoogleMapsLink, report: track,
+  })
+}
+export function ImportFlowProvider({ children, online, registered, initialPlaceId, initialLink, initialResolution }: {
+  children: ReactNode; online: boolean; registered: boolean; initialPlaceId?: string; initialLink?: string; initialResolution?: ResolveLinkResult
 }) {
   const [controller] = useState(() => {
-    const flow = new ImportFlowController({
-      uuid: newIdempotencyKey, now: Date.now, list: listContributionDrafts, read: getContributionDraft,
-      save: ({ id, body }) => saveContributionDraft(id, body), remove: ({ id, version }) => deleteContributionDraft(id, version),
-      submit: submitPlace, resolve: resolveGoogleMapsLink, report: track,
-    })
+    const flow = createImportFlowController()
+    if (initialLink !== undefined) {
+      flow.reset(initialLink)
+      if (initialResolution) flow.resolved(initialResolution, initialLink)
+    }
     if (initialPlaceId) flow.selectPlace(initialPlaceId)
     return flow
   })
