@@ -25,7 +25,7 @@ export const viMessages = {
   "auth.recovery.rateLimited": "Bạn đã thử quá nhiều lần. Vui lòng chờ trước khi thử lại.",
   "auth.recovery.mailNotConfigured": "GoGo chưa cấu hình dịch vụ gửi email khôi phục. Vui lòng thử lại sau.",
   "auth.recovery.unavailable": "Dịch vụ khôi phục mật khẩu tạm thời không khả dụng. Vui lòng thử lại sau.",
-  "auth.recovery.invalidCode": "Mã sai hoặc đã hết hạn. Vui lòng kiểm tra hoặc gửi lại mã.",
+  "auth.recovery.invalidCode": "Mã không đúng hoặc đã hết hạn.",
   "g10.categoryCount": "{{count}}/5 loại đang bật",
   "g10.startsAtDate": "Bắt đầu {{time}} · {{date}}",
   "g10.startsAt": "Bắt đầu lúc {{time}}",

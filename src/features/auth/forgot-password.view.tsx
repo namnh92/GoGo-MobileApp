@@ -1,10 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation } from '@tanstack/react-query'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { verifyPasswordRecovery } from '@/shared/api/endpoints/password-recovery'
+import { ApiError } from '@/shared/api/errors'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
@@ -25,6 +28,10 @@ export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets()
   const initialNext = useRef(useRecoveryFlow.getState().flow?.next ?? next)
   const request = useRecoveryRequest()
+  const verify = useMutation({ mutationFn: verifyPasswordRecovery, retry: false, networkMode: 'always', gcTime: 0 })
+  const verifying = useRef(false)
+  const [focusRequest, setFocusRequest] = useState(0)
+  const pending = request.isPending || verify.isPending
   const flow = useRecoveryFlow(state => state.flow)
   const { scrollRef, viewportRef, schedule, onScroll, onScrollBeginDrag, field: fieldVisibility } = useFieldVisibility(flow ? 'code' : 'email')
   const [digits, setDigits] = useState<string[]>(Array(6).fill(''))
@@ -47,21 +54,36 @@ export default function ForgotPasswordScreen() {
     router.replace({ pathname: '/auth/sign-in', params: destination ? { next: destination } : {} })
   }
   function enterCode(value: string[]) {
+    if (!flow || handingOff.current || request.isPending || verifying.current) return
     setDigits(value)
-    if (!flow || handingOff.current || request.isPending) return
+    verify.reset()
     const code = value.join('')
     if (flow.invalidCode) useRecoveryFlow.getState().setFlow({ ...flow, invalidCode: false })
     if (/^[0-9]{6}$/.test(code) && Date.now() < expiresAt) {
-      handingOff.current = true
-      useRecoveryFlow.getState().setFlow({ ...flow, code, invalidCode: false })
-      router.replace('/auth/reset-password')
+      verifying.current = true
+      verify.mutate({ email: flow.email, challengeId: flow.challengeId, code }, {
+        onSuccess: () => {
+          handingOff.current = true
+          useRecoveryFlow.getState().setFlow({ ...flow, code, invalidCode: false })
+          router.replace('/auth/reset-password')
+        },
+        onError: error => {
+          if (error instanceof ApiError && error.status === 400 && error.code === 'RECOVERY_INVALID') {
+            useRecoveryFlow.getState().setFlow({ ...flow, code: undefined, invalidCode: true })
+            setDigits(Array(6).fill(''))
+            setFocusRequest(value => value + 1)
+          }
+        },
+        onSettled: () => { verifying.current = false },
+      })
     }
   }
   function submit() {
-    if (request.isPending || recoveryRequestDeadline(email) > Date.now() || (flow && Date.now() < expiresAt)) return
+    if (pending || recoveryRequestDeadline(email) > Date.now() || (flow && Date.now() < expiresAt)) return
     return form.handleSubmit(body => {
       request.mutate(body, {
         onSuccess: challenge => {
+          verify.reset()
           useRecoveryFlow.getState().setFlow({ ...challenge, email: body.email, next: destination })
           setDigits(Array(6).fill(''))
         },
@@ -69,8 +91,11 @@ export default function ForgotPasswordScreen() {
     })()
   }
   return <Atmosphere redesign>
-    <BlockingLoadingOverlay visible={request.isPending} />
-    <AppHeader title={t('auth.recovery.forgotTitle')} centerTitle titleColor="accent.primary" showNotifications={false} onBack={back} backDisabled={request.isPending} />
+    <BlockingLoadingOverlay visible={pending} onClosed={() => {
+      // iOS can restore keyboard focus only after the blocking modal dismisses.
+      if (flow?.invalidCode) setFocusRequest(value => value + 1)
+    }} />
+    <AppHeader title={t('auth.recovery.forgotTitle')} centerTitle titleColor="accent.primary" showNotifications={false} onBack={back} backDisabled={pending} />
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>
         <ScrollView ref={scrollRef} onLayout={schedule} onContentSizeChange={schedule} onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag}
@@ -79,9 +104,10 @@ export default function ForgotPasswordScreen() {
           <Text variant="introBody" color="text.secondary" style={styles.subtitle}>{flow ? t('auth.recovery.codeSent', { email: maskRecoveryEmail(flow.email) }) : t('auth.recovery.forgotBody')}</Text>
           {flow ? <View ref={node => fieldVisibility('code').groupRef(node)} testID="auth-field-code" onLayout={schedule} style={styles.form}>
             <View ref={node => fieldVisibility('code').controlRef(node)}>
-              <RecoveryCode value={digits} onChange={enterCode} disabled={request.isPending} onFocus={() => fieldVisibility('code').onFocus()} onBlur={() => fieldVisibility('code').onBlur()} />
+              <RecoveryCode value={digits} onChange={enterCode} disabled={pending} focusRequest={focusRequest} onFocus={() => fieldVisibility('code').onFocus()} onBlur={() => fieldVisibility('code').onBlur()} />
             </View>
             {flow.invalidCode && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('auth.recovery.invalidCode')}</Text>}
+            {verify.error && !flow.invalidCode && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t(recoveryErrorKey(verify.error))}</Text>}
             {expiryRemaining === 0 && <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('auth.recovery.codeExpired')}</Text>}
           </View> : <Controller control={form.control} name="email" render={({ field, fieldState }) => <LabelledInput
             {...fieldVisibility('email')} groupTestID="recovery-email-field" ref={field.ref} label={t('auth.email')} icon="mail" value={field.value} onChangeText={value => { request.reset(); field.onChange(value) }} onBlur={() => { field.onBlur(); fieldVisibility('email').onBlur() }} onSubmitEditing={submit}
@@ -91,7 +117,7 @@ export default function ForgotPasswordScreen() {
           <View style={styles.actions}>
             <PrimaryBtn label={flow
               ? remaining > 0 ? t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) }) : t('auth.recovery.resend')
-              : t('auth.recovery.sendCode')} onPress={submit} loading={request.isPending} disabled={!validEmail || remaining > 0} />
+              : t('auth.recovery.sendCode')} onPress={submit} loading={request.isPending} disabled={pending || !validEmail || remaining > 0} />
             {!flow && remaining > 0 && <Text color="text.secondary" style={styles.centered}>{t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) })}</Text>}
           </View>
         </ScrollView>

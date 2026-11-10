@@ -151,3 +151,26 @@ Lượt focused đầu: 33/35 pass; hai assertion giữ identity proof phát hi�
 `invalidCode: false` không cần thiết khi đang nhập OTP. Đã chỉ xóa lỗi khi nó
 đang tồn tại, rồi chạy focused + i18n và full UI suite thành công như trên.
 Không chạy git; không commit/push/merge. Chưa kiểm simulator/DEV hoặc giao nhận email.
+
+
+## OTP verification — BE #846 / #845, contract 9.4.0-alpha.1
+
+- `openapi/gogo.v1.yaml` là bản sao nguyên byte của artifact
+  `gogo.v1.9.4.0a1.yaml` do owner cung cấp; chạy lại `pnpm api:types`.
+- Thêm wrapper `verifyPasswordRecovery` dùng generated body/response, anonymous,
+  chỉ chấp nhận HTTP 204. Verify không consume code và không gửi idempotency key.
+- Nhập đủ 6 số trước expiry gọi verify; shared full-screen overlay khóa thao tác
+  trong khi chờ. Chỉ 204 lưu code vào flow và mở `/auth/reset-password`.
+- 400 `RECOVERY_INVALID` giữ OTP, xóa 6 ô, refocus ô đầu (kể cả sau khi modal iOS
+  dismiss), hiện inline “Mã không đúng hoặc đã hết hạn.” qua key `invalidCode`.
+- 429, offline và 5xx dùng error mapping hiện có, giữ màn OTP, không auto-retry.
+  Resend thành công xóa verify error và thay challenge như trước.
+- Regression: incomplete OTP không gọi API; verify payload anonymous; pending
+  overlay/input blocking; 204; wrong-code clearing/refocus và sửa lại thành công;
+  429; offline; 500/503; validation 400; unexpected 200/202; complete dùng lại
+  cùng challenge/code sau verify. Recovery suite: 62 tests PASS.
+- `cmp`, `pnpm api:check`, `pnpm typecheck`, `pnpm lint`: PASS.
+- `pnpm test`: 1761 PASS, 39 skipped; đúng 3 failures thuộc distribute-wrapper
+  trong sandbox không spawn được `ps` (`EPERM`), theo ngoại lệ owner cho phép.
+- Không chạy git. Chưa kiểm simulator/DEV.
+- `pnpm test:ui --runInBand`: PASS — 241 suites, 3703 tests, 11 snapshots.

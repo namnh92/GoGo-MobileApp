@@ -9,7 +9,7 @@ import { darkSurface, motion, overlay } from '../tokens'
 // adding a submit/save/send flow; local-only wizard navigation has no mutation.
 const submitScreens = {
   'auth/sign-in': 'pending', // sign-in + sign-up
-  'auth/forgot-password': 'request.isPending',
+  'auth/forgot-password': 'pending',
   'auth/reset-password': 'complete.isPending',
   'tabs/profile': 'signingOut',
   'account/account': "saving || avatarStep === 'removing' || busy !== null",

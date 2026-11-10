@@ -1,13 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
 import { styles } from './password-recovery.style'
 
-export function RecoveryCode({ value, onChange, disabled, onFocus, onBlur }: { value: string[]; onChange: (value: string[]) => void; disabled: boolean; onFocus?: () => void; onBlur?: () => void }) {
+export function RecoveryCode({ value, onChange, disabled, focusRequest = 0, onFocus, onBlur }: { value: string[]; onChange: (value: string[]) => void; disabled: boolean; focusRequest?: number; onFocus?: () => void; onBlur?: () => void }) {
   const { t } = useTranslation()
   const inputs = useRef<(TextInputRef | null)[]>([])
   const [focused, setFocused] = useState<number | null>(0)
+  useEffect(() => {
+    if (focusRequest > 0 && !disabled) inputs.current[0]?.focus()
+  }, [focusRequest, disabled])
   function change(index: number, text: string) {
     const digits = text.replace(/[^0-9]/g, '').slice(0, 6)
     // Native paste/autofill must receive all six digits before distributing them.

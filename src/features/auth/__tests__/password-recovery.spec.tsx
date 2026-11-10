@@ -1,5 +1,5 @@
 import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react-native'
-import { AppState, Keyboard, ScrollView, View, StyleSheet as NativeStyleSheet, type AppStateStatus, type KeyboardEvent, type KeyboardEventName } from 'react-native'
+import { AppState, Keyboard, ScrollView, TextInput as NativeTextInput, View, StyleSheet as NativeStyleSheet, type AppStateStatus, type KeyboardEvent, type KeyboardEventName } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import { render } from '@/shared/ui/__tests__/query-render'
 import i18n from '@/shared/i18n'
@@ -44,8 +44,8 @@ async function fillReset() {
   await fireEvent.changeText(screen.getByLabelText('Mật khẩu mới'), 'GoGo2026!')
   await fireEvent.changeText(screen.getByLabelText('Nhập lại mật khẩu mới'), 'GoGo2026!')
 }
-function seedFlow(resendAt = Date.now() + 60_000, code: string | undefined = "123456") {
-  useRecoveryFlow.getState().setFlow({ email: 'binh@example.com', code, ...challenge(), ...(resendAt < Date.now() ? { expiresAt: new Date(resendAt).toISOString() } : {}), resendAvailableAt: new Date(resendAt).toISOString() })
+function seedFlow(resendAt = Date.now() + 60_000, code: string | null = "123456") {
+  useRecoveryFlow.getState().setFlow({ email: 'binh@example.com', code: code ?? undefined, ...challenge(), ...(resendAt < Date.now() ? { expiresAt: new Date(resendAt).toISOString() } : {}), resendAvailableAt: new Date(resendAt).toISOString() })
 }
 beforeEach(async () => {
   jest.useFakeTimers()
@@ -93,7 +93,9 @@ it('validates email, loads inside the send button, stays on 202, and advances on
   expect(screen.getByText('Mã đã gửi tới b***@example.com')).toBeTruthy()
   await fireEvent.changeText(digit(1), '12345')
   expect(mockRouter.replace).not.toHaveBeenCalled()
+  fetchMock.mockResolvedValueOnce(response(204))
   await fireEvent.changeText(digit(6), '6')
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/auth/reset-password'))
   expect(mockRouter.replace).toHaveBeenCalledWith('/auth/reset-password')
   expect(useRecoveryFlow.getState().flow?.code).toBe('123456')
 })
@@ -193,7 +195,9 @@ it.each(['orange', 'orangeDark'] as const)('masks email and uses role tokens and
   })
   const headings = screen.getAllByText('Quên mật khẩu')
   expect(NativeStyleSheet.flatten(headings[0].props.style)).toMatchObject({ textAlign: 'center', color: themes[themeName].accent.text })
+  fetchMock.mockResolvedValueOnce(response(204))
   await fireEvent.changeText(digit(1), '123456')
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/auth/reset-password'))
   expect(useRecoveryFlow.getState().flow?.code).toBe('123456')
 })
 
@@ -297,7 +301,9 @@ it('resends with a fresh intent, replaces challenge, clears old code, restarts c
   await waitFor(() => expect(useRecoveryFlow.getState().flow?.challengeId).toBe(newChallenge.challengeId))
   for (let i = 1; i <= 6; i++) expect(digit(i).props.value).toBe('')
   expect(button('Gửi lại mã sau 5:00').props.accessibilityState.disabled).toBe(true)
+  fetchMock.mockResolvedValueOnce(response(204))
   await fireEvent.changeText(digit(1), '123456')
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/auth/reset-password'))
   await forgot.unmount()
   mockRouter.replace.mockClear()
   await render(<ResetPassword />)
@@ -307,7 +313,7 @@ it('resends with a fresh intent, replaces challenge, clears old code, restarts c
   await fireEvent.press(button('Đặt lại mật khẩu'))
   expect(await screen.findByText('Đổi mật khẩu thành công')).toBeTruthy()
   expect(mockRouter.replace).not.toHaveBeenCalled()
-  const [url, options] = fetchMock.mock.calls[1]
+  const [url, options] = fetchMock.mock.calls[2]
   expect(url).toMatch(/\/auth\/password-recovery\/complete$/)
   expect(JSON.parse(options.body)).toEqual({ email: 'binh@example.com', challengeId: newChallenge.challengeId, code: '123456', password: 'GoGo2026!' })
   expect(options.headers.authorization).toBeUndefined()
@@ -324,7 +330,7 @@ it.each(['RECOVERY_MAIL_NOT_CONFIGURED', 'RECOVERY_UNAVAILABLE', 'RATE_LIMITED']
   expect(fetchMock).toHaveBeenCalledTimes(1)
   expect(mockRouter.replace).not.toHaveBeenCalled()
   expect(screen.queryByText(/NEVER DISPLAY/)).toBeNull()
-  if (code === 'RECOVERY_INVALID') expect(screen.getByText('Mã sai hoặc đã hết hạn. Vui lòng kiểm tra hoặc gửi lại mã.')).toBeTruthy()
+  if (code === 'RECOVERY_INVALID') expect(screen.getByText('Mã không đúng hoặc đã hết hạn.')).toBeTruthy()
   if (code === 'RATE_LIMITED') expect(button('Đặt lại mật khẩu').props.accessibilityState.disabled).toBe(true)
 })
 
@@ -350,8 +356,9 @@ it('returns RECOVERY_INVALID to cleared OTP boxes with an error and preserves ne
   await render(<ForgotPassword />)
   expect(screen.getByText(i18n.t('auth.recovery.invalidCode'))).toBeTruthy()
   for (let n = 1; n <= 6; n++) expect(digit(n).props.value).toBe('')
+  fetchMock.mockResolvedValueOnce(response(204))
   await fireEvent.changeText(digit(1), '654321')
-  expect(useRecoveryFlow.getState().flow?.code).toBe('654321')
+  await waitFor(() => expect(useRecoveryFlow.getState().flow?.code).toBe('654321'))
   expect(useRecoveryFlow.getState().flow?.invalidCode).toBe(false)
 })
 
@@ -624,4 +631,71 @@ it.each([
   expect(confirm.props.placeholder).toBe(placeholder)
   expect(confirm.props.placeholderTextColor).toBe(password.props.placeholderTextColor)
   expect(confirm.props.style).toEqual(password.props.style)
+})
+
+
+it('verifies all six digits anonymously, blocks pending input, and advances only on 204', async () => {
+  seedFlow(Date.now() + 60_000, null)
+  let resolve!: (value: unknown) => void
+  fetchMock.mockImplementation(() => new Promise(done => { resolve = done }))
+  await render(<ForgotPassword />)
+  await fireEvent.changeText(digit(1), '12345')
+  expect(fetchMock).not.toHaveBeenCalled()
+  await fireEvent.changeText(digit(6), '6')
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+  expect(screen.getByTestId('blocking-loading-overlay').props.accessibilityState.busy).toBe(true)
+  for (let i = 1; i <= 6; i++) expect(digit(i).props.editable).toBe(false)
+  expect(mockRouter.replace).not.toHaveBeenCalled()
+  expect(useRecoveryFlow.getState().flow?.code).toBeUndefined()
+  const [url, options] = fetchMock.mock.calls[0]
+  expect(url).toMatch(/\/v1\/auth\/password-recovery\/verify$/)
+  expect(options.method).toBe('POST')
+  expect(JSON.parse(options.body)).toEqual({ email: 'binh@example.com', challengeId: challenge().challengeId, code: '123456' })
+  expect(options.headers.authorization).toBeUndefined()
+  await act(async () => { resolve(response(204)) })
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/auth/reset-password'))
+  expect(useRecoveryFlow.getState().flow?.code).toBe('123456')
+  expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull()
+})
+
+it('keeps wrong OTP on the code screen, clears and refocuses boxes, then permits a corrected proof', async () => {
+  seedFlow(Date.now() + 60_000, null)
+  const focus = jest.spyOn(NativeTextInput.prototype, 'focus')
+  fetchMock.mockResolvedValueOnce(response(400, errorBody('RECOVERY_INVALID'))).mockResolvedValueOnce(response(204))
+  await render(<ForgotPassword />)
+  focus.mockClear()
+  await fireEvent.changeText(digit(1), '654321')
+  expect(await within(screen.getByTestId('auth-field-code')).findByText('Mã không đúng hoặc đã hết hạn.')).toBeTruthy()
+  await waitFor(() => expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull())
+  for (let i = 1; i <= 6; i++) expect(digit(i).props.value).toBe('')
+  expect(focus).toHaveBeenCalled()
+  expect((focus.mock.instances.at(-1) as unknown as NativeTextInput).props.accessibilityLabel).toBe('Chữ số 1 trong 6 chữ số')
+  expect(mockRouter.replace).not.toHaveBeenCalled()
+  expect(useRecoveryFlow.getState().flow?.code).toBeUndefined()
+  await fireEvent.changeText(digit(1), '123456')
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/auth/reset-password'))
+  expect(screen.queryByText('Mã không đúng hoặc đã hết hạn.')).toBeNull()
+})
+
+it.each([
+  [429, 'RATE_LIMITED', 'auth.recovery.rateLimited'],
+  [503, 'RECOVERY_UNAVAILABLE', 'auth.recovery.unavailable'],
+  [500, 'INTERNAL', 'auth.genericError'],
+  [400, 'VALIDATION_FAILED', 'auth.genericError'],
+  [200, 'UNEXPECTED_SUCCESS', 'auth.genericError'],
+  [202, 'UNEXPECTED_SUCCESS', 'auth.genericError'],
+  [0, 'OFFLINE', 'auth.networkError'],
+] as const)('keeps OTP verification failure %s on OTP using existing error handling', async (status, code, key) => {
+  seedFlow(Date.now() + 60_000, null)
+  if (status === 0) fetchMock.mockRejectedValueOnce(new TypeError('Network request failed'))
+  else fetchMock.mockResolvedValueOnce(response(status, errorBody(code), status === 429 ? '120' : undefined))
+  await render(<ForgotPassword />)
+  await fireEvent.changeText(digit(1), '123456')
+  expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+  await waitFor(() => expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull())
+  expect(mockRouter.replace).not.toHaveBeenCalled()
+  expect(useRecoveryFlow.getState().flow?.code).toBeUndefined()
+  expect(digit(1).props.editable).toBe(true)
+  expect(screen.queryByText(/NEVER DISPLAY/)).toBeNull()
+  expect(fetchMock).toHaveBeenCalledTimes(1)
 })

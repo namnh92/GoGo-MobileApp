@@ -7,6 +7,11 @@ export function requestPasswordRecovery(body: OpBody<'requestPasswordRecovery'>,
   return api.post<OpResponse<'requestPasswordRecovery'>>('/auth/password-recovery/request', body, { anonymous: true, idempotencyKey, expectedStatus: 202 })
 }
 
+/** Checks the code without consuming it; completion still requires the same proof. */
+export function verifyPasswordRecovery(body: OpBody<'verifyPasswordRecovery'>) {
+  return api.post<OpResponse<'verifyPasswordRecovery'>>('/auth/password-recovery/verify', body, { anonymous: true, expectedStatus: 204 })
+}
+
 /** A successful reset revokes sessions server-side and never installs a new one. */
 export function completePasswordRecovery(body: OpBody<'completePasswordRecovery'>, idempotencyKey: string) {
   return api.post<OpResponse<'completePasswordRecovery'>>('/auth/password-recovery/complete', body, { anonymous: true, idempotencyKey })

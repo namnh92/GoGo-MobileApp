@@ -1014,6 +1014,7 @@
       "status.dangerText",
       "status.dangerText",
       "status.dangerText",
+      "status.dangerText",
       "text.secondary"
     ],
     "src/features/auth/reset-password.view.tsx": [

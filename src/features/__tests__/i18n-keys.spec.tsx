@@ -92,7 +92,7 @@ const ROOT = join(SRC, '..')
  * with the typing that makes tsc keep each one inside the catalogs.
  */
 const COMPUTED_KEYS: Record<string, readonly string[]> = {
-  'src/features/auth/forgot-password.view.tsx': ['recoveryErrorKey(request.error)'], // recoveryErrorKey returns MessageKey
+  'src/features/auth/forgot-password.view.tsx': ['recoveryErrorKey(request.error)', 'recoveryErrorKey(verify.error)'], // recoveryErrorKey returns MessageKey
   'src/features/auth/reset-password.view.tsx': ['recoveryErrorKey(complete.error)'], // recoveryErrorKey returns MessageKey
   'src/features/account/account.view.tsx': ['avatarErrorKey(error)', 'message', 'form.formState.errors.name.message'], // MessageKey or catalog literal union
   'src/features/account/date-of-birth.view.tsx': ['error'], // MessageKey prop
