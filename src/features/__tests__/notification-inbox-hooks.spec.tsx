@@ -59,7 +59,7 @@ afterEach(async () => { client.clear(); await clearSession(); jest.useRealTimers
 
 it('opens summary/read-all, category PATCH and kinds filtering; keeps the count account-scoped and off disk', () => {
   expect(generatedNotificationCapabilities).toEqual({ summary: true, readAll: true, categoryPatch: true,
-    categoryFields: true, categoryFilter: true, quietHours: false })
+    categoryFields: true, categoryFilter: true, quietHours: true })
   expect(queryKeys.notificationSummary()[0]).toBe('me')
   expect(shouldPersistQuery(queryKeys.notificationSummary())).toBe(false)
 })

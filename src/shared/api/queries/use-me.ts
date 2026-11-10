@@ -509,7 +509,7 @@ export function useSetNotificationSettings() {
       const current = queryClient.getQueryData<Resource>(key)
       const intent = intents.current.get(body)!
       assertSessionGeneration(intent.generation)
-      if (current?.categories || body.categories) {
+      if (current?.categories || body.categories || 'quietHours' in body) {
         if (!/^"[^"\r\n]+"$/.test(intent.etag)) throw new Error('Notification settings need a fresh validator')
         return meApi.patchNotificationSettings(body, intent.etag, intent.key, intent.generation)
       }
@@ -527,10 +527,12 @@ export function useSetNotificationSettings() {
       if (intent) assertSessionGeneration(intent.generation)
       else intents.current.set(body, { etag: previous?.etag ?? '', key: newIdempotencyKey(), generation: scope.generation })
       if (previous) {
+        const quietHours = 'quietHours' in body ? body.quietHours : undefined
         queryClient.setQueryData<Resource>(key, {
           ...previous,
           ...(typeof body.pushEnabled === 'boolean' ? { pushEnabled: body.pushEnabled } : {}),
           ...(body.categories && previous.categories ? { categories: { ...previous.categories, ...body.categories } } : {}),
+          ...(quietHours && previous.quietHours ? { quietHours: { ...previous.quietHours, ...quietHours } } : {}),
         })
       }
       return { previous, generation: scope.generation }

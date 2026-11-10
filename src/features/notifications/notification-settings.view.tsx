@@ -67,14 +67,49 @@ function NotificationCategorySection() {
   </>
 }
 
-export default function NotificationSettingsScreen() {
+function QuietHoursSection() {
   const { t } = useTranslation()
   const { theme } = useUnistyles()
+  const settings = useNotificationSettings()
+  const save = useSetNotificationSettings()
+  const capabilities = notificationCapabilities(settings.data)
+  const quietHours = settings.data?.quietHours
+  let timezone = quietHours?.timezone
+  if (!timezone) {
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null } catch { timezone = null }
+  }
+  const disabled = !capabilities.quietHours || save.isPending || !!settings.isFetching || !!settings.isPaused
+    || (!quietHours?.enabled && !timezone)
+  const hint = !capabilities.quietHours ? t('g10.quietUnavailable') : !timezone ? t('g10.quietTimezoneUnavailable') : undefined
+  const variables = save.variables
+  return <View style={styles.quiet}>
+    <BlockingLoadingOverlay visible={save.isPending} />
+    <View style={styles.row}>
+      <Icon name="moon" size={20} color="status.infoText" />
+      <Text variant="introHeading" color="text.primary" style={styles.flex}>{t('g10.quietHours')}</Text>
+      <Switch testID="notification-quiet-hours" value={quietHours?.enabled ?? false} disabled={disabled}
+        onValueChange={enabled => {
+          if (!disabled) save.mutate({ quietHours: enabled ? { enabled, timezone: timezone! } : { enabled } })
+        }}
+        accessibilityLabel={t('g10.quietHours')} accessibilityHint={hint}
+        accessibilityState={{ disabled, busy: save.isPending }}
+        trackColor={{ true: theme.accent.primary, false: theme.surface.highest }} />
+    </View>
+    <Text variant="introSmall" color="text.secondary">{t('g10.quietHint')}</Text>
+    {hint ? <Text variant="introCaption" color="text.secondary">{hint}</Text> : null}
+    {save.isError && variables && 'quietHours' in variables ? <View accessibilityLiveRegion="polite">
+      <Text variant="introSmall" color="status.dangerText">{t('notificationSettings.saveFailed')}</Text>
+      <GhostBtn label={t('notificationSettings.retrySave')} disabled={disabled}
+        onPress={() => { if (!disabled) save.mutate(variables) }} />
+    </View> : null}
+  </View>
+}
+
+export default function NotificationSettingsScreen() {
+  const { t } = useTranslation()
   const { status } = useSession()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const capabilities = notificationCapabilities()
-  const trackColor = { true: theme.accent.primary, false: theme.surface.highest }
 
   return <Atmosphere redesign>
     <AppHeader showNotifications={false} title={t('g10.settingsTitle')} onBack={() => goBackOrHome(router)} />
@@ -83,16 +118,7 @@ export default function NotificationSettingsScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
         <NotificationSwitchSection />
         <NotificationCategorySection />
-        <View style={styles.quiet}>
-          <View style={styles.row}>
-            <Icon name="moon" size={20} color="status.infoText" />
-            <Text variant="introHeading" color="text.primary" style={styles.flex}>{t('g10.quietHours')}</Text>
-            <Switch testID="notification-quiet-hours" value={false} disabled={!capabilities.quietHours} accessibilityLabel={t('g10.quietHours')}
-              accessibilityHint={t('g10.quietUnavailable')} accessibilityState={{ disabled: true }} trackColor={trackColor} />
-          </View>
-          <Text variant="introSmall" color="text.secondary">{t('g10.quietHint')}</Text>
-          <Text variant="introCaption" color="text.secondary">{t('g10.quietUnavailable')}</Text>
-        </View>
+        <QuietHoursSection />
       </ScrollView>}
   </Atmosphere>
 }
