@@ -53,6 +53,33 @@ async function ask(view: View, text: string) {
   })
 }
 
+it('sending stays in chat without a blocking overlay and disables Send', async () => {
+  const base = createMockAssistantBackend({ seed: false, speed: 0, actor: () => 'user' })
+  let release!: () => void
+  const pending = new Promise<void>(resolve => { release = resolve })
+  setAssistantBackend(spyOn({
+    ...base,
+    sendMessage: async (...args) => {
+      await pending
+      return base.sendMessage(...args)
+    },
+  }))
+  const view = await renderAssistant(<AssistantRoute />)
+  await ask(view, 'Xin chào')
+  try {
+    await waitFor(() => expect(view.getByText('Đang gửi…')).toBeTruthy())
+    await act(async () => {
+      await fireEvent.changeText(view.getByLabelText('Tin nhắn cho GoGo AI'), 'Tin tiếp theo')
+    })
+    expect(view.getByRole('button', { name: 'Gửi' })).toBeDisabled()
+    expect(view.queryByTestId('blocking-loading-overlay')).toBeNull()
+    expect(view.queryByTestId('blocking-loading-modal')).toBeNull()
+  } finally {
+    await act(async () => { release() })
+    await settle()
+  }
+})
+
 it('a network failure keeps the message "Not sent"; Retry sends it again under the same key', async () => {
   const backend = installBackend({ seed: false })
   const view = await renderAssistant(<AssistantRoute />)
