@@ -10,6 +10,8 @@ export const viMessages = {
   "auth.recovery.codeDigit": "Chữ số {{position}} trong 6 chữ số",
   "auth.recovery.codeRequired": "Nhập đủ mã gồm 6 chữ số.",
   "auth.recovery.resendCountdown": "Gửi lại mã sau {{time}}",
+  "auth.recovery.codeCountdown": "Mã hết hạn sau {{time}}",
+  "auth.recovery.codeExpired": "Mã đã hết hạn. Vui lòng gửi lại mã.",
   "auth.recovery.resend": "Gửi lại mã",
   "auth.recovery.newPassword": "Mật khẩu mới",
   "auth.recovery.passwordPlaceholder": "Nhập mật khẩu mới",

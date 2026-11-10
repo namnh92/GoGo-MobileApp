@@ -9,7 +9,7 @@ import { getSession } from '@/shared/api/session'
 import ForgotPassword from '../forgot-password.view'
 import ResetPassword from '../reset-password.view'
 import SignIn from '../sign-in.view'
-import { useRecoveryCountdown, useRecoveryFlow } from '../password-recovery'
+import { useRecoveryCountdown, useRecoveryFlow, useRecoveryRequests } from '../password-recovery'
 
 const mockRouter = { replace: jest.fn(), push: jest.fn(), back: jest.fn() }
 let mockParams: { recovered?: string; next?: string } = {}
@@ -39,10 +39,12 @@ async function fillReset() {
   await fireEvent.changeText(screen.getByLabelText('Mật khẩu mới'), 'GoGo2026!')
 }
 function seedFlow(resendAt = Date.now() + 60_000) {
-  useRecoveryFlow.getState().setFlow({ email: 'binh@example.com', ...challenge(), resendAvailableAt: new Date(resendAt).toISOString() })
+  useRecoveryFlow.getState().setFlow({ email: 'binh@example.com', ...challenge(), ...(resendAt < Date.now() ? { expiresAt: new Date(resendAt).toISOString() } : {}), resendAvailableAt: new Date(resendAt).toISOString() })
 }
 beforeEach(async () => {
+  jest.useFakeTimers()
   jest.clearAllMocks()
+  useRecoveryRequests.setState({ emails: {} })
   let intentNumber = 0
   jest.spyOn(Crypto, 'randomUUID').mockImplementation(() => `00000000-0000-4000-8000-${String(++intentNumber).padStart(12, '0')}`)
   mockParams = {}
@@ -51,14 +53,19 @@ beforeEach(async () => {
   global.fetch = fetchMock
   await i18n.changeLanguage('vi')
 })
-afterEach(() => { jest.restoreAllMocks(); StyleSheet.configure({ themes }) })
+afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); StyleSheet.configure({ themes }) })
 afterAll(() => { global.fetch = originalFetch })
 
 it('validates email, loads inside the send button, navigates only after 202, and keeps email out of the route', async () => {
   let resolve!: (value: unknown) => void
   fetchMock.mockImplementation(() => new Promise(done => { resolve = done }))
   await render(<ForgotPassword />)
-  await fireEvent.press(button('Gửi mã'))
+  expect(screen.getByLabelText('Email').props.placeholder).toBeUndefined()
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'invalid')
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+  expect(screen.queryByText('Email chưa đúng định dạng.')).toBeNull()
+  await fireEvent(screen.getByLabelText('Email'), 'blur')
   expect(fetchMock).not.toHaveBeenCalled()
   expect(screen.getByText('Email chưa đúng định dạng.')).toBeTruthy()
   await fireEvent.changeText(screen.getByLabelText('Email'), ' binh@example.com ')
@@ -105,6 +112,8 @@ it('shows offline, never auto-retries, and reuses the intent key on manual retry
   expect(mockRouter.push).not.toHaveBeenCalled()
   expect(screen.getByText(i18n.t('auth.networkError'))).toBeTruthy()
   expect(fetchMock).toHaveBeenCalledTimes(1)
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+  await act(async () => { jest.advanceTimersByTime(60_000) })
   await fireEvent.press(button('Gửi mã'))
   await waitFor(() => expect(mockRouter.push).toHaveBeenCalled())
   expect(fetchMock.mock.calls[0][1].headers['idempotency-key']).toBe(fetchMock.mock.calls[1][1].headers['idempotency-key'])
@@ -233,11 +242,11 @@ it.each([503, 429])('preserves the current proof after resend failure %s', async
   expect(useRecoveryFlow.getState().flow).toBe(previous)
   expect(digit(1).props.value).toBe('1')
   expect(mockRouter.replace).not.toHaveBeenCalled()
-  if (status === 429) expect(screen.queryByRole('button', { name: 'Gửi lại mã' })).toBeNull()
+  if (status === 429) expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(true)
   else expect(screen.getByText(i18n.t('auth.recovery.mailNotConfigured'))).toBeTruthy()
 })
 
-it('enables resend after the cooldown even after background time', async () => {
+it('enables resend after code expiry even after background time', async () => {
   const listeners: (() => void)[] = []
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, callback) => {
     listeners.push(() => callback('active'))
@@ -248,7 +257,7 @@ it('enables resend after the cooldown even after background time', async () => {
   seedFlow(now + 60_000)
   await render(<ResetPassword />)
   expect(screen.queryByRole('button', { name: 'Gửi lại mã' })).toBeNull()
-  clock.mockReturnValue(now + 60_000)
+  clock.mockReturnValue(now + 300_000)
   await act(() => listeners.forEach(notify => notify()))
   expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(false)
 })
@@ -266,4 +275,93 @@ it('retries an ambiguous completion with the same key and clears private flow on
   expect(fetchMock.mock.calls[0][1].headers['idempotency-key']).toBe(fetchMock.mock.calls[1][1].headers['idempotency-key'])
   await view.unmount()
   expect(useRecoveryFlow.getState().flow).toBeNull()
+})
+
+
+it('counts down API expiry, hides resend until zero, and prevents completing expired codes', async () => {
+  seedFlow()
+  await render(<ResetPassword />)
+  await fillReset()
+  expect(screen.getByText('Mã hết hạn sau 5:00')).toBeTruthy()
+  await act(async () => { jest.advanceTimersByTime(1000) })
+  expect(screen.getByText('Mã hết hạn sau 4:59')).toBeTruthy()
+  await act(async () => { jest.advanceTimersByTime(60_000) })
+  expect(screen.queryByRole('button', { name: 'Gửi lại mã' })).toBeNull()
+  await act(async () => { jest.advanceTimersByTime(238_000) })
+  expect(screen.getByText('Mã hết hạn sau 0:01')).toBeTruthy()
+  expect(button('Đặt lại mật khẩu').props.accessibilityState.disabled).toBe(false)
+  await act(async () => { jest.advanceTimersByTime(1000) })
+  expect(screen.getByText('Mã đã hết hạn. Vui lòng gửi lại mã.')).toBeTruthy()
+  expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(false)
+  expect(button('Đặt lại mật khẩu').props.accessibilityState.disabled).toBe(true)
+  await fireEvent.press(button('Đặt lại mật khẩu'))
+  expect(fetchMock).not.toHaveBeenCalled()
+  await act(async () => { await i18n.changeLanguage('en') })
+  expect(screen.getByText('The code has expired. Please request a new code.')).toBeTruthy()
+})
+
+it('uses the API expiry without restarting the five minutes on mount', async () => {
+  seedFlow()
+  await act(async () => { jest.advanceTimersByTime(42_000) })
+  await render(<ResetPassword />)
+  expect(screen.getByText('Mã hết hạn sau 4:18')).toBeTruthy()
+})
+
+it('counts the initial request and two resends per email and unlocks when the first request ages out', async () => {
+  fetchMock.mockImplementation(async () => response(202, challenge()))
+  const forgot = await render(<ForgotPassword />)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'binh@example.com')
+  await fireEvent.press(button('Gửi mã'))
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalled())
+  await forgot.unmount()
+  const reset = await render(<ResetPassword />)
+  for (let count = 2; count <= 3; count++) {
+    await act(async () => { jest.advanceTimersByTime(300_000) })
+    await fireEvent.press(button('Gửi lại mã'))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(count))
+    await waitFor(() => expect(screen.getByText('Mã hết hạn sau 5:00')).toBeTruthy())
+  }
+  expect(screen.getByText('Gửi lại mã sau 50:00')).toBeTruthy()
+  await act(async () => { jest.advanceTimersByTime(300_000) })
+  expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText('Gửi lại mã sau 45:00')).toBeTruthy()
+  await fireEvent.press(button('Gửi lại mã'))
+  expect(fetchMock).toHaveBeenCalledTimes(3)
+  await reset.unmount()
+  // Leaving the reset route cannot bypass the session quota; normalized emails share it.
+  await render(<ForgotPassword />)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'BINH@example.com')
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'other@example.com')
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(false)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'binh@example.com')
+  await act(async () => { jest.advanceTimersByTime(2_699_000) })
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+  await act(async () => { jest.advanceTimersByTime(1000) })
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(false)
+})
+
+it.each(['120', 'http-date', undefined])('blocks expired-code resend after 429 using Retry-After %s', async retryAfter => {
+  seedFlow(Date.now() - 1)
+  fetchMock.mockResolvedValueOnce(response(429, errorBody('RATE_LIMITED'), retryAfter === 'http-date' ? new Date(Date.now() + 120_000).toUTCString() : retryAfter))
+  await render(<ResetPassword />)
+  await fireEvent.press(button('Gửi lại mã'))
+  expect(await screen.findByText(i18n.t('auth.recovery.rateLimited'))).toBeTruthy()
+  expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(true)
+  expect(button('Đặt lại mật khẩu').props.accessibilityState.disabled).toBe(true)
+  const wait = retryAfter ? 120_000 : 60_000
+  expect(screen.getByText(`Gửi lại mã sau ${retryAfter ? '2:00' : '1:00'}`)).toBeTruthy()
+  await act(async () => { jest.advanceTimersByTime(wait - 1000) })
+  expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(true)
+  await act(async () => { jest.advanceTimersByTime(1000) })
+  expect(button('Gửi lại mã').props.accessibilityState.disabled).toBe(false)
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+})
+
+it('validates an invalid email on keyboard submit', async () => {
+  await render(<ForgotPassword />)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'invalid')
+  await fireEvent(screen.getByLabelText('Email'), 'submitEditing')
+  expect(screen.getByText('Email chưa đúng định dạng.')).toBeTruthy()
+  expect(fetchMock).not.toHaveBeenCalled()
 })

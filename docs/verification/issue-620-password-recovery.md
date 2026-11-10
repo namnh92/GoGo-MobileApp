@@ -13,7 +13,14 @@
   unmount, xóa flow; mutation cache đặt `gcTime: 0`.
 - Retry thủ công sau lỗi mạng/503 giữ key cho cùng payload; thành công tạo intent
   tiếp theo. Không tự retry vì BE tính quota cả replay. 429 dùng `Retry-After`,
-  tối thiểu chờ 60 giây nếu thiếu mốc hợp lệ.
+  chờ 60 giây nếu thiếu mốc hợp lệ. Lịch sử request trong bộ nhớ theo email
+  chuẩn hóa (trim/lowercase) áp dụng 1/phút + 3/giờ, gồm request đầu tiên,
+  request lỗi và replay; rời màn hình không xóa quota phiên.
+- Email không có placeholder; nút gửi chỉ bật khi schema email chung với đăng
+  nhập hợp lệ. Lỗi inline khi blur hoặc submit bàn phím.
+- Countdown mã dùng `expiresAt` từ API; fallback request time + 300 giây nếu
+  thiếu mốc hợp lệ. Resend ẩn đến khi mã hết hạn; hết hạn khóa nút hoàn tất
+  và hiện thông báo. Cooldown quota riêng hiển thị thời gian gửi lại khả dụng.
 - Resend thành công thay challenge, xóa mã cũ, dùng `resendAvailableAt` mới.
   Deadline được cập nhật khi foreground, không trừ bộ đếm theo thời gian nền.
 - RECOVERY_INVALID, offline, 429, 503 mail chưa cấu hình/unavailable đều có copy
@@ -44,7 +51,10 @@ payload/header anonymous/idempotency, không chuyển màn trước 202, retry r
 và complete, lỗi 429/503/offline/RECOVERY_INVALID, dán mã, password validation,
 checklist/visibility, email che, role tokens Light/Dark, deadline foreground,
 resend thay proof và giữ proof khi lỗi, 204 không cài phiên, xóa flow khi unmount,
-success copy vi/en, direct reset thiếu flow.
+success copy vi/en, direct reset thiếu flow. Fake timers kiểm countdown, expiry
+→ resend, khóa hoàn tất, quota 3 request/giờ (gồm request đầu), khóa theo email
+qua remount, mở lại khi request cũ ra khỏi cửa sổ một giờ, Retry-After dạng
+seconds/HTTP date và fallback 60 giây.
 
 ## Owner kiểm simulator với DEV — chưa chạy
 
@@ -52,8 +62,11 @@ success copy vi/en, direct reset thiếu flow.
    note 5 phút, bàn phím không che CTA và link quay lại đăng nhập.
 2. Kiểm tra email che, nhập từng số, dán toàn bộ 6 số vào các ô, autofill trên
    thiết bị nếu có, backspace và VoiceOver đọc nhãn từng ô.
-3. Chờ 60 giây; thử đưa app xuống nền rồi quay lại. Gửi lại mã: mã cũ bị xóa,
-   cooldown bắt đầu lại; chỉ mã mới có hiệu lực.
+3. Kiểm countdown từ thời điểm API, ví dụ 4:59. Sau 60 giây resend vẫn ẩn;
+   sau 300 giây hiện resend, thông báo hết hạn và khóa hoàn tất. Thử đưa app
+   xuống nền rồi quay lại. Gửi lại mã xóa mã cũ và bắt đầu countdown mới.
+   Sau request thứ ba trong giờ, kiểm nút gửi lại bị khóa với thời gian chờ;
+   rời màn rồi nhập lại cùng email vẫn bị khóa, email khác có quota riêng.
 4. Đủ năm điều kiện mật khẩu, thử hiện/ẩn. Reset thành công về Đăng nhập có
    thông báo; mật khẩu mới đăng nhập được, mật khẩu cũ bị từ chối. Kiểm tra trên
    phiên thiết bị khác rằng BE đã thu hồi session/refresh token.
@@ -69,8 +82,8 @@ Không chạy git. Unit/UI tests không xác nhận giao nhận email hoặc ngh
 | --- | --- |
 | `pnpm typecheck` | PASS |
 | `pnpm lint` | PASS, không warning lint |
-| `pnpm test:ui --runInBand` | PASS — 237 suites, 3503 tests, 11 snapshots |
-| UI tập trung recovery | PASS — 20 tests |
+| `pnpm test:ui --runInBand` | PASS — 237 suites, 3510 tests, 11 snapshots |
+| UI tập trung recovery | PASS — 27 tests |
 
 Lượt UI đầu phát hiện thiếu hai route trong allowlist Sentry và thiếu đăng ký
 computed i18n keys. Đã bổ sung, chạy lại nguyên bộ UI và đạt kết quả trên.

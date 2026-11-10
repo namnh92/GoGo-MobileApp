@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 import { create } from 'zustand'
+import { requestPasswordRecovery } from '@/shared/api/endpoints/password-recovery'
 import { ApiError, isOffline } from '@/shared/api/errors'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
 import type { OpResponse } from '@/shared/api/types'
@@ -13,6 +14,50 @@ export const useRecoveryFlow = create<{ flow: RecoveryFlow | null; setFlow: (flo
   flow: null,
   setFlow: flow => set({ flow }),
 }))
+
+type RequestHistory = { times: number[]; retryAt: number }
+// Session-only quota history survives leaving either recovery screen.
+export const useRecoveryRequests = create<{ emails: Record<string, RequestHistory> }>(() => ({ emails: {} }))
+const emailKey = (email: string) => email.trim().toLowerCase()
+export function recoveryRequestDeadline(email: string, now = Date.now()) {
+  const history = useRecoveryRequests.getState().emails[emailKey(email)]
+  if (!history) return 0
+  const times = history.times.filter(time => time > now - 3_600_000)
+  return Math.max(history.retryAt, (times.at(-1) ?? -60_000) + 60_000, times.length >= 3 ? times[times.length - 3] + 3_600_000 : 0)
+}
+
+function blockRecoveryRequests(email: string, retryAt: number) {
+  const key = emailKey(email)
+  const history = useRecoveryRequests.getState().emails[key] ?? { times: [], retryAt: 0 }
+  useRecoveryRequests.setState(state => ({ emails: { ...state.emails, [key]: { ...history, retryAt: Math.max(history.retryAt, retryAt) } } }))
+}
+
+export function useRecoveryRequest() {
+  return useRecoveryMutation(async (body: { email: string }, key: string) => {
+    const requestedAt = Date.now()
+    const deadline = recoveryRequestDeadline(body.email, requestedAt)
+    if (deadline > requestedAt) throw new ApiError(429, { code: 'RATE_LIMITED', message: 'Recovery request cooldown' }, String((deadline - requestedAt) / 1000))
+    const email = emailKey(body.email)
+    const history = useRecoveryRequests.getState().emails[email]
+    useRecoveryRequests.setState(state => ({ emails: { ...state.emails, [email]: {
+      times: [...(history?.times ?? []).filter(time => time > requestedAt - 3_600_000), requestedAt], retryAt: 0,
+    } } }))
+    try {
+      const challenge = await requestPasswordRecovery(body, key)
+      blockRecoveryRequests(email, Date.parse(challenge.resendAvailableAt) || 0)
+      return { ...challenge, expiresAt: Number.isFinite(Date.parse(challenge.expiresAt)) ? challenge.expiresAt : new Date(requestedAt + 300_000).toISOString() }
+    } catch (error) {
+      blockRecoveryRequests(email, recoveryRetryAt(error))
+      throw error
+    }
+  })
+}
+
+export function useRecoveryRequestCountdown(email: string) {
+  useRecoveryRequests(state => state.emails)
+  // Recompute the rolling window as requests age out.
+  return useRecoveryCountdown(recoveryRequestDeadline(email))
+}
 
 export function maskRecoveryEmail(email: string) {
   const [local, domain] = email.split('@')
@@ -32,7 +77,7 @@ export function recoveryErrorKey(error: unknown): MessageKey {
 }
 
 export function recoveryRetryAt(error: unknown) {
-  return error instanceof ApiError && error.status === 429 ? Math.max(error.retryAt, Date.now() + 60_000) : 0
+  return error instanceof ApiError && error.status === 429 ? (error.retryAt || Date.now() + 60_000) : 0
 }
 
 /** Deadline-based, including foreground resume; never decrements a stale counter. */
