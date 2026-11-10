@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
+import { render } from '@/shared/ui/__tests__/query-render'
+import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import i18n from '@/shared/i18n'

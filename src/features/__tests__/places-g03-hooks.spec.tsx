@@ -47,13 +47,16 @@ it('sends limit/cursor, keeps every page and resets the cursor on order change',
   await waitFor(() => expect(mockReviews).toHaveBeenLastCalledWith('p', 'helpful', { limit: 10, cursor: undefined }))
 })
 
-it('fetches provider bytes once per detail view and drops them when unmounted', async () => {
+it('retains provider bytes across detail mounts without another request', async () => {
   mockPhotos.mockResolvedValue({ status: 'budget_exhausted', provider: 'google', attribution: 'Google Maps', photos: [] })
   const { result, unmount } = await renderHook(() => usePlaceProviderPhotos('p'), { wrapper })
   await waitFor(() => expect(result.current.isSuccess).toBe(true))
   expect(mockPhotos).toHaveBeenCalledTimes(1)
   await unmount()
-  await waitFor(() => expect(client.getQueryData(['place-provider-photos', 'p'])).toBeUndefined())
+  expect(client.getQueryData(['place-provider-photos', 'p'])).toMatchObject({ status: 'budget_exhausted', photos: [] })
+  const second = await renderHook(() => usePlaceProviderPhotos('p'), { wrapper })
+  expect(second.result.current.isSuccess).toBe(true)
+  expect(mockPhotos).toHaveBeenCalledTimes(1)
 })
 
 it('replays one report intent key on a retry', async () => {

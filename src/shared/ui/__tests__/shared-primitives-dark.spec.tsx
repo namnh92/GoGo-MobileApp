@@ -36,7 +36,7 @@ describe('shared primitives on a dark device', () => {
     jest.mocked(Image).mockClear()
     await render(<RemoteImage uri="https://example.test/a.jpg" style={{ width: 4, height: 4 }} />)
     const [props] = jest.mocked(Image).mock.calls[0]
-    expect(props.source).toEqual({ uri: 'https://example.test/a.jpg' })
+    expect(props.source).toEqual({ uri: 'https://example.test/a.jpg', cacheKey: 'https://example.test/a.jpg' })
     expect(props.contentFit).toBe('cover')
     expect(props.transition).toBe(150)
     expect(flat(props.style)).toMatchObject({ backgroundColor: darkSurface.subtle, width: 4, height: 4 })

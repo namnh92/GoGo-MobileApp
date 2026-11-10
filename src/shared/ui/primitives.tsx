@@ -101,7 +101,7 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri, ic
         {!uri || loadedUri !== uri ? (emoji ? <ScaledText box={size} kind="emoji">{emoji}</ScaledText> : <ScaledText box={size} kind="initials">{label}</ScaledText>) : null}
         {uri ? <Image
           testID="avatar-image"
-          source={{ uri }}
+          source={{ uri, cacheKey: uri }}
           style={[circle, styles.avatarImage]}
           contentFit="cover"
           transition={150}
@@ -121,7 +121,7 @@ type RemoteImageProps = (
 
 export function RemoteImage({ uri, source, style, illustration = false }: RemoteImageProps) {
   const { theme } = useUnistyles()
-  return <Image source={source !== undefined ? source : { uri }} style={[{ backgroundColor: illustration ? theme.surface.low : theme.surface.subtle }, style as object]} contentFit={illustration ? 'contain' : 'cover'} transition={illustration ? 0 : 150} />
+  return <Image cachePolicy="memory-disk" source={source !== undefined ? source : { uri, cacheKey: uri }} style={[{ backgroundColor: illustration ? theme.surface.low : theme.surface.subtle }, style as object]} contentFit={illustration ? 'contain' : 'cover'} transition={illustration ? 0 : 150} />
 }
 
 const styles = StyleSheet.create(theme => ({

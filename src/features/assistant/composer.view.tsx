@@ -1,6 +1,7 @@
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, View } from 'react-native'
+import { Image } from 'expo-image'
+import { Pressable, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -82,7 +83,7 @@ export function Composer({
         <View style={styles.images}>
           {images.map((image, index) => (
             <View key={image.uri} style={styles.image}>
-              <Image source={{ uri: image.uri }} style={styles.imageFill} accessibilityIgnoresInvertColors />
+              <Image cachePolicy="memory-disk" source={{ uri: image.uri, cacheKey: image.uri }} style={styles.imageFill} />
               {image.uploadKey === null ? (
                 <View style={styles.imageBusy} accessibilityLabel={t('assistant.composer.uploading')} accessible>
                   <LoadingIndicator size={loadingIndicator.compactSize} />

@@ -1,5 +1,6 @@
+import { render } from './query-render'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
+import { act, fireEvent,  screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesStyleSheet } from 'react-native-unistyles'
 import { themes, type AppTheme } from '@/shared/ui/theme'

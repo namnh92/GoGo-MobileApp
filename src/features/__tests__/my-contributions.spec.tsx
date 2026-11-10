@@ -81,12 +81,12 @@ it('renders contribution records without saved-place controls or duplicate statu
   expect(screen.getAllByTestId('contribution-place-card')).toHaveLength(4)
   expect(mockToggle).not.toHaveBeenCalled()
 })
-it('retains rejected supplement and attribution, prefilling a real link; locks missing links', async () => {
+it('retains rejected supplement links without lone photo credits; locks missing links', async () => {
   const url = 'https://maps.google.com/?cid=123'
   mockQuery.data.pages[0].items = [row('Rejected café', 'rejected', { providerDisplay: { attributions: ['Google Maps'], googleMapsUri: url } }), row('No link café', 'rejected')]
   await renderScreen(<MyContributionsScreen />)
-  await fireEvent.press(screen.getByRole('link', { name: 'Google Maps' }))
-  expect(mockOpenWebsite).toHaveBeenCalledWith(url)
+  expect(screen.queryByRole('link', { name: 'Google Maps' })).toBeNull()
+  expect(mockOpenWebsite).not.toHaveBeenCalled()
   const links = screen.getAllByRole('link', { name: 'Bổ sung thông tin khác' })
   await fireEvent.press(links[0])
   expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/places/import', params: { url } })
