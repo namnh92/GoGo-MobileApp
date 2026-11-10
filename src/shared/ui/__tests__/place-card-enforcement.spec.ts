@@ -70,7 +70,7 @@ const selections = [
   ['search/search-empty.view.tsx', ['PlaceCardSmall']],
   ['place-import/existing-place-result.view.tsx', ['PlaceCardSmall']],
   ['place-import/import.view.tsx', ['PlaceCardLarge', 'PlaceCardSmall']],
-  ['assistant/result-card.view.tsx', ['PlaceCardLarge']],
+  ['assistant/result-card.view.tsx', ['PlaceCardSmall']],
   ['date-plan/date-plan.view.tsx', ['PlaceCardLarge']],
   ['date-plan/plan-edit.view.tsx', ['PlaceCardSmall']],
   ['active-date/active-date.view.tsx', ['PlaceCardLarge', 'PlaceCardSmall']],

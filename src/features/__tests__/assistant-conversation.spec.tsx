@@ -112,7 +112,7 @@ it('place results as cards with verified facts, and the place-data source', asyn
   expect(within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000002')).getByText('Đã đóng')).toBeTruthy()
   expect(view.getByText(/Từ dữ liệu địa điểm GoGo · Kiểm tra lần cuối/)).toBeTruthy()
   await act(async () => {
-    await fireEvent.press(card.getByRole('button', { name: 'Xem địa điểm' }))
+    await fireEvent.press(card.getByRole('button', { name: 'Nhà Lá Café' }))
   })
   expect(mockRouter.push).toHaveBeenCalledWith('/places/1b2c3d4e-0000-4000-8000-000000000001')
 })

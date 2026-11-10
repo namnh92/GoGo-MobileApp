@@ -160,24 +160,52 @@ describe.each(['orange', 'orangeDark'] as const)('group 09 %s', themeName => {
     }
   })
 
-  it('uses the shared PlaceCard with separate community score, real photo and price unit', async () => {
+  it('uses PlaceCardSmall with separate community score, real photo and price unit', async () => {
     const open = jest.fn()
-    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: true, facts: { name: 'A verified place', priceMin: 85000, priceMax: 85000, gogoRating: 4.6, gogoRatingCount: 12, photoUrl: 'https://example.com/real.jpg' } }} onOpenPlace={open} onOpenPlan={noop} />)
-    expect(screen.getByTestId('place-card')).toBeTruthy()
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: true, facts: { name: 'A verified place', addressText: '123 Verified Street', openNow: true, priceMin: 85000, priceMax: 85000, gogoRating: 4.6, gogoRatingCount: 12, photoUrl: 'https://example.com/real.jpg' } }} onOpenPlace={open} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-card-small')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-large')).toBeNull()
+    expect(screen.getByText('123 Verified Street')).toBeTruthy()
+    expect(screen.getByText(i18n.t('common.open'))).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-surface').props.style).backgroundColor).toBe(currentTheme.surface.card)
     expect(screen.getByTestId('place-photo-image').props.source[0].uri).toBe('https://example.com/real.jpg')
     expect(screen.getByText(/85.*\/người/)).toBeTruthy()
     expect(screen.getByText(/GoGo/)).toBeTruthy()
     expect(screen.queryByText(/Google/)).toBeNull()
-    await fireEvent.press(screen.getByRole('button', { name: i18n.t('assistant.card.viewPlace') }))
+    expect(screen.queryByRole('button', { name: i18n.t('assistant.card.viewPlace') })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'A verified place' }))
     expect(open).toHaveBeenCalledWith('place1')
   })
 
   it('omits unknown prices and unavailable place actions', async () => {
-    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: false, facts: { name: 'Unavailable place' } }} onOpenPlace={noop} onOpenPlan={noop} />)
-    expect(screen.queryByTestId('place-card-rating-price')).toBeNull()
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: false, facts: { name: 'Unavailable place', addressText: 'Hidden street', priceMin: 85000, gogoRating: 4.6, gogoRatingCount: 12, openNow: true, photoUrl: 'https://example.com/hidden.jpg' } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.queryByTestId('place-card-price')).toBeNull()
+    expect(screen.queryByTestId('place-card-ratings')).toBeNull()
+    expect(screen.queryByTestId('place-card-meta')).toBeNull()
+    expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
+    expect(screen.queryByTestId('place-photo-image')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unavailable place' })).toBeNull()
     expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
     expect(screen.queryByRole('button', { name: i18n.t('assistant.card.viewPlace') })).toBeNull()
     expect(screen.getByText(i18n.t('assistant.card.unavailable'))).toBeTruthy()
+  })
+
+  it('omits absent place facts without inventing prices, ratings or opening hours', async () => {
+    const open = jest.fn()
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'minimal', available: true, facts: { name: 'Minimal place' } }} onOpenPlace={open} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-card-small')).toBeTruthy()
+    for (const id of ['place-card-meta', 'place-card-price', 'place-card-ratings', 'place-card-hours-badge', 'place-photo-image']) {
+      expect(screen.queryByTestId(id)).toBeNull()
+    }
+    await fireEvent.press(screen.getByRole('button', { name: 'Minimal place' }))
+    expect(open).toHaveBeenCalledWith('minimal')
+  })
+
+  it.each([false, null] as const)('keeps closed status or omits unknown hours (%s)', async openNow => {
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'hours', available: true, facts: { name: 'Hours place', openNow, gogoRatingCount: 0 } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá (0)')
+    if (openNow === false) expect(screen.getByTestId('place-card-hours-badge')).toHaveTextContent(i18n.t('common.closed'))
+    else expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
   })
 
   it('renders the localized gate and welcome labels in English', async () => {
