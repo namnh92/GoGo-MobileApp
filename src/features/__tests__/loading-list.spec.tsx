@@ -3,6 +3,9 @@ import { AccessibilityInfo, StyleSheet as NativeStyles } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import '@/shared/i18n'
 import { themes } from '@/shared/ui/theme'
+import { scriptedTime } from './scripted-time'
+
+scriptedTime()
 
 let mockPending = true
 let mockNextPage = false

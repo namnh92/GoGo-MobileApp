@@ -1,0 +1,307 @@
+[
+  {
+    "spec": "src/features/__tests__/account-avatar.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/account/birthday-sheet.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/account-date-of-birth.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/account/birthday-sheet.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/account-defaults.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/administrative-picker.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-conversation.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-daily-limit.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-history-chained-modal.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-history.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-keyboard-offset.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-redesign-matrix.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-shell.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-sign-in-route.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-states.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/assistant-welcome.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/assistant/conversation.view.tsx",
+      "src/features/assistant/history.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/brand-logo.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/create-location-gps-card.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/design-drift-home-search.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/search/search.view.tsx",
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/home-location-scope.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/loading-list.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/notifications/notifications.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/location-module-missing.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/location-permission.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/my-contributions-dark.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/my-contributions-hydration.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/my-contributions-reviews-dark.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/my-contributions-reviews.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/my-contributions-snapshot.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/my-contributions.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/notifications-detail.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/notifications/notifications.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/notifications-g10.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/notifications/notifications.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/notifications-plan-route.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/notifications/notifications.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/notifications-push-notice.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/notifications/notifications.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/prefill-location.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/segmented-screens-dark.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/segmented-screens.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/features/contributions/my-contributions.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/settings-screen-titles.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/__tests__/sheet-migration.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/search/search.view.tsx",
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/search/discovery-location.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/features/search/search-map-panel.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": []
+  },
+  {
+    "spec": "src/shared/location/current-area-sheet.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/shared/ui/__tests__/accent-foreground.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/shared/ui/__tests__/pressable-feedback.spec.tsx",
+    "shared_clock": false,
+    "reachable_lists": [
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  },
+  {
+    "spec": "src/shared/ui/__tests__/sheet-surfaces.spec.tsx",
+    "shared_clock": true,
+    "reachable_lists": [
+      "src/features/account/birthday-sheet.view.tsx",
+      "src/shared/administrative/administrative-picker.view.tsx"
+    ]
+  }
+]

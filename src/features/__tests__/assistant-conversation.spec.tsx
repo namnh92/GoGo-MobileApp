@@ -28,6 +28,8 @@ import AssistantRoute from '@/app/assistant'
 
 import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
 
+// The harness installs scriptedTime: list batches and stream timers stay on
+// the controlled clock through awaited cleanup and the final act drain (#606).
 syncTanstackNotifications()
 
 beforeEach(() => {
@@ -81,7 +83,7 @@ it('a sourced answer: the question in an accent bubble, the list, cites, sources
 })
 
 it('while generating: the step, Send turns into Stop, and Stop keeps what was written', async () => {
-  // Real time for this one: the long reply streams for seconds.
+  // Keep the long reply's delays; waitFor advances the scripted clock in act.
   const backend = installBackend({ seed: false, speed: 1 })
   const view = await renderAssistant(<AssistantRoute />)
   await ask(view, 'Giải thích trả lời dài về ngân sách')
