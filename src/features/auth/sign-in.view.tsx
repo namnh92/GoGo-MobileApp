@@ -20,7 +20,6 @@ import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { PasswordRequirements } from '@/shared/ui/password-requirements.view'
 import { SegmentedControl } from '@/shared/ui/segmented-control.view'
-import { UnavailableAction } from '@/shared/ui/unavailable-action.view'
 
 import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
@@ -58,7 +57,7 @@ export default function SignInScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { signIn, signUp } = useSession()
-  const { next } = useLocalSearchParams<{ next?: string }>()
+  const { next, recovered } = useLocalSearchParams<{ next?: string; recovered?: string }>()
 
   const [showPassword, setShowPassword] = useState(false)
   const [mode, setMode] = useState<Mode>('signIn')
@@ -209,6 +208,7 @@ export default function SignInScreen() {
             </View>
             <View style={styles.coffee}><InfoBanner coffee title={t('auth.coffeeTitle')} body={t('auth.coffeeBody')} /></View>
             <View style={styles.form}>
+              {recovered === '1' && <Text color="status.successText" accessibilityLiveRegion="polite">{t('auth.recovery.success')}</Text>}
               {mode === 'signUp' && <Controller control={signUpForm.control} name="displayName" render={({ field, fieldState }) => (
                 <LabelledInput {...fieldVisibility('displayName')} label={t('auth.displayName')} icon="badge" ref={field.ref} value={field.value}
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('displayName').onBlur() }} placeholder={t('auth.displayNamePlaceholder')}
@@ -226,7 +226,7 @@ export default function SignInScreen() {
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('password').onBlur() }} placeholder={t('auth.passwordPlaceholder')}
                   autoCapitalize="none" autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
                   secureTextEntry={!showPassword} editable={!pending}
-                  accessory={mode === 'signIn' ? <UnavailableAction label={t('auth.forgot')} reason={t('auth.recoveryUnavailable')} /> : undefined}
+                  accessory={mode === 'signIn' ? <Pressable accessibilityRole="link" accessibilityLabel={t('auth.forgot')} disabled={pending} accessibilityState={{ disabled: pending }} style={styles.forgot} onPress={() => router.push({ pathname: '/auth/forgot-password', params: next ? { next } : {} })}><Text color="accent.primary">{t('auth.forgot')}</Text></Pressable> : undefined}
                   trailing={<Pressable testID="password-visibility" onPress={() => { setShowPassword(shown => !shown); schedule() }}
                     accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
                     hitSlop={6} style={styles.visibility}>
