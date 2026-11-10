@@ -16,7 +16,7 @@ function files(directory: string): string[] {
 const direct = [
   'account/account', 'active-date/active-date', 'assistant/assistant-header',
   'auth/forgot-password', 'auth/reset-password', 'auth/sign-in',
-  'contributions/my-contributions', 'create-date/wizard-step', 'date-plan/date-plan',
+  'contributions/my-contributions', 'create-date/wizard-step', 'credits/credits', 'date-plan/date-plan',
   'date-plan/place-detail', 'date-plan/plan-change', 'date-plan/plan-edit',
   'gogo-room/gogo-room', 'gogo-room/guest-join', 'gogo-room/join-by-code', 'gogo-room/room-manage',
   'home/home', 'matching/preference', 'matching/swipe', 'notifications/notifications', 'notifications/notification-settings',
@@ -32,7 +32,7 @@ const wrappers: Record<string, string> = {
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
 // SettingsPage covers permissions/data, defaults and theme, including embedded settings.
-const profileHeaders = ['account/account', 'contributions/my-contributions', 'notifications/notifications', 'notifications/notification-settings', 'review/my-reviews', 'settings/settings-page']
+const profileHeaders = ['credits/credits', 'account/account', 'contributions/my-contributions', 'notifications/notifications', 'notifications/notification-settings', 'review/my-reviews', 'settings/settings-page']
 function owns(source: string, name: string) {
   const ast = ts.createSourceFile('screen.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let found = false
