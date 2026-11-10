@@ -26,7 +26,6 @@ jest.mock('@/shared/api', () => ({
   useUpdateReview: () => ({ mutateAsync: jest.fn(), isPending: false }),
   usePlaceDetail: () =>
     mockLoaded({ id: 'place-1', name: 'Quán thử', photos: [], freshnessCheckedAt: new Date(2026, 9, 9, 12).toISOString() }),
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: () =>
     mockLoaded({ pages: [{
       source: 'gogo',

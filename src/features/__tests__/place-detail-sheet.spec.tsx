@@ -16,7 +16,6 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded({ id: 'place-1', name: 'Quán thử', photos: [], prices: mockPrices }),
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: () => mockLoaded({ pages: [{ source: 'gogo', order: 'latest', reviews: [], items: [] }], pageParams: [undefined] }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),

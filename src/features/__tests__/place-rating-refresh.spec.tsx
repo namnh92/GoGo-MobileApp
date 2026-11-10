@@ -19,7 +19,6 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'guest' }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'p', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false }),
   useSaved: () => mockLoaded([]),

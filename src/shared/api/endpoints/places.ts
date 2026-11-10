@@ -80,11 +80,6 @@ export function getPlaceSubmission(id: string): Promise<OpResponse<'getPlaceSubm
   return api.get<OpResponse<'getPlaceSubmission'>>('/place-submissions/{id}', { pathParams: { id } })
 }
 
-/** Detail-only provider bytes; never called from import or list cards. */
-export function getPlaceProviderPhotos(id: string) {
-  return api.get<OpResponse<'getPlaceProviderPhotos'>>('/places/{id}/provider-photos', { pathParams: { id }, anonymous: true })
-}
-
 export function reportPlace(id: string, body: OpBody<'reportPlace'>, idempotencyKey: string) {
   return api.post<OpResponse<'reportPlace'>>('/places/{id}/reports', body, { pathParams: { id }, idempotencyKey })
 }

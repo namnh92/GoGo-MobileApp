@@ -1,7 +1,8 @@
-import { cleanup, screen } from '@testing-library/react-native'
+import { act, cleanup, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import { api } from '@/shared/api/client'
+import i18n from '@/shared/i18n'
 import { themes } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
 import MyContributionsScreen from '../contributions/my-contributions.view'
@@ -23,6 +24,8 @@ jest.mock('@/shared/api', () => ({
   useSaved: () => ({ data: [] }), useToggleSaved: () => ({}), useMyReviews: () => ({ data: [] }),
 }))
 
+const photo = { id: 'cover', url: 'https://cdn.example.com/cover.jpg', source: 'google', attribution: 'Google Maps', authorAttributions: [{ displayName: 'CDN photographer', uri: 'https://example.com/author' }], googleMapsUri: 'https://maps.google.com/?cid=123' }
+
 const provider = () => ({
   source: 'google_places', fetchedAt: '2026-11-09T00:00:00Z', name: 'Snapshot café', addressShort: 'Snapshot address',
   attributions: ['Google Maps'], googleMapsUri: 'https://maps.google.com/?cid=123',
@@ -33,8 +36,9 @@ const provider = () => ({
 
 beforeEach(() => {
   jest.useFakeTimers()
+  jest.setSystemTime(new Date('2026-11-09T00:00:00Z'))
   mockSubmission = undefined
-  mockItem = { id: 's1', status: 'pending', name: 'Submitted café', addressShort: 'Submitted address', createdAt: '2026-11-09T00:00:00Z', providerDisplay: provider() }
+  mockItem = { id: 's1', status: 'pending', name: 'Submitted café', addressShort: 'Submitted address', createdAt: '2026-11-09T00:00:00Z', photo, providerDisplay: provider() }
   jest.spyOn(api, 'get').mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'cGhvdG8=', authorAttributions: [{ displayName: 'Proxy photographer', uri: 'https://example.com/author' }] }] })
 })
 afterEach(async () => {
@@ -42,40 +46,43 @@ afterEach(async () => {
   jest.restoreAllMocks()
   jest.clearAllTimers()
   jest.useRealTimers()
+  await act(async () => { await i18n.changeLanguage('vi') })
   UnistylesSheet.configure({ themes })
 })
 
-it('renders pending/rejected snapshot facts and authoritative proxy photo credits in light mode', async () => {
+it('renders pending/rejected snapshot facts and stored CDN photo credits in light mode', async () => {
   const view = await renderScreen(<MyContributionsScreen />)
   expect(StyleSheet.flatten(screen.getByTestId('place-google-rating').props.style).backgroundColor).toBe(themes.orange.surface.container)
   expect(screen.getByLabelText('★ 4,7 (123) Google')).toBeTruthy()
   expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
-  expect(screen.getByTestId('import-candidate-photo').props.source).toEqual([{ uri: 'data:image/jpeg;base64,cGhvdG8=', cacheKey: 'data:image/jpeg;base64,cGhvdG8=' }])
-  expect(api.get).toHaveBeenCalledWith('/places/google-provider-photo/ChIJtest578', expect.objectContaining({ anonymous: true }))
-  expect(screen.getByTestId('import-photo-credit').props.accessibilityLabel).toContain('Proxy photographer')
+  expect(screen.getByTestId('place-photo-image').props.source).toEqual([{ uri: photo.url, cacheKey: photo.url }])
+  expect(api.get).not.toHaveBeenCalled()
+  expect(screen.getByTestId('place-photo-image').props.cachePolicy).toBe('memory-disk')
+  expect(screen.getByTestId('saved-photo-attribution').props.accessibilityLabel).toContain('Ảnh: CDN photographer · Google Maps')
   expect(screen.queryByText('Reference credit')).toBeNull()
   expect(screen.queryByRole('link', { name: 'Google Maps' })).toBeNull()
   expect(screen.queryByTestId('place-gogo-rating')).toBeNull()
   expect(screen.queryByText('Xác minh')).toBeNull()
   expect(screen.queryByTestId('material-icon-verified', { includeHiddenElements: true })).toBeNull()
-  mockItem = { ...mockItem, status: 'rejected', rejectionReason: 'incorrect_location' }
+  mockItem = { ...mockItem, status: 'rejected', updateDeadline: '2026-11-09T02:00:00Z', rejectionReason: 'incorrect_location' }
   await view.rerender(<MyContributionsScreen />)
   expect(screen.getByText('Bị từ chối')).toBeTruthy()
   expect(screen.getByTestId('place-google-rating')).toBeTruthy()
-  expect(screen.getByTestId('import-candidate-photo')).toBeTruthy()
+  expect(screen.getByTestId('place-photo-image')).toBeTruthy()
 })
 
 it('omits a null Google rating and empty hours without claiming closed', async () => {
+  mockItem.photo = undefined
   mockItem.providerDisplay = { ...provider(), googleRating: null, openingHours: [], photo: undefined }
   await renderScreen(<MyContributionsScreen />)
   expect(screen.queryByTestId('place-google-rating')).toBeNull()
   expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
-  expect(screen.queryByTestId('import-candidate-photo')).toBeNull()
+  expect(screen.queryByTestId('place-photo-image')).toBeNull()
   expect(api.get).not.toHaveBeenCalled()
 })
 
 it('lets hydrated submission facts replace list facts even when hydration is no longer needed', async () => {
-  mockSubmission = { ...mockItem, name: 'Hydrated café', addressShort: 'Hydrated address', providerDisplay: { ...provider(), googleRating: null, openingHours: [], photo: undefined } }
+  mockSubmission = { ...mockItem, name: 'Hydrated café', addressShort: 'Hydrated address', photo, providerDisplay: { ...provider(), googleRating: null, openingHours: [], photo: undefined } }
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getByText('Hydrated café')).toBeTruthy()
   expect(screen.getByText('Hydrated address')).toBeTruthy()
@@ -90,5 +97,27 @@ it.each(['approved', 'merged'])('keeps %s on canonical detail instead of snapsho
   expect(screen.getByTestId('place-card-name').props.children).toBe('Canonical café')
   expect(screen.getByLabelText('★ 3,2 (12) Google')).toBeTruthy()
   expect(screen.queryByTestId('import-preview-card')).toBeNull()
+  expect(api.get).not.toHaveBeenCalled()
+})
+
+it.each(['vi', 'en'])('expires a rejected CDN photo and displays the update deadline in %s', async locale => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  mockItem = { ...mockItem, status: 'rejected', updateDeadline: '2026-11-09T02:00:00Z' }
+  await renderScreen(<MyContributionsScreen />)
+  expect(screen.getByText(locale === 'vi' ? 'Còn 2 giờ để cập nhật' : '2 hours left to update')).toBeTruthy()
+  expect(screen.getByTestId('place-photo-image')).toBeTruthy()
+  await act(async () => { jest.advanceTimersByTime(2 * 60 * 60 * 1000) })
+  expect(screen.getByText(locale === 'vi' ? 'Đã hết thời hạn cập nhật' : 'The update window has expired')).toBeTruthy()
+  expect(screen.queryByTestId('place-photo-image')).toBeNull()
+  expect(screen.queryByTestId('contribution-photo-credit')).toBeNull()
+  expect(api.get).not.toHaveBeenCalled()
+})
+
+it('uses the stored photo supplied by submission detail hydration', async () => {
+  mockItem.photo = undefined
+  mockItem.providerStatus = 'deferred'
+  mockSubmission = { ...mockItem, photo }
+  await renderScreen(<MyContributionsScreen />)
+  expect(screen.getByTestId('place-photo-image').props.source).toEqual([{ uri: photo.url, cacheKey: photo.url }])
   expect(api.get).not.toHaveBeenCalled()
 })
