@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, type } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1 },
@@ -29,14 +29,6 @@ export const styles = StyleSheet.create((theme) => ({
   pasteLink: { minHeight: 44, paddingHorizontal: 10, borderRadius: 8, backgroundColor: theme.surface.low, flexDirection: 'row', alignItems: 'center', gap: 4 },
   pressed: { backgroundColor: theme.surface.container },
   linkInputRow: { position: 'relative', marginTop: 8 },
-  // A lineHeight on iOS installs a word-wrapping NSParagraphStyle even on
-  // UITextField. Use native font metrics for this single-line editor.
-  linkInput: { width: '100%', minWidth: 0, flexShrink: 1, paddingLeft: 40, paddingRight: 48, paddingVertical: 0, lineHeight: undefined, textAlignVertical: 'center', marginBottom: 0 },
-  linkInputUnfocused: { color: 'transparent' },
-  linkDisplay: { position: 'absolute', top: 0, bottom: 0, left: 40, right: 48, justifyContent: 'center' },
-  inputLocation: { position: 'absolute', left: 12, top: 16, zIndex: 1 },
-  clearLink: { position: 'absolute', right: 0, top: 4, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  clearDisc: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.surface.highest, alignItems: 'center', justifyContent: 'center' },
   validationBadge: { marginTop: 12, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: theme.status.successSoft },
   validationInvalid: { backgroundColor: theme.status.warningSoft },
   formatHint: { flexDirection: 'row', alignItems: 'flex-start', gap: 4, marginTop: 6 },
@@ -80,18 +72,6 @@ export const styles = StyleSheet.create((theme) => ({
     ...theme.shadows.card,
   },
   inputCardFocused: { borderColor: theme.accent.text },
-  input: {
-    ...type.bodySmall,
-    height: 52,
-    borderRadius: radius.compact,
-    backgroundColor: theme.surface.low,
-    borderWidth: 1,
-    borderColor: theme.border.neutral,
-    paddingHorizontal: spacing[3],
-    color: theme.text.primary,
-    marginBottom: spacing[2],
-  },
-  inputError: { borderColor: theme.status.danger },
   errorLabel: { marginBottom: spacing[2] },
   verifyBtn: { marginTop: spacing[2] },
   verifyingRow: {

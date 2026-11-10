@@ -758,3 +758,22 @@ it.each(['orange', 'orangeDark'] as const)('raises the result card over the shee
     expect(cardStyle.card.overflow).not.toBe('hidden')
   } finally { create.mockRestore() }
 })
+
+
+it.each(['orange', 'orangeDark'] as const)('uses the shared link field while preserving invalid-link feedback (%s)', async themeName => {
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), 'invalid link')
+  expect(screen.getByTestId('import-link-input').props.value).toBe('invalid link')
+  expect(screen.getByTestId('import-link-input').props.accessibilityHint).toBeTruthy()
+  const create = jest.spyOn(UnistylesStyleSheet, 'create')
+  jest.isolateModules(() => { jest.requireActual('@/shared/ui/link-input.style') })
+  const factory = create.mock.calls[0]![0] as (theme: AppTheme) => Record<string, Record<string, unknown>>
+  expect(factory(themes[themeName]).error.borderColor).toBe(themes[themeName].status.danger)
+  expect(factory(themes[themeName]).input.backgroundColor).toBe(themes[themeName].surface.low)
+  create.mockRestore()
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  expect(mockResolve.mutate).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: 'Xóa liên kết' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(screen.getByTestId('import-link-input').props.accessibilityHint).toBeUndefined()
+})
