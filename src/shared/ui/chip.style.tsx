@@ -12,7 +12,7 @@ export const styles = StyleSheet.create(theme => ({
   discoveryChip: { minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: theme.surface.low, borderWidth: 0 },
   discoveryChipSelected: { backgroundColor: theme.mode === 'dark' ? theme.accent.selected : theme.accent.container },
   remove: { minWidth: touchTarget.min, minHeight: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
-  host: { maxWidth: '100%', flexShrink: 1, minWidth: touchTarget.min, minHeight: touchTarget.min, justifyContent: 'center' },
+  host: { alignSelf: 'flex-start', maxWidth: '100%', flexShrink: 1, justifyContent: 'center' },
   chip: {
     maxWidth: '100%',
     flexShrink: 1,

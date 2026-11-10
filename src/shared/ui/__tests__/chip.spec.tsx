@@ -47,15 +47,33 @@ it.each(Object.entries(themes))('keeps idle and selected chip text at AA in ever
   }
 })
 
-it.each(appearances)('reserves a 44pt layout target for interactive %s chips, including short labels', async appearance => {
+function expectPillSizedHost(button: ReturnType<typeof screen.getByRole>) {
+  const host = flat(button)
+  const pill = button.queryAll(node => node.type === 'View' && flat(node)?.borderRadius === 999)[0]!
+  const surface = flat(pill)
+  expect(host.alignSelf).toBe('flex-start')
+  expect(host.minHeight).toBeUndefined()
+  expect(host.minWidth).toBeUndefined()
+  expect(host.height).toBeUndefined()
+  expect(host.maxHeight).toBeUndefined()
+  expect(host.padding).toBeUndefined()
+  expect(host.paddingVertical).toBeUndefined()
+  expect(host.marginVertical).toBeUndefined()
+  const slop = button.props.hitSlop
+  expect(surface.height ?? surface.minHeight).toBeGreaterThanOrEqual(32)
+  expect((surface.height ?? surface.minHeight) + slop.top + slop.bottom).toBeGreaterThanOrEqual(touchTarget.min)
+  // Padding alone guarantees 44pt even before measuring a one-character label.
+  expect(2 * surface.paddingHorizontal + slop.left + slop.right).toBeGreaterThanOrEqual(touchTarget.min)
+  return surface
+}
+
+it.each(appearances)('keeps the %s host pill-sized with a 44pt hit area for every variant', async appearance => {
   const view = await render(<Chip label="A" appearance={appearance} onPress={jest.fn()} />)
   for (const variant of variants) {
     await view.rerender(<Chip label="A" appearance={appearance} variant={variant} onPress={jest.fn()} />)
-    const host = flat(screen.getByRole('button', { name: 'A', disabled: variant === 'disabled' }))
-    expect(host.minHeight).toBeGreaterThanOrEqual(touchTarget.min)
-    expect(host.minWidth).toBeGreaterThanOrEqual(touchTarget.min)
-    expect(host.height).toBeUndefined()
-    expect(host.maxHeight).toBeUndefined()
+    const surface = expectPillSizedHost(screen.getByRole('button', { name: 'A', disabled: variant === 'disabled' }))
+    const visual = ['default', 'selected'].includes(variant) || appearance === 'raised' && variant === 'disabled' ? appearance : 'default'
+    expect(surface.minHeight).toBe(visual === 'mood' ? 36 : ['soft', 'discovery'].includes(visual) ? 44 : 32)
   }
 })
 
@@ -78,7 +96,7 @@ it.each([
   const buttons = screen.getAllByRole('button')
   expect(buttons).toHaveLength(labels.length)
   // Walk the rendered parents to the actual flex row. No native Yoga layout
-  // runs in Jest: assert the layout constraints that make its one-row height >=44.
+  // runs in Jest: assert 4pt gaps and no invisible host height on either axis.
   let row = buttons[0]!.parent
   while (row && flat(row)?.flexDirection !== 'row') row = row.parent
   expect(row).not.toBeNull()
@@ -87,8 +105,7 @@ it.each([
   expect(flat(row!).height).toBeUndefined()
   expect(flat(row!).maxHeight).toBeUndefined()
   for (const button of buttons) {
-    expect(flat(button).minHeight).toBeGreaterThanOrEqual(touchTarget.min)
-    expect(flat(button).minWidth).toBeGreaterThanOrEqual(touchTarget.min)
+    expectPillSizedHost(button)
   }
   await fireEvent.press(buttons[0]!)
   expect(onSelect).toHaveBeenCalledWith('0')

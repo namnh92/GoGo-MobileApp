@@ -3,7 +3,13 @@
 Owner rule, 2026-11-10: chip rows have at most 4pt between items on both axes.
 `chipRowGap` in `src/shared/ui/tokens.ts` references `spacing[1]` (4pt).
 There is no shared ChipRow component; existing row styles use this one value.
-Chip touch targets remain at least 44pt.
+Chip touch areas remain at least 44pt via hitSlop. The interactive host has
+no minimum width/height or padding around its visible pill and opts out of flex
+stretch, so a 32pt default/raised pill or 36pt mood pill does not reserve an
+invisible 44pt layout box. Soft/discovery keep their visible 44pt minimum.
+Pill colours, padding, typography, borders, and heights are unchanged.
+The shared hitSlop is 8pt vertically and 10pt horizontally: even the 32pt pill
+has a 48pt touch height, and its 24pt horizontal padding alone gives 44pt width.
 
 ## Screens with changed chip-row layouts
 
@@ -51,16 +57,38 @@ list/card spacing, and static onboarding illustrations are separate layouts.
 `chip.spec.tsx` pins the shared value to numeric 4 and checks row, column, and
 wrapping-axis gaps for the audited styles in every theme, with no distributed
 justification. Rendered AI tests cover follow-ups, group-size choices, and budget
-choices, along with their existing 44pt targets and dispatch behavior.
+choices, along with pill-sized hosts, hitSlop giving at least 44pt on both axes,
+and dispatch behavior. Every appearance and semantic variant is covered, including
+soft, discovery, and mood. The independent removal action retains its 44pt layout
+target.
 Existing Explore and Notifications layout tests now pin 4pt.
 
 Jest checks layout constraints; native wrapping geometry has not been measured
 on a simulator in this task.
 
-## Validation
+## Validation before owner simulator follow-up
 
 - `pnpm typecheck`: passed.
 - `pnpm lint`: passed.
 - `pnpm test:ui --runInBand`: 237 suites, 3,514 tests, 11 snapshots passed.
 - `pnpm test src/shared/ui/__tests__/chip-ownership.test.ts`: 3 tests passed.
 - No git commands were run.
+
+## Owner simulator follow-up, 2026-11-10
+
+The prior host minimum produced approximately 12pt of invisible height around
+32pt pills, adding to the nominal 4pt wrapped-row gap. Removed this host minimum
+and updated the regression assertions to reject invisible host dimensions.
+Validation after the host fix:
+
+- `pnpm test`: 1,755 passed, 39 skipped; exactly 3 distribute-wrapper failures
+  caused by sandbox-blocked process inspection (`spawnSync('ps', ...)` returns
+  `EPERM`). These are the only ignored failures authorized by the owner.
+- `pnpm test:ui --runInBand`: 237 suites, 3,514 tests, 11 snapshots passed.
+- `pnpm typecheck`: passed.
+- `pnpm lint`: passed.
+- Focused Chip suite: 67 tests passed.
+- No git commands were issued directly; the requested Vitest suite uses git
+  internally in temporary distribution-test fixtures.
+- No simulator remeasurement performed; Jest verifies the layout constraints
+  and configured hitSlop rather than native Yoga geometry.

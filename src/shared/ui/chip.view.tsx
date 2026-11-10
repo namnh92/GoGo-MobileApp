@@ -3,11 +3,19 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { haptic } from './feedback'
 import { Icon, type IconName } from './icons'
 import { Text, type TextColor } from './text'
-import { hitSlop } from './tokens'
+import { hitSlop, spacing, touchTarget } from './tokens'
 import { styles } from './chip.style'
 
 export type ChipVariant = 'default' | 'selected' | 'disabled' | 'info' | 'positive' | 'warning'
 type ChipAppearance = 'default' | 'discovery' | 'mood' | 'soft' | 'raised'
+
+// The smallest pill has 12pt horizontal padding per side. Expand its touch
+// area without reserving invisible layout space between wrapped pills.
+const chipHitSlop = {
+  ...hitSlop,
+  left: Math.max(hitSlop.left, (touchTarget.min - 2 * spacing[3]) / 2),
+  right: Math.max(hitSlop.right, (touchTarget.min - 2 * spacing[3]) / 2),
+}
 
 const LABEL: Record<ChipVariant, TextColor> = {
   default: 'text.primary', selected: 'accent.onAccent', disabled: 'text.secondary',
@@ -75,7 +83,7 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
   return <Pressable testID={testID} style={styles.host} disabled={disabled}
     onPress={() => { haptic('select'); onPress() }}
     accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label}
-    accessibilityState={{ selected, disabled }} hitSlop={hitSlop}>
+    accessibilityState={{ selected, disabled }} hitSlop={chipHitSlop}>
     {body}
   </Pressable>
 }
