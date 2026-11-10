@@ -61,7 +61,6 @@ export default function ProfileScreen() {
   const [logoutOverlayClosed, setLogoutOverlayClosed] = useState(true)
   if (signingOut && logoutOverlayClosed) setLogoutOverlayClosed(false)
   const [logoutConfirm, setLogoutConfirm] = useState<string | null>(null)
-  const [locked, setLocked] = useState(false)
   const [failed, setFailed] = useState<{ reason: SignOutFailure; actor: string } | null>(null)
   const actor = actorKeyOf(session)
   useEffect(() => { signOutQueued.current = null }, [actor])
@@ -71,7 +70,6 @@ export default function ProfileScreen() {
   if (dialogActor !== actor) {
     setDialogActor(actor)
     setLogoutConfirm(null)
-    setLocked(false)
   }
   const signOutFailure = failed && failed.actor === actor ? failed.reason : null
   const profile = canRead ? me.data : undefined
@@ -82,10 +80,10 @@ export default function ProfileScreen() {
     return label ? [label] : []
   }) ?? []
   const shortcuts = [
-    { key: 'saved', route: '/(tabs)/saved', count: canRead ? saved.data?.length : undefined, userOnly: true },
-    { key: 'plans', route: '/(tabs)/plans', count: keoCount, userOnly: false },
-    { key: 'reviews', route: '/me/contributions?tab=reviews', count: canRead ? reviews.data?.length : undefined, userOnly: true },
-    { key: 'contributions', route: '/me/contributions?tab=places', count: contributionCount, userOnly: true },
+    { key: 'saved', route: '/(tabs)/saved', count: canRead ? saved.data?.length : undefined },
+    { key: 'plans', route: '/(tabs)/plans', count: keoCount },
+    { key: 'reviews', route: '/me/contributions?tab=reviews', count: canRead ? reviews.data?.length : undefined },
+    { key: 'contributions', route: '/me/contributions?tab=places', count: contributionCount },
   ]
   async function signOutNow() {
     setLogoutResultReady(true)
@@ -140,21 +138,18 @@ export default function ProfileScreen() {
           <PrimaryBtn label={t('g11.signIn')} onPress={() => router.push('/auth/sign-in')} />
         </Card>
       </> : null}
-      <View style={styles.shortcutRow}>{shortcuts.map(shortcut => {
-        const isLocked = !canRead && shortcut.userOnly
+      {canRead ? <View testID="profile-shortcut-row" style={styles.shortcutRow}>{shortcuts.map(shortcut => {
         return <Pressable key={shortcut.key} accessibilityRole="button" accessibilityLabel={shortcut.count === undefined ? t(`profile.shortcut.${shortcut.key}`) : `${t(`profile.shortcut.${shortcut.key}`)}: ${shortcut.count}`}
           accessibilityState={{ busy: shortcut.key === 'plans' ? keoLoading : shortcut.key === 'contributions' ? contributionLoading : false }}
-          accessibilityHint={isLocked ? t('g11.userOnly') : undefined}
-          onPress={() => isLocked ? setLocked(true) : router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
+          onPress={() => router.push(shortcut.key === 'plans' ? { pathname: '/(tabs)/plans', params: { showUpcoming: String(Date.now()) } } : shortcut.route)}
           style={({ pressed }) => [styles.shortcutPress, pressed && styles.settingRowPressed]}>
           <Card appearance="stitch" padded={false} style={styles.shortcut}>
-            <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={isLocked ? 'lock' : SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'status.infoText' : 'accent.text'} /></View>
+            <View style={[styles.shortcutIcon, shortcut.key === 'plans' && styles.plansIcon, shortcut.key === 'reviews' && styles.reviewsIcon]}><MaterialIcon name={SHORTCUT_ICON[shortcut.key]} size={20} color={shortcut.key === 'plans' ? 'status.infoText' : 'accent.text'} /></View>
             {(shortcut.key === 'plans' && keoLoading) || (shortcut.key === 'contributions' && contributionLoading) ? <View testID={shortcut.key === 'plans' ? 'profile-keo-loading' : 'profile-contributions-loading'}><Skeleton width={40} height={24} /></View> : shortcut.count !== undefined ? <Text variant="introHeading" color="text.primary">{shortcut.count}</Text> : null}
             <Text variant="introCaption" color="text.secondary" style={styles.shortcutLabel}>{t(`profile.shortcut.${shortcut.key}`)}</Text>
-            {isLocked ? <Text variant="introCaption" color="text.secondary" style={styles.shortcutLabel}>{t('g11.userOnly')}</Text> : null}
           </Card>
         </Pressable>
-      })}</View>
+      })}</View> : null}
       {!canRead ? <Card appearance="stitch" padded={false} style={styles.card}><Text variant="bodySmall" color="text.secondary">{t('g11.guestHint')}</Text><GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} /></Card> : null}
       <ProfileUpcoming enabled={canRead} />
       {(['settings', 'experience'] as const).map(group => {
@@ -175,8 +170,6 @@ export default function ProfileScreen() {
       {status !== 'anonymous' ? <SecondaryBtn label={signingOut ? t('profile.loggingOut') : t('g11.logout')} onPress={() => setLogoutConfirm(actor)} disabled={signingOut} loading={signingOut} style={styles.logout} leadingIcon="logout" /> : null}
       <BuildVersion />
     </ScrollView>
-    <ResultSheet visible={locked && !canRead} variant="info" title={t('notifications.signInTitle')} body={t('g11.userOnly')}
-      primaryAction={{ label: t('auth.signInCta'), onPress: () => { setLocked(false); router.push('/auth/sign-in') } }} onClose={() => setLocked(false)} />
     <ResultSheet visible={logoutConfirm !== null && logoutConfirm === actor} variant="warning"
       testID="profile-logout-confirm" title={t('g11.logoutTitle')} body={t('g11.logoutBody')}
       primaryAction={{ label: t('g11.logoutConfirm'), destructive: true, onPress: () => { signOutQueued.current = actor; setLogoutConfirm(null) } }}

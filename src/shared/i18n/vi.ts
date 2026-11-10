@@ -141,7 +141,6 @@ export const viMessages = {
   "g11.unlock": "Mở khóa trọn vẹn GoGo",
   "g11.unlockBody": "Đăng nhập hoặc đăng ký để lưu địa điểm, đồng bộ hồ sơ và tạo kèo cùng bạn bè.",
   "g11.signIn": "Đăng nhập / đăng ký",
-  "g11.userOnly": "Cần tài khoản để dùng tính năng này.",
   "g11.guestHint": "Khách có thể nhận lời mời, chọn sở thích và bình chọn trong kèo đã tham gia.",
   "g11.settings": "Cài đặt & tiện ích",
   "g11.experience": "Trải nghiệm",
