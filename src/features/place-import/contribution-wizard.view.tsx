@@ -133,7 +133,7 @@ function Wizard(props: WizardProps) {
     return (
       <View style={styles.heading}>
         <MaterialIcon name={icon} size={18} color="accent.primary" />
-        <View style={styles.headingText}>
+        <View style={[styles.headingText, icon === 'mood' && styles.vibeHeadingText]}>
           {action ? <View style={styles.titleRow}>
             <Text testID={`contribution-section-title-${icon}`} variant="introHeading" numberOfLines={1} style={styles.sectionTitle}>{title}</Text>
             {action}
@@ -402,10 +402,7 @@ function Wizard(props: WizardProps) {
             <>
               <View style={styles.section}>
                 <ContributionChoices options={vibes} selected={form.vibeKeys} max={3} disabled={disabled}
-                  checklist renderHeader={(action) => <>
-                    {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'), action)}
-                    <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
-                  </>}
+                  checklist renderHeader={(action) => sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'), action)}
                   title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
               </View>
               <View style={[styles.section, styles.divider]}>
