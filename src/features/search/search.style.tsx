@@ -1,8 +1,11 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { overlay, spacing, type } from '@/shared/ui/tokens'
+import { overlay, spacing, touchTarget, type } from '@/shared/ui/tokens'
+
+// The visible row is 16pt; expand its touch height to 44pt without separating the text.
+export const scopeHitSlop = { top: (touchTarget.min - spacing[4]) / 2, bottom: (touchTarget.min - spacing[4]) / 2, left: spacing[2], right: spacing[2] }
 export const styles = StyleSheet.create(theme => ({
   scopeLabel: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  scope: { flex: 1, minWidth: 0, justifyContent: 'center', minHeight: 44 },
+  scope: { minWidth: 0, justifyContent: 'center', minHeight: spacing[4] },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 12 },
   input: { flex: 1, height: 48, backgroundColor: theme.surface.high, borderRadius: 12 },
   filterToggle: { borderRadius: 12, backgroundColor: theme.surface.card, borderWidth: 1, borderColor: theme.border.hairline },

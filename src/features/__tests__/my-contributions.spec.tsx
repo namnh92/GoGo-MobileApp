@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native'
 import { act, fireEvent, screen } from '@testing-library/react-native'
 import { renderScreen } from './harness'
-import MyContributionsScreen from '../contributions/my-contributions.view'
+import MyContributionsScreen from '@/app/me/contributions'
 
 const mockRouter = { back: jest.fn(), push: jest.fn() }
 const mockFetch = jest.fn()
@@ -10,6 +10,10 @@ const mockReviewRefresh = jest.fn()
 const mockOpenWebsite = jest.fn()
 const mockToggle = jest.fn()
 const mockEnabled = jest.fn()
+let mockBottomInset = 34
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 47, bottom: mockBottomInset, left: 0, right: 0 }),
+}))
 let mockStatus = 'user'
 let mockOnline = true
 let mockQuery: any
@@ -35,6 +39,7 @@ const row = (id: string, status: string, extra = {}) => ({ id, status, name: id,
 beforeEach(() => {
   jest.useFakeTimers()
   jest.clearAllMocks()
+  mockBottomInset = 34
   mockStatus = 'user'
   mockOnline = true
   mockParams = {}
@@ -48,7 +53,7 @@ afterEach(async () => {
   await act(async () => { jest.runOnlyPendingTimers() })
   jest.useRealTimers()
 })
-it('switches real lists, resets the filter and routes creation with the Stitch tab dock', async () => {
+it('switches real lists, resets the filter and routes creation without a tab dock', async () => {
   await renderScreen(<MyContributionsScreen />)
   expect(screen.getAllByText('Gửi ngày 07/11/2026')).toHaveLength(4)
   expect(screen.getByText('Lý do: Sai vị trí')).toBeTruthy()
@@ -68,8 +73,8 @@ it('switches real lists, resets the filter and routes creation with the Stitch t
   expect(screen.queryByTestId('contributions-bell')).toBeNull()
   expect(screen.queryByTestId('contributions-unread')).toBeNull()
   expect(mockRouter.push).not.toHaveBeenCalledWith('/notifications')
-  expect(screen.getAllByRole('tab')).toHaveLength(6)
-  expect(screen.getByRole('tab', { name: 'Đã lưu' })).toBeTruthy()
+  expect(screen.getAllByRole('tab')).toHaveLength(2)
+  expect(screen.queryByTestId('app-tab-dock')).toBeNull()
 })
 it('renders contribution records without saved-place controls or duplicate statuses', async () => {
   await renderScreen(<MyContributionsScreen />)
@@ -157,7 +162,7 @@ it('renders counted inset segments and the full-width add action from Stitch', a
   expect(screen.queryByText('Bạn chưa có đóng góp nào')).toBeNull()
   await fireEvent.press(screen.getByRole('tab', { name: 'Đánh giá (2)' }))
   expect(screen.queryByRole('button', { name: 'Thêm địa điểm mới' })).toBeNull()
-  expect(screen.getAllByRole('tab')).toHaveLength(6)
+  expect(screen.getAllByRole('tab')).toHaveLength(2)
 })
 
 it.each([
@@ -193,4 +198,18 @@ it('shows a Reviews empty state only for the active filter with its explore acti
   await fireEvent.press(screen.getByRole('button', { name: 'Khám phá địa điểm' }))
   expect(mockRouter.push).toHaveBeenCalledWith('/places/search')
   expect(screen.queryByTestId('contributions-add-fab')).toBeNull()
+})
+
+it.each([0, 34])('keeps the child route dock-free and the CTA above bottom safe area %s', async bottom => {
+  mockBottomInset = bottom
+  await renderScreen(<MyContributionsScreen />)
+  expect(screen.queryByTestId('app-tab-dock')).toBeNull()
+  expect(screen.getAllByRole('tab')).toHaveLength(2)
+  expect(StyleSheet.flatten(screen.getByTestId('contributions-add-action').props.style)).toMatchObject({ paddingBottom: bottom + 12 })
+  expect(StyleSheet.flatten(screen.getByTestId('my-contributions-list').props.contentContainerStyle).paddingBottom).toBe(24)
+  await fireEvent.press(screen.getByRole('button', { name: 'Quay lại' }))
+  expect(mockRouter.back).toHaveBeenCalledTimes(1)
+  await fireEvent.press(screen.getByRole('tab', { name: /Đánh giá/ }))
+  expect(screen.queryByTestId('app-tab-dock')).toBeNull()
+  expect(StyleSheet.flatten(screen.getByTestId('my-contributions-reviews').props.contentContainerStyle).paddingBottom).toBe(bottom + 24)
 })

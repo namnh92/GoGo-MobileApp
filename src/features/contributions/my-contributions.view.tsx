@@ -1,13 +1,12 @@
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
-import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useBottomBarInset } from '@/shared/ui/bottom-bar-inset'
 import { detailToPlaceCard, useMyReviews, usePlaceDetail } from '@/shared/api'
 import { useMyPlaceSubmission, useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
 import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
@@ -111,7 +110,8 @@ export default function MyContributionsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useLocalSearchParams<{ tab?: string }>()
-  const insets = useSafeAreaInsets()
+  const actionPadding = useBottomBarInset(12)
+  const listPadding = useBottomBarInset(24)
   const registered = useSession().status === 'user'
   const query = useMyPlaceSubmissions(registered)
   const reviews = useMyReviews({ enabled: registered })
@@ -151,14 +151,13 @@ export default function MyContributionsScreen() {
       })}</ScrollView></View>
       {!online && !active.isPending ? <OfflineState /> : null}
       <PullToRefresh key={tab} refreshing={refreshing} onRefresh={() => active.refetch()}>{tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
+        contentContainerStyle={[styles.list, { paddingBottom: 24 }]} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
         ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionPlace item={item} />} /> :
         <FlatList testID="my-contributions-reviews" data={reviewItems.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}</PullToRefresh>
+          contentContainerStyle={[styles.list, { paddingBottom: listPadding }]} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}</PullToRefresh>
     </>}
-    {registered && tab === 'places' ? <View style={styles.addAction}>
+    {registered && tab === 'places' ? <View testID="contributions-add-action" style={[styles.addAction, { paddingBottom: actionPadding }]}>
       <PrimaryBtn label={t('myContributions.add')} leadingIcon="plus" onPress={() => router.push('/places/import')} />
     </View> : null}
-    {registered ? <AppTabDock active="profile" /> : null}
   </Atmosphere>
 }

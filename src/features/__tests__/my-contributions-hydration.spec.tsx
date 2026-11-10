@@ -164,11 +164,11 @@ it('renders the non-retry note in English', async () => {
   }
 })
 
-it('retains the Stitch tab dock and renders supported SVG paths for contribution icons', async () => {
+it('omits the tab dock and renders supported SVG paths for contribution icons', async () => {
   mockItems = []
   await renderScreen(view())
   for (const name of ['Khám phá', 'Kế hoạch', 'Đã lưu', 'Cá nhân']) {
-    expect(screen.getByRole('tab', { name })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name })).toBeNull()
   }
   expect(mockSvgPaths.length).toBeGreaterThan(0)
   for (const path of mockSvgPaths) expect(path).toEqual(expect.stringMatching(/^M/))
