@@ -47,13 +47,15 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
   const { t } = useTranslation()
   const { facts } = card
   // The assistant contract explicitly defines these verified prices per person.
-  // No provider rating, category, distance or verification is inferred here.
+  // No rating, category, distance or verification is inferred here.
   const place = {
     id: card.placeId,
     name: facts.name,
     ...(card.available ? {
       areaKey: facts.areaKey,
       addressText: facts.addressText,
+      rating: facts.providerRating,
+      ratingCount: facts.providerRatingCount,
       gogoRating: facts.gogoRating,
       gogoRatingCount: facts.gogoRatingCount,
       openNow: facts.openNow ?? undefined,
@@ -69,7 +71,7 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
     photoUrl: card.available ? facts.photoUrl ?? null : null,
     photoAttribution: null,
     photoSource: null,
-    ratingSource: 'google' as const,
+    ratingSource: facts.providerRatingSource ?? 'google',
   }
   return (
     <View testID={`assistant-card-${card.placeId}`}>

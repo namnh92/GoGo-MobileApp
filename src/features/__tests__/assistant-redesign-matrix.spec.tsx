@@ -188,10 +188,18 @@ describe.each(['orange', 'orangeDark'] as const)('group 09 %s', themeName => {
       expect(style.alignItems ?? 'stretch').toMatch(/^(stretch|flex-start)$/)
     }
     expect(screen.getByText(/GoGo/)).toBeTruthy()
-    expect(screen.queryByText(/Google/)).toBeNull()
+    expect(screen.queryByTestId('place-google-rating')).toBeNull()
     expect(screen.queryByRole('button', { name: i18n.t('assistant.card.viewPlace') })).toBeNull()
     await fireEvent.press(screen.getByRole('button', { name: 'A verified place' }))
     expect(open).toHaveBeenCalledWith('place1')
+  })
+
+  it('keeps Google and GoGo ratings in separate shared chips with their own counts', async () => {
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'rated', available: true, facts: { name: 'Rated place', providerRating: 4.7, providerRatingCount: 1280, providerRatingSource: 'google', gogoRating: 4.6, gogoRatingCount: 12 } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-card-small')).toBeTruthy()
+    expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,7 (1.280) Google')
+    expect(screen.getByLabelText('★ 4,7 (1.280) Google')).toBeTruthy()
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('★ 4,6 (12) GoGo')
   })
 
   it('omits unknown prices and unavailable place actions', async () => {
