@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import type { PropsWithChildren } from 'react'
 
 import type { AssistantProposal, AssistantProposalResult } from '@/shared/api'
 import i18n from '@/shared/i18n'
@@ -21,16 +23,20 @@ function proposal(amount: unknown, mode: unknown = 'per_person'): AssistantPropo
 
 async function show(data: AssistantProposal, surface: 'proposal' | 'summary', locale: string, onConfirm = jest.fn()) {
   const context = { locale, placeNames: new Map<string, string>() }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  )
   if (surface === 'proposal') {
     await render(<ConfirmationCard proposal={data} context={context} confirming={false} dismissing={false}
-      error={null} onConfirm={onConfirm} onDismiss={jest.fn()} />)
+      error={null} onConfirm={onConfirm} onDismiss={jest.fn()} />, { wrapper })
   } else {
     const result: AssistantProposalResult = {
       proposalId: data.id, kind: data.kind, resource: { type: 'room', id: 'room-1' },
       savedValues: data.values.map(({ field, value }) => ({ field, value })),
       confirmedAt: '2026-11-03T00:01:00Z',
     }
-    await render(<TaskSummary result={result} context={context} onOpenRoom={jest.fn()} />)
+    await render(<TaskSummary result={result} context={context} onOpenRoom={jest.fn()} />, { wrapper })
   }
 }
 
