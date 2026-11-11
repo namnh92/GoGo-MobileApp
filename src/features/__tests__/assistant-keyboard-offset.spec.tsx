@@ -75,7 +75,7 @@ it.each([false, true])('keeps credit directly below the composer with keyboard v
   const children = footer.props.children
   expect(children).toHaveLength(2)
   expect(children[0].type).toBe(require('@/features/assistant/composer.view').Composer)
-  expect(children[1].type).toBe(require('@/features/credits/credit-balance.view').CreditBalanceRow)
+  expect(children[1].type).toBe(require('@/features/assistant/usage-footer.view').UsageFooter)
   expect(within(footer).getByTestId('assistant-composer')).toHaveStyle({ paddingBottom: 8 })
   expect(within(footer).getByTestId('credit-balance-row')).toBeTruthy()
   expect(within(footer).getByText('75')).toBeTruthy()

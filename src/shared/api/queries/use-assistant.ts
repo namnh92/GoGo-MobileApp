@@ -238,6 +238,7 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
           item.idempotencyKey,
         )
         scope.assert()
+        void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
         const userId = getSession()?.userId
         if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, scope.generation) })
         insertTurn(client, target, turn)

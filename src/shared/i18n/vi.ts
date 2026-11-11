@@ -1765,6 +1765,8 @@ export const viMessages = {
   'locationSettings.note': 'Vị trí chính xác của một kèo chỉ giữ trong thời gian kèo diễn ra, rồi được xoá theo chính sách lưu trữ.',
   'assistant.name': 'GoGo AI',
   'assistant.subtitle': 'Trợ lý GoGo của bạn',
+  'assistant.usage.remaining': 'Miễn phí hôm nay: {{remaining}}/{{limit}}',
+  'assistant.usage.exhausted': 'Hết miễn phí hôm nay · Đặt lại {{time}}',
   'assistant.close': 'Đóng GoGo AI',
   'assistant.greeting': 'Chào bạn! GoGo có thể giúp gì cho bạn hôm nay?',
   'assistant.chatSaved': 'Cuộc trò chuyện đã được lưu trong lịch sử GoGo AI',

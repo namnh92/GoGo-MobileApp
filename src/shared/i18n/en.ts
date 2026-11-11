@@ -1780,6 +1780,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'locationSettings.allow': 'Allow',
   'locationSettings.note': "A date's exact starting point is kept only while the date is live, then cleared under the retention policy.",
   'assistant.name': 'GoGo AI',
+  'assistant.usage.remaining': 'Free sends today: {{remaining}}/{{limit}}',
+  'assistant.usage.exhausted': "Today's free sends used up · Resets {{time}}",
   'assistant.subtitle': 'Your GoGo assistant',
   'assistant.close': 'Close GoGo AI',
   'assistant.greeting': 'Hi! How can GoGo help you today?',

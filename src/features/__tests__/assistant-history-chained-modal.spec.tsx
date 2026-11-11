@@ -56,7 +56,7 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
 })
 
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn(), canGoBack: () => true }
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(),
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
   Redirect: () => null,
