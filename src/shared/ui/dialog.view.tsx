@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
-import { Modal, Pressable, View } from 'react-native'
+import { Modal, Platform, Pressable, View } from 'react-native'
 
-import { DangerBtn, GhostBtn, PrimaryBtn } from '@/shared/ui/button.view'
+import { DangerBtn, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/button.view'
 import { useReducedMotionPreference } from '@/shared/ui/feedback'
 import { Text } from '@/shared/ui/text'
 
@@ -24,6 +24,10 @@ export interface DialogOptions {
   title: string
   message?: string
   actions: DialogAction[]
+  /** Opt-in two-button row: secondary cancel left, primary right. */
+  actionLayout?: 'stack' | 'row'
+  /** The native modal has actually appeared. */
+  onShown?: () => void
 }
 
 export interface DialogProps extends DialogOptions {
@@ -31,6 +35,8 @@ export interface DialogProps extends DialogOptions {
   onAction: (key: string) => void
   /** Dismissed without choosing: backdrop, back, escape. Only offered when there is a `cancel` action. */
   onDismiss: () => void
+  /** Native dismissal completed; safe to present the next modal. */
+  onClosed?: () => void
 }
 
 /**
@@ -47,13 +53,19 @@ export interface DialogProps extends DialogOptions {
  * and TalkBack start there. It fades (no movement), and with reduced motion it
  * simply appears.
  */
-export function Dialog({ visible, title, message, actions, onAction, onDismiss }: DialogProps) {
+export function Dialog({ visible, title, message, actions, actionLayout = 'stack', onAction, onDismiss, onClosed, onShown }: DialogProps) {
   const reduced = useReducedMotionPreference() ?? true
   const cancellable = actions.some(action => action.style === 'cancel')
   const dismiss = () => {
     if (cancellable) onDismiss()
   }
-  const ordered = [
+  useEffect(() => {
+    if (!visible && Platform.OS !== 'ios') onClosed?.()
+  }, [visible, onClosed])
+  const ordered = actionLayout === 'row' ? [
+    ...actions.filter(action => action.style === 'cancel'),
+    ...actions.filter(action => action.style !== 'cancel'),
+  ] : [
     ...actions.filter(action => action.style !== 'cancel'),
     ...actions.filter(action => action.style === 'cancel'),
   ]
@@ -64,7 +76,9 @@ export function Dialog({ visible, title, message, actions, onAction, onDismiss }
       transparent
       animationType={reduced ? 'none' : 'fade'}
       statusBarTranslucent
+      onShow={onShown}
       onRequestClose={dismiss}
+      onDismiss={Platform.OS === 'ios' ? onClosed : undefined}
     >
       <View style={styles.root}>
         {/* The card is the modal for screen readers; its cancel button is the way out. */}
@@ -77,10 +91,12 @@ export function Dialog({ visible, title, message, actions, onAction, onDismiss }
         <View style={styles.card} accessibilityViewIsModal onAccessibilityEscape={dismiss}>
           <Text variant="title2" accessibilityRole="header">{title}</Text>
           {message ? <Text variant="body" color="text.secondary">{message}</Text> : null}
-          <View style={styles.actions}>
+          <View style={[styles.actions, actionLayout === 'row' && styles.actionRow]}>
             {ordered.map(action => {
-              const Button = action.style === 'destructive' ? DangerBtn : action.style === 'cancel' ? GhostBtn : PrimaryBtn
-              return <Button key={action.key} label={action.label} onPress={() => onAction(action.key)} />
+              const Button = action.style === 'destructive' ? DangerBtn : action.style === 'cancel' ? (actionLayout === 'row' ? SecondaryBtn : GhostBtn) : PrimaryBtn
+              return actionLayout === 'row'
+                ? <View key={action.key} style={styles.actionCell}><Button label={action.label} onPress={() => onAction(action.key)} /></View>
+                : <Button key={action.key} label={action.label} onPress={() => onAction(action.key)} />
             })}
           </View>
         </View>
@@ -98,21 +114,43 @@ export function Dialog({ visible, title, message, actions, onAction, onDismiss }
  *
  * Resolves with the pressed action's key, or `null` when dismissed. Opening a
  * second one dismisses the first. Unmounting with one open resolves it `null`,
- * so no awaiting handler is left hanging.
+ * so no awaiting handler is left hanging. `waitForDismiss` opts into resolving
+ * after native dismissal, for callers that chain dialogs or open another sheet.
  */
-export function useDialog(): { confirm: (options: DialogOptions) => Promise<string | null>; dialog: ReactElement | null } {
+export function useDialog({ waitForDismiss = false }: { waitForDismiss?: boolean } = {}): { confirm: (options: DialogOptions) => Promise<string | null>; dialog: ReactElement | null } {
   const [options, setOptions] = useState<DialogOptions | null>(null)
+  const [closing, setClosing] = useState(false)
+  const closingChoice = useRef<{ key: string | null } | null>(null)
   const resolver = useRef<((key: string | null) => void) | null>(null)
 
-  const settle = useCallback((key: string | null) => {
+  const closed = useCallback(() => {
+    const choice = closingChoice.current
+    if (!choice) return
+    closingChoice.current = null
     const resolve = resolver.current
     resolver.current = null
     setOptions(null)
-    resolve?.(key)
+    resolve?.(choice.key)
   }, [])
+
+  const settle = useCallback((key: string | null) => {
+    if (closingChoice.current) return
+    if (waitForDismiss) {
+      // Retain the native Modal until onDismiss, then resolve the caller.
+      closingChoice.current = { key }
+      setClosing(true)
+    } else {
+      const resolve = resolver.current
+      resolver.current = null
+      setOptions(null)
+      resolve?.(key)
+    }
+  }, [waitForDismiss])
 
   const confirm = useCallback((next: DialogOptions) => {
     resolver.current?.(null)
+    closingChoice.current = null
+    setClosing(false)
     return new Promise<string | null>(resolve => {
       resolver.current = resolve
       setOptions(next)
@@ -122,7 +160,7 @@ export function useDialog(): { confirm: (options: DialogOptions) => Promise<stri
   useEffect(() => () => resolver.current?.(null), [])
 
   const dialog = options ? (
-    <Dialog visible {...options} onAction={settle} onDismiss={() => settle(null)} />
+    <Dialog visible={!closing} {...options} onAction={settle} onDismiss={() => settle(null)} onClosed={closed} />
   ) : null
 
   return { confirm, dialog }

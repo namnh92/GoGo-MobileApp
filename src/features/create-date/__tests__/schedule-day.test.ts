@@ -23,6 +23,28 @@ describe('the chosen day (#501)', () => {
     expect(day(scheduleToIso('09:00', null, null, now).startAt).getDate()).toBe(28)
   })
 
+  it.each(['2026-08-27', '2026-08-28'])('keeps explicit midnight on %s (#594 F-04)', key => {
+    const [year, month, date] = key.split('-').map(Number)
+    expect(scheduleToIso('00:00', '02:00', key, now)).toEqual({
+      startAt: new Date(year, month - 1, date, 0).toISOString(),
+      endAt: new Date(year, month - 1, date, 2).toISOString(),
+    })
+  })
+
+  it('keeps an explicit past slot on its selected date for caller validation (#594 F-04)', () => {
+    expect(scheduleToIso('09:00', '10:00', '2026-08-27', now)).toEqual({
+      startAt: new Date(2026, 7, 27, 9).toISOString(),
+      endAt: new Date(2026, 7, 27, 10).toISOString(),
+    })
+  })
+
+  it.each(['00:00', '01:00', '23:00'])('rolls only the end %s at/before an explicit start (#594 F-04)', end => {
+    expect(scheduleToIso('23:00', end, '2026-08-28', now)).toEqual({
+      startAt: new Date(2026, 7, 28, 23).toISOString(),
+      endAt: new Date(2026, 7, 29, Number(end.slice(0, 2))).toISOString(),
+    })
+  })
+
   it('tomorrow puts the start on tomorrow, even for a slot earlier than now', () => {
     const { startAt } = scheduleToIso('09:00', null, '2026-08-28', now)
     expect(day(startAt).getDate()).toBe(28)

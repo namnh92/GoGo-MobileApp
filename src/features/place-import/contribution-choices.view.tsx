@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native'
 import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
+import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
 import { TextInput } from '@/shared/ui/text-input'
 import { amenityIcon, collapsedOptions, optionLabel, type ContributionOption } from './contribution-options'
@@ -36,14 +37,10 @@ export function ContributionChoices({ options, selected, onChange, title, max, d
     const atLimit = !checked && max !== undefined && selected.length >= max
     const locked = disabled || atLimit
     if (checklist || inSheet) return (
-      <Pressable key={option.key} accessibilityRole="checkbox" accessibilityLabel={label(option)}
+      <CheckboxRow key={option.key} label={label(option)} checked={checked}
         accessibilityHint={atLimit ? t('placeWizard.selectionLimitHint', { max }) : undefined}
-        accessibilityState={{ checked, disabled: locked }} disabled={locked}
-        onPress={() => toggle(option.key)} style={[styles.amenity, checked && styles.selectedAmenity, locked && styles.disabledChoice]}>
-        {checklist ? <MaterialIcon name={amenityIcon(option.key)} size={18} color={locked ? 'text.secondary' : 'text.primary'} /> : null}
-        <Text variant="introSmall" color={locked ? 'text.secondary' : 'text.primary'} style={styles.amenityLabel}>{label(option)}</Text>
-        <MaterialIcon name={checked ? 'checkbox' : 'checkboxBlank'} color={locked ? 'text.secondary' : 'text.primary'} />
-      </Pressable>
+        disabled={locked} onPress={() => toggle(option.key)}
+        leading={checklist ? <MaterialIcon name={amenityIcon(option.key)} size={18} color={locked ? 'text.secondary' : 'text.primary'} /> : undefined} />
     )
     return <Chip key={option.key} label={label(option)}
       variant={checked ? 'selected' : 'default'} disabled={locked} onPress={() => toggle(option.key)} />

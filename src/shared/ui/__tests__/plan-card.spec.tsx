@@ -114,4 +114,18 @@ describe('PlanCard', () => {
     expect(onPress).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('plan').props.accessibilityRole).toBe('button')
   })
+
+  it('keeps its optional trailing action outside the open button and omits unknown metadata', async () => {
+    const remove = jest.fn()
+    const open = await renderCard({ meta: '', trailingAction: { icon: 'trash', accessibilityLabel: 'Xoá nháp', onPress: remove } })
+    const action = screen.getByRole('button', { name: 'Xoá nháp' })
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ width: 48, height: 48 })
+    expect(action.parent).toBe(screen.getByTestId('plan').parent)
+    expect(screen.queryByTestId('plan-card-meta')).toBeNull()
+    await fireEvent.press(action)
+    expect(remove).toHaveBeenCalledTimes(1)
+    expect(open).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByTestId('plan'))
+    expect(open).toHaveBeenCalledTimes(1)
+  })
 })
