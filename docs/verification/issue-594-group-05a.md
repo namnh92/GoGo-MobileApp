@@ -836,8 +836,8 @@ Basis: PR #598, production baseline **`12d19d01`**, clean `mobile-594` at start;
 - Deleted the now-unused `SaveDraftButton` and `wizard-actions.style.tsx`; removed its submit-overlay registry entry. There are no remaining runtime imports/callers. The removed handlers had no analytics events. Existing unrelated account/draft translations remain unchanged; dedicated exit-action keys give **vi: Ở lại / Bỏ nháp / Lưu nháp**, **en: Stay / Discard / Save draft**, in secondary-neutral / danger / primary order, with one dominant primary.
 - Kept the exit-save/discard overlay, `useWizardModal(leaving)`, native dismissal callbacks, recovery cancellation, error/sign-in handling and creation-pending guards. F-12 tests now enter through Back; confirmed exit-save still cancels old auto recovery even if persistence fails, while later manual recovery remains available. Updated resumed-draft navigation and F-14 schedule persistence tests to use Back → prompt → Save instead of removed header actions.
 - `SheetActions` now respects an explicit child `wrapLabel` opt-in; its default remains single-line. The three wizard buttons opt in and use tokenized 4pt horizontal padding. At 320pt: panel insets 20×2, row gaps 8×2, equal buttons 88pt wide, label space **80pt**. CoreText measurement of bundled Inter-SemiBold at the existing 15pt button size: Ở lại 31.85pt; Bỏ nháp 59.14pt; Lưu nháp 67.47pt; Stay 32.31pt; Discard 55.48pt; Save draft 73.65pt. All fit on one line at the app's default text size.
-- Buttons have no line-count cap and retain a 48pt minimum height, so constrained/enlarged labels may grow to two or more lines without ellipsis. The pill/chip single-line rule does not apply to these actions. **Existing shared Text still forces `allowFontScaling=false`; this patch does not change that app-wide typography policy.** Native accessibility-size rendering and a new simulator pass were not performed; the width evidence is font measurement plus rendered prop/style checks, not a screenshot acceptance claim.
-- No colour bindings moved or changed; the removed action stylesheet contained layout only. Submit-overlay registry updated; header/plan-card/chip ownership gates pass. The colour-pin gate has one pre-existing mismatch in untouched `create-location-fields.view.tsx`, reproduced on the exact baseline; no unrelated pin was rewritten.
+- Buttons have no line-count cap and retain a 48pt minimum height. **F-17: requirement withdrawn by DEV (app-wide fixed font scale); labels verified to fit one line at default scale**. The accessibility-size wrapping clause came from the DEV brief, not the owner. Existing shared Text forces `allowFontScaling={false}`. The width evidence above is font measurement plus rendered prop/style checks; no new simulator pass or screenshot acceptance is claimed.
+- Round 10 changed no colour bindings; the removed action stylesheet contained layout only. Submit-overlay registry updated; header/plan-card/chip ownership gates pass. The colour-pin mismatch in `create-location-fields.view.tsx` was introduced by round 9 commit `12d19d0`, which removed the yellow inline warning without removing its `status.warningText` fixture entry. Reproducing it on the round 10 baseline does not make it a pre-existing baseline defect.
 
 ### FAIL before / PASS after
 
@@ -857,10 +857,24 @@ Baseline directory recorded at `/tmp/mobile-594-round10-baseline-path.txt`. Logs
 | `pnpm typecheck` | **PASS** |
 | `pnpm test:ui create-date draft wizard-exit sheet-actions --runInBand` | **PASS: 12 suites / 160 tests**; includes requested `create-date draft` scope, F-12, F-13, F-14 and shared row defaults/opt-in |
 | Touched existing/new TS/TSX files via `pnpm exec eslint` | **PASS**, exit 0, no diagnostics |
-| Focused Vitest: submit-overlay, design-drift, mode-aware, plan-card-ownership, app-header-ownership, redesign-contrast, color-roles | **6 files pass; color-roles: 1 pre-existing failure / 7 pass** (170 passed total). Exact-head baseline `color-roles`: same **1 failure / 7 pass**, untouched location-fields binding |
+| Focused Vitest: submit-overlay, design-drift, mode-aware, plan-card-ownership, app-header-ownership, redesign-contrast, color-roles | **6 files pass; color-roles: 1 failure / 7 pass** (170 passed total). Same failure on round 10 baseline `12d19d0`: obsolete location-fields pin introduced by that round 9 commit; corrected under F-16 below. |
 | `pnpm exec vitest run src/shared/ui/__tests__/chip-ownership.test.ts` | **PASS** |
 | `git diff --check` | **PASS** |
 
 A preliminary `pnpm test -- <files>` expanded to the full Vitest suite because `--` prevented positional filtering; stopped that unintended broader run. It reported the same three sandbox-sensitive `distribute-wrapper` process-liveness failures documented in the earlier verification section. No full-suite PASS is claimed.
 
 Check logs: `/tmp/mobile-594-round10-ui.log`, `/tmp/mobile-594-round10-typecheck.log`, `/tmp/mobile-594-round10-lint.log`, `/tmp/mobile-594-round10-registry-focused.log`, `/tmp/mobile-594-round10-pins-baseline.log`, `/tmp/mobile-594-round10-chip-registry.log`. `RTK.md` referenced by supplied AGENTS instructions was absent from this worktree and checked ancestors.
+
+## Astra F-16 / F-17 follow-up — 2026-11-11
+
+Basis: PR #598, clean worktree at **`800184a6`** before edits. F-16 removes only the first, obsolete `status.warningText` entry for `create-location-fields.view.tsx` from `stitch-color-pins.json`; the two remaining warning bindings stay pinned. `color-roles.test.ts` and its exact binding comparison are unchanged. `git show 12d19d0 -- src/features/create-date/create-location-fields.view.tsx` confirms round 9 removed the yellow inline warning that owned this entry; the round 10 attribution above is corrected.
+
+F-17 is a DEV requirement disposition only, with no runtime or test changes. Short vi/en exit labels remain. No exit-prompt test claims accessibility-size scaling; the round 10 doc now records the withdrawn requirement and default-scale fit evidence.
+
+| Command | Before: clean `800184a6` | After: working tree |
+| --- | --- | --- |
+| `pnpm exec vitest run src/shared/ui/__tests__/color-roles.test.ts` | **FAIL**, exit 1: 1 failed / 7 passed; expected obsolete leading `status.warningText`, actual bindings start with `text.secondary` | **PASS**, exit 0: 8 passed |
+| `pnpm test:ui create-date --runInBand` | Not rerun before | **PASS**, exit 0: 9 suites / 134 tests |
+| `git diff --check` | — | **PASS**, exit 0 |
+
+Logs: `/tmp/594-f16-before-800184a.log`, `/tmp/594-f16-after.log`, `/tmp/594-f16-create-date.log`. Both requested test commands ran in the sandbox. No staging or commit; no native simulator or DEV acceptance claim.

@@ -1132,7 +1132,6 @@
       "border.hairline"
     ],
     "src/features/create-date/create-location-fields.view.tsx": [
-      "status.warningText",
       "text.secondary",
       "accent.primary",
       "status.warningText",
