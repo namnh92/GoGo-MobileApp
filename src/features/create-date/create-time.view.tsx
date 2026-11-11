@@ -100,7 +100,7 @@ export default function CreateTimeScreen() {
 
 
   return (
-    <WizardScreen step="time" onBack={() => router.back()}>
+    <WizardScreen step="time">
       <ScrollView
         testID="create-time-scroll"
         style={styles.scroll}

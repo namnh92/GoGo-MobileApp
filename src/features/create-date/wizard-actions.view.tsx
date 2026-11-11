@@ -15,6 +15,11 @@ import { cancelWizardRecovery, useWizardModal } from './wizard-modal'
 import { styles } from './wizard-actions.style'
 
 export function WizardActions({ step, compact = false }: { step: DraftStep; compact?: boolean }) {
+  return useWizardActions({ step, compact }).actions
+}
+
+/** One owner for header Back, Close and the exit prompt. */
+export function useWizardActions({ step, compact = false }: { step: DraftStep; compact?: boolean }) {
   const router = useRouter()
   const { t } = useTranslation()
   const { session } = useSession()
@@ -40,6 +45,7 @@ export function WizardActions({ step, compact = false }: { step: DraftStep; comp
   }
 
   async function close() {
+    if (creating || leaving) return
     const draft = useRoomStore.getState()
     const dirty = Boolean(draft.title || draft.administrativeArea || draft.originLat != null || draft.startTime || draft.durationPreset
       || draft.budgetAmount != null || draft.moodKeys.length || draft.settingKeys.length
@@ -59,10 +65,11 @@ export function WizardActions({ step, compact = false }: { step: DraftStep; comp
     else if (choice === 'save') await leave(true)
   }
 
-  return <View style={styles.actions}>
+  const actions = <View style={styles.actions}>
     <BlockingLoadingOverlay visible={leaving} onClosed={onLeavingClosed} />
     <SaveDraftButton step={step} compact={compact} />
     {compact ? <IconBtn size="regular" accessibilityLabel={t('draft.close')} onPress={() => void close()} disabled={creating || leaving}><Icon name="x" size={20} /></IconBtn> : <GhostBtn label={t('draft.close')} onPress={() => void close()} disabled={creating || leaving} />}
     {isValidElement<DialogProps>(dialog) ? <WizardExitPrompt {...dialog.props} /> : dialog}
   </View>
+  return { actions, close, backDisabled: creating || leaving }
 }

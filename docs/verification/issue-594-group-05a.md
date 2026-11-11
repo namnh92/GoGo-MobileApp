@@ -649,3 +649,46 @@ Source/test basis: **`rs-6d1e83995c90`**, scope `src`; manifest + retrievable di
 | `snapshot.sh verify <manifest>` | **MATCH** |
 
 Logs: `/tmp/594-f12-ui-final.log`, `/tmp/594-f12-typecheck-final.log`, `/tmp/594-f12-lint-final.log`. UI gate có Node `punycode` deprecation hiện hữu. Đây là component regression; chưa chạy simulator/native build/live acceptance. Index trống, HEAD giữ `862ab9ae`; không git add/commit.
+
+## Owner sim feedback round 7
+
+Ngày 2026-11-11. Sol sửa trên working tree `mobile-594`, PR #598, HEAD **`dc52c94a`**. Basis: owner sim round 7 tại workspace `dev/policy/decisions-log.md:5` và yêu cầu giao việc vòng này. Không chạm `mobile-647`; không stage/commit.
+
+### Thay đổi và layout
+
+- Lỗi vị trí dùng shared `ResultSheet` **error**, giữ title/body vi/en hướng dẫn bật quyền vị trí trong Cài đặt máy. Primary **Xác nhận** mở app settings sau native dismissal; secondary **Huỷ** đóng error sheet rồi mở `ResultSheet` **info** từ `onClosed`.
+- Info sheet chỉ có primary **Xác nhận**, mở lại manual area picker sau `onClosed`. Backdrop, Android back và accessibility escape cùng đi qua `onClose` với hành vi xác nhận. **Không cần thêm non-dismissable flag cho Sheet**: close có đường đi bắt buộc sang picker. Cả error/info đăng ký `useWizardModal` tại caller và giữ signal tới `onClosed`; giữ F-12 deferral, once-per-session auto, retry bằng tap và inline fallback khi không mở được settings. Mọi chuyển sheet và settings đều chờ native dismissal.
+- Thêm `src/app/create/_layout.tsx`: render `WizardStep` đúng một lần ngoài nested `<Stack screenOptions={{ headerShown: false }}>`; suy step từ `useSegments`. Header/back/title/save/close/bell và progress không thuộc các screen con. Progress dùng Reanimated `withTiming`, tôn trọng reduced motion. Các bước chỉ render content qua `WizardScreen`; mỗi bước giữ GlassBar và scroll/field handlers riêng.
+- Đo chiều cao chrome ở layout, truyền bằng context vào `keyboardVerticalOffset` của bước tên để giữ tính toán bàn phím khi content nằm trong nested stack. Test đo giả lập 160pt xác nhận offset cập nhật.
+- Later-step Back gọi `router.back()`. First-step Back và Android hardware back dùng cùng save/discard/keep prompt với Close. Root create gesture và first-step gesture tắt để không bỏ qua exit prompt. `unstable_settings.initialRouteName = 'type'` cung cấp route đầu cho deep links vào bước sau; giữ `/create/location → /create/type` và logic dựng đường đi của draft resume. Save của header đọc step mới sau khi chuyển route.
+- Registry header chuyển các bước thành content dưới layout và kiểm ownership mới. Không di chuyển style/token binding, không thêm màu; color pins và chip registry hiện hữu giữ nguyên và đã chạy gate. API/store schema/submit mapping không đổi.
+
+### FAIL trước / PASS sau
+
+Xuất production **`git archive dc52c94`** vào `/private/tmp/594-round7-dc52c94-9pbxgke7`; chỉ copy hai final test files `round-six.spec.tsx`, `round-seven.spec.tsx` và symlink dependencies. Hai file test giống byte-for-byte ở baseline/patch. Không checkout/reset/stash working tree. Cùng lệnh: `pnpm test:ui --runInBand round-six round-seven`.
+
+| Nhóm bằng chứng | dc52c94 | Patch |
+| --- | --- | --- |
+| Error ResultSheet/settings vi/en × denied/unavailable; Huỷ → info single action → manual apply; backdrop/back = confirm, explicit retry | 7 FAIL | 7 PASS |
+| Offset bàn phím khi header thuộc parent layout | 1 FAIL | 1 PASS |
+| Header/actions giữ cùng instance qua cả hai đường đi; mỗi step chỉ có content/footer; nested back, first back/exit choices, hardware back, deep-link initial route config, Save dùng step mới | 14 FAIL | 14 PASS |
+| F-12 deferral/cancellation, once-per-session, focus/session lifecycle, settings failure, Home/Discovery và bounded body/footer còn lại | 19 PASS | 19 PASS |
+| **Tổng** | **22 FAIL / 19 PASS**, exit 1 | **41 PASS**, exit 0 |
+
+Presenter giả lập từ chối modal thứ hai tới khi native dismissal trễ 5ms hoàn tất; các recovery/F-12 flow đều có danh sách refused rỗng. Assert signal ở cả error và info. Location redirect và legacy draft-resume path được giữ trong `round-three.spec.tsx`; store tests kiểm draft persistence/path.
+
+### Checks và giới hạn
+
+Source/test SHA-256 của tập touched/new `src` files, sắp xếp path, hash `path + NUL + bytes + NUL`: **`3f32669df09a8261131710fbfe8920d665fd18dca6b41f7f96ee0f8aba8ca797`**. Docs ngoài fingerprint.
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | **PASS**, exit 0 |
+| `pnpm test:ui create-date draft location wizard-exit create-room-name result-sheet --runInBand` | **PASS**, 19 suites / 198 tests |
+| `pnpm test` với app-header-ownership, color-roles, chip-ownership, saved-room-draft, room-draft | **PASS**, 5 files / 97 tests |
+| `pnpm exec eslint <15 touched/new TS/TSX files>` | **PASS**, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | **PASS** |
+
+Logs: `/tmp/594-round7-baseline.log`, `/tmp/594-round7-after.log`, `/tmp/594-round7-ui.log`, `/tmp/594-round7-registry.log`, `/tmp/594-round7-typecheck.log`, `/tmp/594-round7-lint.log`. Baseline path còn ở `/tmp/594-round7-baseline-path.txt`. UI gate có Node `punycode` deprecation hiện hữu.
+
+Đây là component/config/store regression. Stack/route segments được giả lập trong component tests; chưa kiểm native navigation transitions, runtime deep-link history, OS settings/quyền vị trí, bàn phím thực tế hoặc ảnh Light/Dark trên simulator. Không suy ra native acceptance/pixel parity từ Jest. HEAD giữ `dc52c94a`, index trống.

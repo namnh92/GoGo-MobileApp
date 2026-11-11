@@ -7,6 +7,7 @@ import { LocationField } from '@/shared/ui/location-field.view'
 import { Icon } from '@/shared/ui/icons'
 import { Chip } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 
 import type { useCreateLocation } from './use-create-location'
 import { styles } from './create-location-fields.style'
@@ -17,7 +18,8 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 export function CreateLocationFields({ model }: { model: ReturnType<typeof useCreateLocation> }) {
   const { t } = useTranslation()
   const { areaOpen, setAreaOpen, openArea, scopeLabel, locationStatus, usingCurrent, radiusM, setRadiusM,
-    offerHomeArea, homeArea, useHomeArea, staleArea, onApplied, dialog, settingsFailed, onLocationFailure, onAreaClosed } = model
+    offerHomeArea, homeArea, useHomeArea, staleArea, onApplied, recovery, closeRecovery, onRecoveryClosed, settingsFailed, onLocationFailure, onAreaClosed } = model
+  const manual = recovery.kind === 'info'
   return (
     <View testID="create-location-section" style={styles.section}>
       <Text variant="label" style={styles.label}>{t('createType.area')}</Text>
@@ -68,7 +70,13 @@ export function CreateLocationFields({ model }: { model: ReturnType<typeof useCr
       ) : null}
       {settingsFailed ? <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
       <DiscoveryLocationSheet onLocationFailure={onLocationFailure} onClosed={onAreaClosed} visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
-      {dialog}
+      <ResultSheet visible={recovery.visible} variant={recovery.kind}
+        testID="create-location-recovery"
+        title={t(manual ? 'createLocation.manualTitle' : 'createLocation.failureTitle')}
+        body={t(manual ? 'createLocation.manualBody' : 'createLocation.failureBody')}
+        primaryAction={{ label: t('createLocation.confirm'), onPress: () => closeRecovery(manual ? 'area' : 'settings') }}
+        secondaryAction={manual ? undefined : { label: t('common.cancel'), onPress: () => closeRecovery('manual') }}
+        onClose={() => closeRecovery(manual ? 'area' : 'manual')} onClosed={onRecoveryClosed} />
     </View>
   )
 }

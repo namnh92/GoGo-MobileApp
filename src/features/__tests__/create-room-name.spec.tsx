@@ -23,7 +23,7 @@ it('retains the 80-character contract and selected group route (#594)', async ()
   expect(view.getByLabelText('Tên kèo (không bắt buộc)').props.maxLength).toBe(80)
   await fireEvent.press(view.getByText('Nhóm bạn'))
   expect(view.getAllByRole('radio').map(option => option.props.accessibilityState.selected)).toEqual([false, true])
-  expect(view.getByText('Bước 1 / 5')).toBeTruthy()
+  expect(view.queryByTestId('wizard-chrome')).toBeNull() // Chrome belongs to the create layout.
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(mockPush).toHaveBeenCalledWith('/create/group-setup')
 })

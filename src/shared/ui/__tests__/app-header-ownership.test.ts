@@ -26,9 +26,6 @@ const direct = [
 const wrappers: Record<string, string> = {
   'account/defaults-screen': 'SettingsPage', 'account/profile-defaults': 'SettingsPage', 'account/theme-screen': 'SettingsPage',
   'settings/permissions': 'SettingsPage',
-  'create-date/create-type': 'WizardScreen', 'create-date/group-setup': 'WizardScreen',
-  'create-date/create-time': 'WizardScreen',
-  'create-date/create-budget': 'WizardScreen', 'create-date/create-mood': 'WizardScreen',
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
 // SettingsPage covers permissions/data, defaults and theme, including embedded settings.
@@ -94,6 +91,9 @@ describe('application header ownership', () => {
   })
   it('accounts for every routed feature screen, including deliberate headerless scenes', () => {
     const headerless = [
+      // The /create layout owns WizardStep; nested screens own content only.
+      'create-date/create-type', 'create-date/group-setup', 'create-date/create-time',
+      'create-date/create-budget', 'create-date/create-mood',
       'create-date/create-location', // compatibility redirect to step 1
       'onboarding/splash', 'onboarding/onboarding', 'deep-link/share-link',
       'active-date/date-finished', 'matching/matching', 'matching/match-result',
@@ -106,6 +106,16 @@ describe('application header ownership', () => {
       return match && !known.has(match[1]) ? [match[1]] : []
     })
     expect(unknown).toEqual([])
+  })
+  it('keeps wizard chrome in the parent layout outside the content stack', () => {
+    const layout = readFileSync(resolve(src, 'app/create/_layout.tsx'), 'utf8')
+    expect(owns(layout, 'WizardStep')).toBe(true)
+    expect(owns(layout, 'Stack')).toBe(true)
+    expect(owns(read('create-date/wizard-step.view.tsx').split('export function WizardScreen')[1], 'WizardStep')).toBe(false)
+    for (const step of ['create-type', 'group-setup', 'create-time', 'create-budget', 'create-mood']) {
+      expect(owns(read(`create-date/${step}.view.tsx`), 'WizardScreen')).toBe(true)
+      expect(owns(read(`create-date/${step}.view.tsx`), 'WizardStep')).toBe(false)
+    }
   })
   it('keeps the shared sign-in/sign-up header free of account and notification actions', () => {
     const source = read('auth/sign-in.view.tsx')

@@ -59,7 +59,7 @@ export default function CreateBudgetScreen() {
       : t('createBudget.body')
 
   return (
-    <WizardScreen step="budget" onBack={() => router.back()}>
+    <WizardScreen step="budget">
       <ScrollView
         testID="create-budget-scroll"
         style={styles.scroll}

@@ -1,6 +1,9 @@
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import type { ReactElement } from 'react'
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { AccessibilityInfo, Alert, Linking, StyleSheet } from 'react-native'
-import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
+import { loaded as mockLoaded, renderScreen as baseRenderScreen } from '../../__tests__/harness'
 import i18n from '@/shared/i18n'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
@@ -12,6 +15,25 @@ import CreateBudget from '../create-budget.view'
 import CreateMood from '../create-mood.view'
 import { TimePickerSheet } from '../time-picker-sheet.view'
 import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { useWizardModalStore } from '../wizard-modal'
+
+jest.mock('@/shared/ui/result-sheet.view', () => {
+  const actual = jest.requireActual<typeof import('@/shared/ui/result-sheet.view')>('@/shared/ui/result-sheet.view')
+  return { ...actual, ResultSheet: jest.fn(actual.ResultSheet) }
+})
+const mockResult = jest.mocked(ResultSheet)
+let mockContent: ReactElement
+let mockStep = 'type'
+function wizard(element: ReactElement) {
+  mockContent = element
+  mockStep = element.type === GroupSetup ? 'group-setup' : element.type === CreateTime ? 'time' : element.type === CreateBudget ? 'budget' : element.type === CreateMood ? 'mood' : 'type'
+  const path = resolve(__dirname, '../../../app/create/_layout.tsx')
+  if (!existsSync(path)) return element // same regression file runs on dc52c94
+  const Layout = jest.requireActual(path).default
+  return <Layout />
+}
+const renderScreen = (element: ReactElement) => baseRenderScreen(wizard(element))
 
 // Preserve KAV configuration; the native renderer does not lay out a keyboard.
 jest.mock('react-native', () => {
@@ -27,7 +49,7 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const View = jest.requireActual('react-native/Libraries/Components/View/View').default
   let nextId = 0
-  function Modal({ visible = true, onDismiss, onShow, children }: { visible?: boolean; onDismiss?: () => void; onShow?: () => void; children?: React.ReactNode }) {
+  function Modal({ visible = true, onDismiss, onShow, onRequestClose, children }: { onRequestClose?: () => void; visible?: boolean; onDismiss?: () => void; onShow?: () => void; children?: React.ReactNode }) {
     const id = React.useRef(++nextId).current
     const [shown, setShown] = React.useState(false)
     const dismissed = React.useRef(onDismiss)
@@ -42,10 +64,11 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
       }
     }, [visible, shown, id, onShow])
     React.useEffect(() => () => { mockPresenter.presented.delete(id); dismissed.current?.() }, [id])
-    return shown && visible ? React.createElement(View, { testID: 'native-modal' }, children) : null
+    return shown && visible ? React.createElement(View, { testID: 'native-modal', onRequestClose }, children) : null
   }
   return { __esModule: true, default: Modal }
 })
+const mockFocusEffects = new Map<() => void | (() => void), void | (() => void)>()
 const mockFocus: { current?: () => void | (() => void); blur?: () => void } = {}
 const mockDismiss = jest.fn()
 const mockSave = jest.fn(async () => {})
@@ -56,10 +79,18 @@ jest.mock('@/shared/store/savedRoomDraft', () => ({
 const mockRefresh = jest.fn<Promise<LocationState | undefined>, []>()
 const mockRequest = jest.fn<Promise<LocationState>, []>()
 jest.mock('expo-router', () => ({
+  useSegments: () => ['create', mockStep],
+  Stack: Object.assign(() => mockContent, { Screen: () => null }),
   useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: mockDismiss }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = jest.requireActual<typeof import('react')>('react')
-    React.useEffect(() => { mockFocus.current = callback; const cleanup = callback(); mockFocus.blur = cleanup || undefined; return cleanup }, [callback])
+    React.useEffect(() => {
+      const cleanup = callback()
+      mockFocusEffects.set(callback, cleanup)
+      mockFocus.current = () => { for (const effect of mockFocusEffects.keys()) effect() }
+      mockFocus.blur = () => { for (const stop of mockFocusEffects.values()) stop?.() }
+      return () => { cleanup?.(); mockFocusEffects.delete(callback) }
+    }, [callback])
   },
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
@@ -93,6 +124,7 @@ async function press(view: Awaited<ReturnType<typeof renderScreen>>, name: strin
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
 }
 beforeEach(async () => {
+  mockResult.mockClear()
   mockPresenter.presented.clear(); mockPresenter.refused = []
   mockDismiss.mockClear(); mockSave.mockReset().mockResolvedValue(); mockClear.mockReset().mockResolvedValue()
   mockRefresh.mockReset().mockResolvedValue(undefined)
@@ -115,9 +147,10 @@ it.each([['vi', 'denied'], ['en', 'denied'], ['vi', 'unavailable'], ['en', 'unav
   await press(view, i18n.t('home.useLocation'))
   expect(view.getByRole('header', { name: title() })).toBeTruthy()
   expect(view.getByText(i18n.t('createLocation.failureBody'))).toBeTruthy()
-  const buttons = within(view.getByTestId('native-modal')).getAllByRole('button')
+  expect(mockResult.mock.calls.filter(([props]) => props.visible).at(-1)?.[0].variant).toBe('error')
+  expect(useWizardModalStore.getState().modals.size).toBe(1)
+  const buttons = within(view.getByTestId('sheet-actions')).getAllByRole('button')
   expect(buttons.map(button => button.props.accessibilityLabel)).toEqual([cancel(), confirm()])
-  expect(StyleSheet.flatten(buttons[0].parent!.parent!.props.style).flexDirection).toBe('row')
   await press(view, confirm())
   expect(Linking.openSettings).toHaveBeenCalledTimes(1)
   expect(view.queryByText(manualTitle())).toBeNull()
@@ -129,6 +162,9 @@ it('manual failure: cancel → second question → confirm reopens manual fields
   await press(view, i18n.t('home.useLocation'))
   await press(view, cancel())
   expect(view.getByRole('header', { name: manualTitle() })).toBeTruthy()
+  expect(mockResult.mock.calls.filter(([props]) => props.visible).at(-1)?.[0].variant).toBe('info')
+  expect(useWizardModalStore.getState().modals.size).toBe(1)
+  expect(within(view.getByTestId('sheet-actions')).getAllByRole('button').map(button => button.props.accessibilityLabel)).toEqual([confirm()])
   await press(view, confirm())
   expect(view.queryByText(title())).toBeNull()
   await press(view, 'Manual province')
@@ -137,14 +173,22 @@ it('manual failure: cancel → second question → confirm reopens manual fields
   expect(Linking.openSettings).not.toHaveBeenCalled()
   expect(mockPresenter.refused).toEqual([])
 })
-it('cancel on the second question closes; each new explicit tap still shows the dialog', async () => {
+it.each(['backdrop', 'back'] as const)('round 7: second sheet %s close confirms manual selection; explicit retries still recover', async close => {
   const view = await renderScreen(<CreateType />)
   for (let attempt = 0; attempt < 2; attempt++) {
-    await fireEvent.press(view.getByTestId('create-location-field'))
+    if (attempt === 0) await fireEvent.press(view.getByTestId('create-location-field'))
     await press(view, i18n.t('home.useLocation'))
     expect(view.getByText(title())).toBeTruthy()
-    await press(view, cancel()); await press(view, cancel())
-    expect(view.queryByTestId('native-modal')).toBeNull()
+    await press(view, cancel())
+    expect(view.queryByRole('button', { name: cancel() })).toBeNull()
+    if (close === 'backdrop') {
+      await fireEvent.press(within(view.getByTestId('native-modal')).getByRole('button', { name: i18n.t('common.close') }))
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+    } else {
+      await fireEvent(view.getByTestId('native-modal'), 'requestClose')
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+    }
+    expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
   }
   expect(mockRequest).toHaveBeenCalledTimes(2)
   expect(Linking.openSettings).not.toHaveBeenCalled()
@@ -154,9 +198,11 @@ it.each(['denied', 'unavailable'] as const)('auto %s is shown once across refocu
   mockRefresh.mockResolvedValue({ status })
   const view = await renderScreen(<CreateType />)
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
-  await press(view, cancel()); await press(view, cancel())
+  await press(view, cancel()); await press(view, confirm())
+  await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
   await act(async () => { mockFocus.current?.() })
-  await view.rerender(<CreateType />)
+  await view.rerender(wizard(<CreateType />))
   expect(view.queryByText(title())).toBeNull()
   expect(mockRefresh).toHaveBeenCalledTimes(2)
   await view.unmount()
@@ -225,7 +271,7 @@ it('F-12 pending auto failure waits for the time sheet native dismissal', async 
   await act(async () => { resolve({ status: 'unavailable' }) })
   expect(view.queryByText(title())).toBeNull()
   expect(mockPresenter.refused).toEqual([])
-  await view.rerender(screen(false))
+  await view.rerender(wizard(screen(false)))
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
   expect(mockPresenter.refused).toEqual([])
 })
@@ -312,7 +358,6 @@ it.each([
   const view = await renderScreen(<Screen />)
   const chrome = view.getByTestId('wizard-chrome')
   const body = view.getByTestId('wizard-content')
-  expect(chrome.parent).toBe(step === 'type' ? body.parent!.parent : body.parent)
   expect(StyleSheet.flatten(chrome.props.style).flexShrink).toBe(0)
   expect(StyleSheet.flatten(body.props.style)).toMatchObject({ flex: 1, minHeight: 0, overflow: 'hidden' })
   const scroll = view.getByTestId(`create-${step}-scroll`)
@@ -326,7 +371,9 @@ it.each([
   if (step === 'type') {
     const keyboard = view.getByTestId('create-type-keyboard')
     expect(keyboard.props.behavior).toBe('padding')
-    expect(keyboard.parent).toBe(chrome.parent) // Preserve RN's header y offset.
+    expect(keyboard.props.keyboardVerticalOffset).toBe(0) // Layout measurement arrives on a device.
+    await fireEvent(chrome.parent!, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 160 } } })
+    expect(view.getByTestId('create-type-keyboard').props.keyboardVerticalOffset).toBe(160)
     expect(scroll.props.onScroll).toEqual(expect.any(Function))
     expect(scroll.props.keyboardShouldPersistTaps).toBe('handled')
   }

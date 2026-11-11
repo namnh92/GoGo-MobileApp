@@ -3,8 +3,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useTranslation } from 'react-i18next'
 import { Linking } from 'react-native'
 
-import { useDialog } from '@/shared/ui/dialog.view'
-
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useMe } from '@/shared/api'
@@ -30,7 +28,9 @@ export function useCreateLocation() {
   const { status } = useSession()
   const location = useCurrentLocation()
   const { refresh } = location
-  const { confirm, dialog } = useDialog({ waitForDismiss: true })
+  const [recovery, setRecovery] = useState<{ kind: 'error' | 'info'; visible: boolean }>({ kind: 'error', visible: false })
+  const releaseRecovery = useWizardModal(recovery.visible)
+  const nextRecovery = useRef<'settings' | 'manual' | 'area' | null>(null)
   // Step 1 stays mounted under the other steps in the stack. A fresh wizard
   // mount starts a new session; returning from another step does not re-prompt.
   const autoFailureShown = useRef(false)
@@ -100,39 +100,42 @@ export function useCreateLocation() {
     setAreaOpen(true)
   }
 
-  async function promptLocationFailure() {
+  function promptLocationFailure() {
     const state = useWizardModalStore.getState()
     if (!focused.current || !pendingFailure.current || state.modals.size || recoveryOpen.current) return
     if (pendingFailure.current === 'auto' && state.exitVersion !== sessionExitVersion) return
     pendingFailure.current = null
     recoveryOpen.current = true
-    try {
-      setSettingsFailed(false)
-      const actions = [
-        { key: 'cancel', label: t('common.cancel'), style: 'cancel' as const },
-        { key: 'confirm', label: t('createLocation.confirm') },
-      ]
-      const choice = await confirm({
-        title: t('createLocation.failureTitle'), message: t('createLocation.failureBody'), actions, actionLayout: 'row',
-        onShown: () => { autoFailureShown.current = true },
-      })
-      if (!focused.current) return
-      if (choice === 'confirm') {
-        try { await Linking.openSettings() } catch { setSettingsFailed(true) }
-      } else if (choice === 'cancel') {
-        const manual = await confirm({
-          title: t('createLocation.manualTitle'), message: t('createLocation.manualBody'), actions, actionLayout: 'row',
-        })
-        if (manual === 'confirm' && focused.current) openArea()
-      }
-    } finally { recoveryOpen.current = false }
+    setSettingsFailed(false)
+    autoFailureShown.current = true
+    setRecovery({ kind: 'error', visible: true })
+  }
+
+  function closeRecovery(next: 'settings' | 'manual' | 'area') {
+    if (!recovery.visible) return
+    nextRecovery.current = next
+    setRecovery(current => ({ ...current, visible: false }))
+  }
+
+  function onRecoveryClosed() {
+    releaseRecovery()
+    const next = nextRecovery.current
+    nextRecovery.current = null
+    if (!focused.current) { recoveryOpen.current = false; return }
+    if (next === 'manual') {
+      setRecovery({ kind: 'info', visible: true })
+      return
+    }
+    recoveryOpen.current = false
+    if (next === 'area') openArea()
+    else if (next === 'settings') void Linking.openSettings().catch(() => setSettingsFailed(true))
   }
 
   function queueFailure(manual: boolean) {
     if (!focused.current || recoveryOpen.current) return
     if (!manual && useWizardModalStore.getState().exitVersion !== sessionExitVersion) return
     pendingFailure.current = manual ? 'manual' : pendingFailure.current ?? 'auto'
-    // Explicit taps originate inside the area sheet: retain sheet → dialog.
+    // Explicit taps originate inside the area sheet: wait for its onClosed.
     // An automatic refresh must leave the user's current modal alone.
     if (manual && areaOpen) setAreaOpen(false)
     else void promptLocationFailure()
@@ -185,7 +188,7 @@ export function useCreateLocation() {
     : usingCurrent ? gpsLabel || t('createLocation.locatedNoLabel') : null
 
   return {
-    dialog, settingsFailed, onLocationFailure, onAreaClosed,
+    recovery, closeRecovery, onRecoveryClosed, settingsFailed, onLocationFailure, onAreaClosed,
     validate, areaOpen, setAreaOpen, openArea, scopeLabel, usingCurrent, radiusM,
     setRadiusM: (value: number | null) => patchDraft({ radiusM: value }),
     locationStatus: location.state.status, offerHomeArea, homeArea, useHomeArea,

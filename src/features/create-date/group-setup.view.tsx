@@ -36,7 +36,7 @@ export default function GroupSetupScreen() {
   }
 
   return (
-    <WizardScreen step="group-setup" onBack={() => router.back()}>
+    <WizardScreen step="group-setup">
       <ScrollView testID="create-group-setup-scroll" contentContainerStyle={styles.content}>
         <Text variant="discoveryTitle" style={styles.title}>{t('groupSetup.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('groupSetup.body')}</Text>

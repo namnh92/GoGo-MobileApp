@@ -73,7 +73,7 @@ export default function CreateTypeScreen() {
   }
 
   return (
-    <WizardScreen avoidKeyboard step="type" onBack={() => router.back()}>
+    <WizardScreen avoidKeyboard step="type">
       <View ref={viewportRef} testID="create-type-viewport" style={styles.fill} onLayout={schedule}>
         <ScrollView ref={scrollRef} testID="create-type-scroll" style={styles.fill}
           onLayout={schedule} onContentSizeChange={schedule}

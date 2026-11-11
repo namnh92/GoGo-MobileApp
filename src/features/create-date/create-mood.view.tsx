@@ -199,7 +199,7 @@ export default function CreateMoodScreen() {
   }
 
   return (
-    <WizardScreen step="mood" onBack={() => router.back()}>
+    <WizardScreen step="mood">
       <BlockingLoadingOverlay visible={createRoom.isPending} />
 
       {taxonomies.isPaused && !taxonomies.data ? (
