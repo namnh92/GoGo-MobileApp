@@ -205,7 +205,7 @@ describe.each(['orange', 'orangeDark'] as const)('group 09 %s', themeName => {
   it('omits unknown prices and unavailable place actions', async () => {
     await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: false, facts: { name: 'Unavailable place', addressText: 'Hidden street', priceMin: 85000, gogoRating: 4.6, gogoRatingCount: 12, openNow: true, photoUrl: 'https://example.com/hidden.jpg' } }} onOpenPlace={noop} onOpenPlan={noop} />)
     expect(screen.queryByTestId('place-card-price')).toBeNull()
-    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(i18n.t('discovery.gogoFewReviews'))
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('★ 4,6 (12) GoGo')
     expect(screen.queryByTestId('place-card-meta')).toBeNull()
     expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
     expect(screen.queryByTestId('place-photo-image')).toBeNull()
@@ -219,12 +219,19 @@ describe.each(['orange', 'orangeDark'] as const)('group 09 %s', themeName => {
     const open = jest.fn()
     await mount(<ResultCard card={{ kind: 'place', placeId: 'minimal', available: true, facts: { name: 'Minimal place' } }} onOpenPlace={open} onOpenPlan={noop} />)
     expect(screen.getByTestId('place-card-small')).toBeTruthy()
-    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(i18n.t('discovery.gogoFewReviews'))
+    expect(screen.queryByTestId('place-gogo-rating')).toBeNull()
+    expect(screen.queryByTestId('place-card-ratings')).toBeNull()
     for (const id of ['place-card-meta', 'place-card-price', 'place-card-hours-badge', 'place-photo-image']) {
       expect(screen.queryByTestId(id)).toBeNull()
     }
     await fireEvent.press(screen.getByRole('button', { name: 'Minimal place' }))
     expect(open).toHaveBeenCalledWith('minimal')
+  })
+
+  it.each([true, false])('F-09: shows a known zero community count (available=%s)', async available => {
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'zero-reviews', available, facts: { name: 'Zero reviews', gogoRatingCount: 0 } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá (0)')
+    expect(screen.queryByTestId('place-google-rating')).toBeNull()
   })
 
   it.each([true, false, null] as const)('omits status consistently with every default small card (%s)', async openNow => {

@@ -481,3 +481,37 @@ Raw logs: `/tmp/594-f10-before-final.log`, `/tmp/594-f10-after-final.log`.
 Raw check logs: `/tmp/594-f10-ui-final.log`, `/tmp/594-f10-typecheck-final.log`, `/tmp/594-f10-lint-final.log`. UI gate có cảnh báo Node `punycode` deprecated hiện hữu; không có test failure.
 
 Đây là component regression; chưa chạy simulator/native build hoặc live API acceptance. Chỉ sửa F-10 tại CreateMood và test harness liên quan; singleton scope store/cleanup không đổi. Không git add/commit/push; index trống khi bàn giao.
+
+## F-09 — assistant community-rating regression — 2026-11-11
+
+Basis: PR #598, HEAD `ed6c0ef75754428c6bf89eb4603f266882c9d1d1`, worktree `mobile-594` sạch trước điều tra. Owner yêu cầu điều tra rồi sửa regression do F-09 (`b3789a9`); kết quả sau sửa thuộc working-tree patch, không stage/commit.
+
+### Điều tra payload, contract và mapper
+
+- Generated `AssistantPlaceCard.facts` chỉ bắt buộc `name` (`src/shared/api/schema.d.ts:11500-11501`); `gogoRating?: number` và `gogoRatingCount?: number` là hai field optional (`:11518-11520`). Count có thể hiện diện với giá trị **0**, không có default 0 khi field vắng. Contract không cho count null; guard UI `== null` vẫn bỏ cả absent/null nếu gặp ở runtime. OpenAPI nguồn: `openapi/gogo.v1.yaml:21838`, `:21868-21871`; score chỉ có từ 5 reviews.
+- Fixture unavailable trong `src/features/__tests__/assistant-redesign-matrix.spec.tsx:206` có **score 4.6, count 12**. Mapper trên HEAD gốc đặt cả hai trong spread `card.available ? {...} : {}` (`src/features/assistant/result-card.view.tsx`, trước sửa dòng 54-60), nên làm mất facts đã biết khi unavailable. Không phải shared card coi mọi trường hợp thiếu cached detail là sparse.
+- Fixture minimal (`src/features/__tests__/assistant-redesign-matrix.spec.tsx:220`) chỉ có `facts: { name }`: count **thực sự absent**, không phải known 0. Vì vậy sửa expectation cũ từ badge không có count thành **không badge/không rating row**, theo core 14/15 và type optional ở trên. Không gán count 0 để giữ expectation cũ.
+- Các fixture `hours` có known count 0 (`src/features/__tests__/assistant-redesign-matrix.spec.tsx:238`) đã PASS trên HEAD gốc. Shared `RatingChips` / `GoGoRatingBadge` (`src/shared/ui/rating-chips.view.tsx:17`, `:28`) đã kiểm count unknown đúng; `ratingParts` (`src/shared/api/view-models.ts:348`) giữ threshold 5. Không cần sửa guard F-09.
+
+### Fix và regression coverage
+
+- Chuyển mapping **cả score lẫn count cộng đồng** ra ngoài availability spread (`src/features/assistant/result-card.view.tsx:54-57`), giữ nguyên giá trị từ payload, không fallback/coerce. Unavailable fixture có score 4.6/count 12 hiện `★ 4,6 (12) GoGo`, thay expectation cũ sai `Chưa đủ đánh giá` khi mapper đã làm mất count.
+- Thêm case assistant **known count 0, không score**, với cả available/unavailable, chạy ở orange/orangeDark (`src/features/__tests__/assistant-redesign-matrix.spec.tsx:231-235`): badge phải hiện `GoGo · Chưa đủ đánh giá (0)`, không Google badge.
+- F-09 sparse seed id/name, offline/failed detail và mixed full/sparse list vẫn PASS (`src/features/create-date/__tests__/round-four.spec.tsx:219`, `:245`). Shared sparse test và known counts 0/3/4 vẫn PASS (`src/shared/ui/__tests__/place-card.spec.tsx:360`, `:368`). Không thay seed mapper hay shared rating guards.
+
+### FAIL trên ed6c0ef / PASS sau sửa
+
+| Test basis / lệnh | Kết quả |
+| --- | --- |
+| HEAD gốc, chưa sửa source/test: `pnpm test:ui src/features/__tests__/assistant-redesign-matrix.spec.tsx --runInBand` | **FAIL: 4 failed / 52 passed**. Unavailable và minimal đều thiếu `place-gogo-rating`, ở cả hai theme. |
+| Final matrix tests trên production source còn nguyên `ed6c0ef`: cùng lệnh trên | **FAIL: 4 failed / 56 passed**. Unavailable score/count 12 và case mới unavailable count 0 đều không có badge, ở cả hai theme. Minimal expectation đã sửa đúng theo field absent. |
+| Final source/test patch: `pnpm test:ui assistant place-card create-date --runInBand` | **PASS: 28 suites / 456 tests / 9 snapshots**. Matrix PASS toàn bộ 60 cases, gồm các case từng thất bại và known-count-0 mới; F-09 sparse/seed regressions vẫn PASS. |
+| `pnpm typecheck` | **PASS**, exit 0; sandbox cho phép. |
+| `pnpm exec eslint --no-cache src/features/assistant/result-card.view.tsx src/features/__tests__/assistant-redesign-matrix.spec.tsx` | **PASS**, exit 0. |
+| `git diff --check` | **PASS**. |
+
+Raw logs: `/tmp/mobile-594-assistant-before.log`, `/tmp/mobile-594-assistant-final-tests-before.log`, `/tmp/mobile-594-rating-ui-after.log`, `/tmp/mobile-594-rating-typecheck.log`, `/tmp/mobile-594-rating-lint.log`.
+
+Source/test snapshot: **`rs-1fa5d003876b`**, scope `src`; manifest và retrievable binary diff tại `/tmp/mobile-594-rating-snapshots/mobile-594-assistant-ratings-rs-1fa5d003876b/`. Tài liệu verification này ngoài snapshot scope; source/test không đổi sau checks. Manifest verify **MATCH** trước bàn giao.
+
+Đây là component regression verification; chưa chạy simulator/native build hoặc live API acceptance. Không thay OpenAPI/generated types. Không git add/commit/push; index trống khi bàn giao.
