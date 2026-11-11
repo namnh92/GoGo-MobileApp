@@ -15,6 +15,8 @@ import { styles } from './current-area-sheet.style'
 
 type CurrentAreaSheetProps = {
   visible: boolean
+  /** Recovery can offer manual selection without another GPS attempt. */
+  mode?: 'default' | 'manualOnly'
   onClose: () => void
   onApplied: () => void
   /** Wizard-only recovery; other callers retain the inline warning. */
@@ -25,7 +27,7 @@ type CurrentAreaSheetProps = {
 }
 
 /** Shared #524 picker. A controlled selection edits a caller draft without changing the app-wide area. */
-export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLocationFailure, onClosed }: CurrentAreaSheetProps) {
+export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLocationFailure, onClosed, mode = 'default' }: CurrentAreaSheetProps) {
   const { t } = useTranslation()
   const location = useCurrentLocation()
   const appArea = useAppAreaStore()
@@ -70,7 +72,7 @@ export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLoc
     header={!choosing ? <AppHeader variant="sheet" safeArea={false} title={t('home.chooseArea')}
       rightAction={<AppHeaderAction accessibilityLabel={t('common.close')} onPress={onClose}><MaterialIcon name="close" /></AppHeaderAction>} /> : undefined}>
     <View style={choosing ? styles.list : styles.content}>
-      {!choosing && !selection ? <>
+      {!choosing && !selection && mode !== 'manualOnly' ? <>
         <SecondaryBtn variant="area" leadingIcon="location" label={t('home.useLocation')} onPress={() => void requestDeviceLocation()} loading={location.state.status === 'asking'} />
         {location.state.status === 'denied' || location.state.status === 'unavailable' ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t(location.state.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')}</Text> : null}
       </> : null}

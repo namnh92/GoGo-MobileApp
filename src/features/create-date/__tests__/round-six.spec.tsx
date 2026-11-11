@@ -156,17 +156,26 @@ it.each([['vi', 'denied'], ['en', 'denied'], ['vi', 'unavailable'], ['en', 'unav
   expect(view.queryByText(manualTitle())).toBeNull()
   expect(mockPresenter.refused).toEqual([])
 })
-it('manual failure: cancel → second question → confirm reopens manual fields and can apply an area', async () => {
+it.each([
+  ['vi', 'Chọn khu vực thủ công', 'GoGo chưa lấy được vị trí của bạn. Hãy chọn tỉnh/thành phố và phường/xã cho kèo này.'],
+  ['en', 'Choose an area manually', 'GoGo could not get your location. Choose the province/city and ward/commune for this outing.'],
+] as const)('round 9: recovery instruction and manual-only picker (%s)', async (language, expectedTitle, expectedBody) => {
+  await act(async () => { await i18n.changeLanguage(language) })
   const view = await renderScreen(<CreateType />)
   await fireEvent.press(view.getByTestId('create-location-field'))
   await press(view, i18n.t('home.useLocation'))
   await press(view, cancel())
-  expect(view.getByRole('header', { name: manualTitle() })).toBeTruthy()
+  expect(i18n.t('createLocation.manualTitle')).toBe(expectedTitle)
+  expect(i18n.t('createLocation.manualBody')).toBe(expectedBody)
+  expect(view.getByRole('header', { name: expectedTitle })).toBeTruthy()
+  expect(view.getByText(expectedBody)).toBeTruthy()
   expect(mockResult.mock.calls.filter(([props]) => props.visible).at(-1)?.[0].variant).toBe('info')
   expect(useWizardModalStore.getState().modals.size).toBe(1)
   expect(within(view.getByTestId('sheet-actions')).getAllByRole('button').map(button => button.props.accessibilityLabel)).toEqual([confirm()])
   await press(view, confirm())
   expect(view.queryByText(title())).toBeNull()
+  expect(view.queryByText(i18n.t('home.useLocation'))).toBeNull()
+  expect(view.queryByText(i18n.t('createLocation.permissionDenied'))).toBeNull()
   await press(view, 'Manual province')
   await press(view, i18n.t('areaPicker.confirm'))
   expect(useRoomStore.getState().administrativeArea?.provinceCode).toBe('01')
@@ -176,7 +185,12 @@ it('manual failure: cancel → second question → confirm reopens manual fields
 it.each(['backdrop', 'back'] as const)('round 7: second sheet %s close confirms manual selection; explicit retries still recover', async close => {
   const view = await renderScreen(<CreateType />)
   for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt === 0) await fireEvent.press(view.getByTestId('create-location-field'))
+    if (attempt > 0) {
+      expect(view.queryByText(i18n.t('home.useLocation'))).toBeNull()
+      await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+    }
+    await fireEvent.press(view.getByTestId('create-location-field'))
     await press(view, i18n.t('home.useLocation'))
     expect(view.getByText(title())).toBeTruthy()
     await press(view, cancel())

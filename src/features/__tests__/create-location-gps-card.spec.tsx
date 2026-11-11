@@ -146,11 +146,11 @@ it('falls back to the generic fix line without an area label', async () => {
 it.each([
   ['denied', 'Chưa có quyền vị trí. Chọn khu vực thủ công bên dưới nhé.'],
   ['unavailable', 'Chưa lấy được vị trí. Chọn khu vực thủ công bên dưới nhé.'],
-] as const)('renders %s on entry without a tap and keeps the manual fallback (#594 owner)', async (status, notice) => {
+] as const)('round 9: omits the %s inline warning on step 1 and keeps the area field', async (status, notice) => {
   mockAreaStore.setState({ scope: { status: 'resolving' }, location: { status: 'idle' } })
   mockLocation.result = { status }
   const view = await renderScreen(<CreateTypeScreen />)
-  expect(view.getByText(notice)).toBeTruthy()
+  expect(view.queryByText(notice)).toBeNull()
   expect(view.getByRole('button', { name: 'Chọn khu vực' })).toBeTruthy()
   expect(mockRequest).not.toHaveBeenCalled()
   expect(useRoomStore.getState().originLat).toBeNull()

@@ -17,20 +17,13 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 
 export function CreateLocationFields({ model }: { model: ReturnType<typeof useCreateLocation> }) {
   const { t } = useTranslation()
-  const { areaOpen, setAreaOpen, openArea, scopeLabel, locationStatus, usingCurrent, radiusM, setRadiusM,
+  const { areaOpen, areaMode, setAreaOpen, openArea, scopeLabel, usingCurrent, radiusM, setRadiusM,
     offerHomeArea, homeArea, useHomeArea, staleArea, onApplied, recovery, closeRecovery, onRecoveryClosed, settingsFailed, onLocationFailure, onAreaClosed } = model
   const manual = recovery.kind === 'info'
   return (
     <View testID="create-location-section" style={styles.section}>
       <Text variant="label" style={styles.label}>{t('createType.area')}</Text>
-      <LocationField testID="create-location-field" label={scopeLabel} onPress={openArea} />
-      {locationStatus === 'denied' || locationStatus === 'unavailable' ? (
-        <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
-          {locationStatus === 'denied'
-            ? t('createLocation.permissionDenied')
-            : t('createLocation.locationUnavailable')}
-        </Text>
-      ) : null}
+      <LocationField testID="create-location-field" label={scopeLabel} onPress={() => openArea()} />
 
       {usingCurrent ? (
         <>
@@ -69,7 +62,7 @@ export function CreateLocationFields({ model }: { model: ReturnType<typeof useCr
         </Text>
       ) : null}
       {settingsFailed ? <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
-      <DiscoveryLocationSheet onLocationFailure={onLocationFailure} onClosed={onAreaClosed} visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
+      <DiscoveryLocationSheet mode={areaMode} onLocationFailure={onLocationFailure} onClosed={onAreaClosed} visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
       <ResultSheet visible={recovery.visible} variant={recovery.kind}
         testID="create-location-recovery"
         title={t(manual ? 'createLocation.manualTitle' : 'createLocation.failureTitle')}

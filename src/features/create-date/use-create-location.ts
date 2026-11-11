@@ -17,6 +17,7 @@ import { useWizardModal, useWizardModalStore } from './wizard-modal'
 export function useCreateLocation() {
   const { t } = useTranslation()
   const [areaOpen, setAreaOpen] = useState(false)
+  const [areaMode, setAreaMode] = useState<'default' | 'manualOnly'>('default')
   const { area: gpsLabel, setArea } = useRoom()
   const sharedArea = useAppAreaStore(state => state.area)
   const sharedScope = useAppAreaStore(state => state.scope)
@@ -92,7 +93,8 @@ export function useCreateLocation() {
     }
   }, [keepDraftArea, originLat, sharedArea, sharedScope, sharedManual, devicePosition, patchDraft, setArea, currentLabel])
 
-  function openArea() {
+  function openArea(mode: 'default' | 'manualOnly' = 'default') {
+    setAreaMode(mode)
     // Seed the shared picker with a restored draft before the user edits it.
     // This also keeps Clear and Use current position working for old drafts.
     if (keepDraftArea) selectArea(administrativeArea)
@@ -127,7 +129,7 @@ export function useCreateLocation() {
       return
     }
     recoveryOpen.current = false
-    if (next === 'area') openArea()
+    if (next === 'area') openArea('manualOnly')
     else if (next === 'settings') void Linking.openSettings().catch(() => setSettingsFailed(true))
   }
 
@@ -189,7 +191,7 @@ export function useCreateLocation() {
 
   return {
     recovery, closeRecovery, onRecoveryClosed, settingsFailed, onLocationFailure, onAreaClosed,
-    validate, areaOpen, setAreaOpen, openArea, scopeLabel, usingCurrent, radiusM,
+    validate, areaOpen, areaMode, setAreaOpen, openArea, scopeLabel, usingCurrent, radiusM,
     setRadiusM: (value: number | null) => patchDraft({ radiusM: value }),
     locationStatus: location.state.status, offerHomeArea, homeArea, useHomeArea,
     staleArea: staleArea && administrativeArea !== null && administrativeArea.datasetVersion !== version.data?.datasetVersion,

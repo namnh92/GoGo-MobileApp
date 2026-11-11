@@ -787,3 +787,42 @@ Ba Vitest failures đều ở `src/shared/config/__tests__/distribute-wrapper.te
 `sentry-usage.spec.ts` thuộc Jest (`*.spec.ts`), không thuộc Vitest (`*.test.ts`); đã chạy riêng trong gate 54 tests ở trên. Logs còn lại: `/tmp/594-f13-f15-typecheck-final.log`, `/tmp/594-f13-f15-ui-final.log`, `/tmp/594-f13-f15-vitest-final.log`, `/tmp/594-f13-f15-lint-final.log`. Jest có Node `punycode` deprecation hiện hữu.
 
 Đây là bằng chứng navigation-state integration + component/store/static audit; chưa chạy native simulator/build hoặc DEV acceptance. HEAD vẫn **`b4934387`**, không staged changes.
+
+
+## Owner sim feedback round 9
+
+Ngày 2026-11-11. Sol sửa trên worktree `mobile-594`, PR #598, HEAD **`ac9b77815c3a9bfcd18706b7af1d60cb2b343606`**. Không sửa `mobile-647`; không git add/commit.
+
+- ResultSheet thông tin sau “Huỷ”: đổi `createLocation.manualTitle/manualBody` thành lời hướng dẫn bằng vi/en. Tiếng Việt: “Chọn khu vực thủ công” / “GoGo chưa lấy được vị trí của bạn. Hãy chọn tỉnh/thành phố và phường/xã cho kèo này.” Giữ một nút “Xác nhận”.
+- Shared `CurrentAreaSheet` (alias `DiscoveryLocationSheet`) nhận prop `mode="manualOnly"`: ẩn nút dùng vị trí hiện tại và dòng lỗi denied/unavailable, giữ picker thủ công và hàng hành động. Mode lưu cục bộ trong hook wizard, chỉ đặt khi mở từ recovery; mỗi lần bấm ô Khu vực đặt lại `default`. Home/Discovery không truyền mode, giữ hành vi cũ. Giữ thứ tự chờ native dismissal giữa các sheet.
+- Step 1 bỏ warning denied/unavailable dưới ô Khu vực; giữ cảnh báo `administrative.changed` và cảnh báo mở Settings thất bại.
+
+### FAIL trên ac9b778 / PASS sau
+
+Dùng `git archive ac9b778` tạo baseline ở đường dẫn trong `/tmp/594-round9-baseline-path.txt`, symlink dependencies, copy ba final test files `round-six.spec.tsx`, `create-location-gps-card.spec.tsx`, `discovery-location.spec.tsx`; đã kiểm nội dung giống byte-for-byte. Không checkout/reset/stash worktree.
+
+Cùng lệnh: `pnpm test:ui --runInBand round-six create-location-gps-card discovery-location`.
+
+| Bằng chứng | ac9b778 | Patch |
+| --- | --- | --- |
+| Copy hướng dẫn vi/en và recovery mở picker thủ công | 2 FAIL | 2 PASS |
+| Đóng info bằng backdrop/back → picker manual-only; đóng rồi bấm ô Khu vực để thử GPS lại | 2 FAIL | 2 PASS |
+| Step 1 không có warning denied/unavailable | 2 FAIL | 2 PASS |
+| Prop manualOnly ẩn GPS + failure text, default khôi phục cả hai; vẫn chọn và áp dụng thủ công | 2 FAIL | 2 PASS |
+| Regression còn lại, gồm Settings, auto-failure, dismissal, Home/Discovery fallback | 35 PASS | 35 PASS |
+| **Tổng** | **8 FAIL / 35 PASS**, exit 1 | **43 PASS**, exit 0 |
+
+Logs: `/tmp/594-round9-before-final.log`, `/tmp/594-round9-after-final.log`.
+
+### Checks
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | **PASS**, exit 0 |
+| `pnpm test:ui create-date location home search --runInBand` | **PASS**, 22 suites / 345 tests, exit 0 |
+| `pnpm exec eslint --no-cache <8 touched TS/TSX files>` | **PASS**, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | **PASS** |
+
+Logs: `/tmp/594-round9-typecheck-final.log`, `/tmp/594-round9-ui-final.log`, `/tmp/594-round9-lint-final.log`. Jest còn cảnh báo Node `punycode` deprecation hiện hữu.
+
+Đây là bằng chứng component/store regression; chưa chạy native build/simulator hoặc DEV acceptance. HEAD giữ `ac9b7781`, index trống.
