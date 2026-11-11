@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import type { MessageKey } from '@/shared/i18n/types'
-import { Atmosphere, AvatarCircle, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { Badge } from '@/shared/ui/badge.view'
 import { InfoBanner } from '@/shared/ui/info-banner.view'
@@ -20,7 +20,6 @@ import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { PasswordRequirements } from '@/shared/ui/password-requirements.view'
 import { SegmentedControl } from '@/shared/ui/segmented-control.view'
-import { UnavailableAction } from '@/shared/ui/unavailable-action.view'
 
 import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
@@ -192,7 +191,7 @@ export default function SignInScreen() {
       <BlockingLoadingOverlay visible={pending} onClosed={() => setOverlayClosed(true)} />
       <View>
         <AppHeader title={t(mode === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')} onBack={() => goBackOrHome(router)}
-          rightAction={<AvatarCircle label="" size={32} icon="user" />} />
+          showNotifications={false} />
       </View>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>
@@ -204,8 +203,8 @@ export default function SignInScreen() {
             </View>
             <View style={styles.editorial}>
               <Badge appearance="stitchViolet" icon="room" label={t('auth.hostBadge')} style={styles.hostBadge} />
-              <Text variant="introSection" color="redesign.ink" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
-              <Text variant="introBody" color="redesign.secondary">{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
+              <Text variant="introSection" color="text.primary" style={styles.title}>{t(mode === 'signUp' ? 'auth.signUpTitle' : next === 'assistant' ? 'auth.signInTitleAssistant' : 'auth.signInTitle')}</Text>
+              <Text variant="introBody" color="text.secondary">{t(mode === 'signIn' ? 'auth.signInBody' : 'auth.signUpBody')}</Text>
             </View>
             <View style={styles.coffee}><InfoBanner coffee title={t('auth.coffeeTitle')} body={t('auth.coffeeBody')} /></View>
             <View style={styles.form}>
@@ -226,11 +225,11 @@ export default function SignInScreen() {
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('password').onBlur() }} placeholder={t('auth.passwordPlaceholder')}
                   autoCapitalize="none" autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
                   secureTextEntry={!showPassword} editable={!pending}
-                  accessory={mode === 'signIn' ? <UnavailableAction label={t('auth.forgot')} reason={t('auth.recoveryUnavailable')} /> : undefined}
+                  accessory={mode === 'signIn' ? <Pressable accessibilityRole="link" accessibilityLabel={t('auth.forgot')} disabled={pending} accessibilityState={{ disabled: pending }} style={styles.forgot} onPress={() => router.push({ pathname: '/auth/forgot-password', params: next ? { next } : {} })}><Text color="accent.primary">{t('auth.forgot')}</Text></Pressable> : undefined}
                   trailing={<Pressable testID="password-visibility" onPress={() => { setShowPassword(shown => !shown); schedule() }}
                     accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
                     hitSlop={6} style={styles.visibility}>
-                    <MaterialIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="redesign.outline" />
+                    <MaterialIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color="border.outline" />
                   </Pressable>}
                   error={fieldState.error ? t(mode === 'signIn' ? 'auth.signInPasswordInvalid' : 'auth.passwordInvalid') : undefined}>
                   {mode === 'signUp' && <PasswordRequirements value={field.value as string} />}

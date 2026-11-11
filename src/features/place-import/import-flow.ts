@@ -203,6 +203,23 @@ export class ImportFlowController {
   resolutionFailed(ticket: Ticket) {
     if (this.current(ticket)) this.patch({ phase: 'editing' })
   }
+  async resolveLink(link: string) {
+    const ticket = this.startResolution(link)
+    if (!ticket) return
+    this.dependencies.report('place_import_submitted')
+    try {
+      const result = await this.dependencies.resolve({ url: link })
+      if (!this.current(ticket)) return
+      this.resolved(result, link)
+      this.dependencies.report(result.status === 'RESOLVED' ? 'place_import_verified' : 'place_import_rejected',
+        result.status === 'RESOLVED' ? { placeId: result.candidate?.googlePlaceId ?? '' } : { reason: result.status ?? 'UNRESOLVED' })
+      return result
+    } catch (error) {
+      if (!this.current(ticket)) return
+      this.resolutionFailed(ticket)
+      throw error
+    }
+  }
   resolved(result: ResolveLinkResult, link: string) {
     this.patch({ resolution: clone(result), resolvedLink: link, resolutionToken: result.resolutionToken ?? null,
       candidate: result.candidate ?? null, googlePlaceId: result.status === 'RESOLVED' ? result.candidate?.googlePlaceId ?? null : null, phase: 'editing' })

@@ -16,7 +16,6 @@ it.each([
   ['taxonomies', 'vi', 'current'],
   queryKeys.place('public-place'),
   queryKeys.planPlaceSummary('public-place'),
-  ['place-provider-photos', 'public-place'],
 ].map(queryKey => ({ queryKey })))('keeps $queryKey snapshots, cancels late A responses and allows fresh fetches under B', async ({ queryKey }) => {
   await persistSession({ kind: 'user', userId: 'A', accessToken: 'A', expiresAt: Date.now() + 600_000 })
   const client = createQueryClient()
@@ -50,7 +49,6 @@ it.each([
 it.each([
   queryKeys.place('public-place'),
   queryKeys.planPlaceSummary('public-place'),
-  ['place-provider-photos', 'public-place'],
 ].map(queryKey => ({ queryKey })))('F-07: retains explicitly public place cache $queryKey while purging private imports and submissions', async ({ queryKey }) => {
   await persistSession({ kind: 'user', userId: 'A', accessToken: 'A', expiresAt: Date.now() + 600_000 })
   const client = createQueryClient()

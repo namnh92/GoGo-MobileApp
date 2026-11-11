@@ -3,7 +3,8 @@ import { Animated, Easing, View, type DimensionValue, type StyleProp, type ViewS
 import { LinearGradient } from 'expo-linear-gradient'
 import { useUnistyles } from 'react-native-unistyles'
 
-import { useReducedMotion, useReducedMotionPreference } from '@/shared/ui/feedback'
+import { useReducedMotionPreference } from '@/shared/ui/feedback'
+import { useTranslation } from 'react-i18next'
 import { Card } from '@/shared/ui/card.view'
 import { motion, radius, spacing } from '@/shared/ui/tokens'
 
@@ -26,21 +27,21 @@ const HIDDEN = {
 } as const
 
 function usePulse(): Animated.Value {
-  const reduced = useReducedMotion()
+  const reduced = useReducedMotionPreference()
   // Lazy initialiser, not a ref: the Animated.Value must survive re-renders
   // without being read during render.
   const [value] = useState(() => new Animated.Value(0.4))
 
   useEffect(() => {
-    if (reduced) {
+    if (reduced !== false) {
       // Reduced motion means no pulse at all — a flat tone, not a slower one.
       value.setValue(0.6)
       return
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(value, { toValue: 0.85, duration: motion.slow, useNativeDriver: true }),
-        Animated.timing(value, { toValue: 0.4, duration: motion.slow, useNativeDriver: true }),
+        Animated.timing(value, { toValue: 0.85, duration: motion.slow, useNativeDriver: true, isInteraction: false }),
+        Animated.timing(value, { toValue: 0.4, duration: motion.slow, useNativeDriver: true, isInteraction: false }),
       ]),
     )
     loop.start()
@@ -59,6 +60,7 @@ export function Skeleton({ width, height = 12, radius: r = 6, style }: {
   const opacity = usePulse()
   return (
     <Animated.View
+      testID="skeleton-block"
       {...HIDDEN}
       style={[styles.block, { width, height, borderRadius: r, opacity }, style]}
     />
@@ -94,7 +96,7 @@ export function PhotoSkeleton({ testID = 'place-photo-loading' }: { testID?: str
 /** Mirrors the list PlaceCard: 16:10 photo over the body lines. */
 export function PlaceCardSkeleton() {
   return (
-    <Card padded={false} style={styles.listCard}>
+    <Card testID="place-card-skeleton" padded={false} style={styles.listCard}>
       <Skeleton style={styles.listThumb} height={undefined} radius={0} />
       <View style={styles.listBody}>
         <Skeleton width="70%" height={17} />
@@ -104,6 +106,63 @@ export function PlaceCardSkeleton() {
       </View>
     </Card>
   )
+}
+
+/** Notification icon, heading/time, body and action in the shared row card. */
+export function NotificationListSkeleton({ testID = 'notifications-loading', count = 3 }: { testID?: string; count?: number }) {
+  const { t } = useTranslation()
+  return <View testID={testID} accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.stack}>
+    {Array.from({ length: count }, (_, index) => <View key={index} style={styles.notificationCard}>
+      <Skeleton width={48} height={48} radius={24} />
+      <View style={styles.memberLines}>
+        <Skeleton width="65%" height={16} /><Skeleton width="100%" height={40} /><Skeleton width="40%" height={32} radius={16} />
+      </View>
+    </View>)}
+  </View>
+}
+
+/** Plan list cards have a status chip above the title and facts. */
+export function PlanListSkeleton({ count = 3 }: { count?: number }) {
+  const { t } = useTranslation()
+  return <View testID="plan-list-skeleton" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.stack}>
+    {Array.from({ length: count }, (_, index) => <Card key={index} style={styles.planListCard}>
+      <Skeleton width={48} height={48} radius={24} />
+      <View style={styles.memberLines}>
+        <Skeleton width="40%" height={24} radius={12} /><Skeleton width="80%" height={20} /><Skeleton width="100%" height={16} />
+      </View>
+    </Card>)}
+  </View>
+}
+
+/** My reviews: subject card, rating/date, review text and status/action. */
+export function ReviewListSkeleton({ count = 3 }: { count?: number }) {
+  return <View testID="review-list-skeleton" style={styles.stack}>
+    {Array.from({ length: count }, (_, index) => <Card key={index} style={styles.reviewCard}>
+      <PlaceCardSmallSkeleton /><Skeleton width="60%" height={16} />
+      <Skeleton width="100%" height={48} /><Skeleton width="35%" height={28} radius={14} />
+    </Card>)}
+  </View>
+}
+
+function PlaceCardSmallSkeleton() {
+  return <View style={styles.memberRow}>
+    <Skeleton width={80} height={80} radius={10} />
+    <View style={styles.memberLines}>
+      <Skeleton width="80%" height={16} /><Skeleton width="100%" /><Skeleton width="60%" />
+    </View>
+  </View>
+}
+
+/** The editor uses compact place cards with a row of reorder/remove actions. */
+export function PlanStopListSkeleton({ count = 3 }: { count?: number }) {
+  return <View testID="plan-stop-list-skeleton" style={styles.stack}>
+    {Array.from({ length: count }, (_, index) => <Card key={index} style={styles.stopListCard}>
+      <PlaceCardSmallSkeleton />
+      <View style={styles.stopActions}>
+        <Skeleton width={44} height={44} /><Skeleton width={44} height={44} /><Skeleton width={80} height={44} />
+      </View>
+    </Card>)}
+  </View>
 }
 
 export function PlaceDetailSkeleton() {

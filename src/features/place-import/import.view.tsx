@@ -1,3 +1,5 @@
+import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
+import { clearSavedLinkHandoff, readSavedLinkHandoff, type SavedLinkHandoff } from './saved-link-handoff'
 import { Chip } from '@/shared/ui/chip.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
@@ -5,8 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MutableRefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TouchableWithoutFeedback, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useUnistyles } from 'react-native-unistyles'
+import { LinkInput } from '@/shared/ui/link-input.view'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { mapsUrlSchema } from './maps-url'
 import { onlineManager } from '@tanstack/react-query'
@@ -76,15 +77,31 @@ function providerUnavailable(error: unknown): boolean {
  * in between; it is a fact about the place, not a failure to retry.
  */
 export default function PlaceImportScreen() {
+  return <ImportScreen savedWizard={false} />
+}
+
+export function SavedContributionScreen() {
+  return <ImportScreen savedWizard />
+}
+
+function ImportScreen({ savedWizard }: { savedWizard: boolean }) {
+  const router = useRouter()
+  const { savedLink } = useLocalSearchParams<{ savedLink?: string }>()
+  const [entry] = useState(() => readSavedLinkHandoff(savedLink))
+  const redirect = !savedWizard && entry?.resolution?.status === 'RESOLVED' && !!entry.resolution.candidate
+  useEffect(() => {
+    if (redirect) router.replace({ pathname: '/places/contribution', params: { savedLink } })
+    else clearSavedLinkHandoff(savedLink)
+  }, [redirect, router, savedLink])
   const { status } = useSession()
   const prefillConsumedRef = useRef(false)
   const online = useSyncExternalStore(onlineManager.subscribe, () => onlineManager.isOnline(), () => onlineManager.isOnline())
-  return <ImportFlowProvider online={online} registered={status === 'user'}><PlaceImportContent prefillConsumedRef={prefillConsumedRef} /></ImportFlowProvider>
+  if (redirect) return <Atmosphere redesign style={styles.handoffLoading}><LoadingIndicator /></Atmosphere>
+  return <ImportFlowProvider online={online} registered={status === 'user'} initialLink={entry?.url} initialResolution={entry?.resolution}><PlaceImportContent prefillConsumedRef={prefillConsumedRef} entry={entry} /></ImportFlowProvider>
 }
 
-function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: MutableRefObject<boolean> }) {
+function PlaceImportContent({ prefillConsumedRef, entry }: { prefillConsumedRef: MutableRefObject<boolean>; entry?: SavedLinkHandoff }) {
   const { controller, state } = useImportFlow()
-  const { theme } = useUnistyles()
   const { t, i18n } = useTranslation()
   const { status: actorStatus } = useSession()
   const router = useRouter()
@@ -124,20 +141,22 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
     return () => subscription.remove()
   }, [revealFocused])
 
+  const [entryError, setEntryError] = useState<unknown>()
   const url = state.link
-  const setUrl = (value: string) => controller.reset(value)
+  const setUrl = (value: string) => { setEntryError(undefined); controller.reset(value) }
   const currentUrl = useRef('')
   useEffect(() => {
     // Consume route input once across session-driven content remounts. The
     // wizard controller remains the sole owner of the link and flow lifetime.
     if (prefillConsumedRef.current) return
     prefillConsumedRef.current = true
-    const parsed = mapsUrlSchema.safeParse(prefilledUrl)
-    if (parsed.success) {
-      controller.reset(parsed.data)
-      currentUrl.current = parsed.data
+    setEntryError(entry?.error)
+    const link = entry?.url ?? prefilledUrl
+    if (typeof link === 'string') {
+      if (!entry) controller.reset(link)
+      currentUrl.current = link
     }
-  }, [controller, prefilledUrl, prefillConsumedRef])
+  }, [controller, entry, prefilledUrl, prefillConsumedRef])
   const attemptGeneration = useRef(0)
   const formGeneration = state.flowGeneration
   const linkFrozen = state.phase === 'retiring' || state.phase === 'submissionUnknown'
@@ -153,6 +172,8 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
 
   const taxonomies = useTaxonomies({ kinds: 'category' })
   const resolve = useResolveGoogleMapsLink()
+  const resolutionError = resolve.isError ? resolve.error : entryError
+  const resolutionFailed = resolve.isError || entryError !== undefined
   const accepted = state.phase === 'retiring' || state.phase === 'completed'
   const wizard = useRef<{ saveDraft: () => Promise<boolean> }>(null)
   const exit = useContributionExit(async () => await wizard.current?.saveDraft() ?? false)
@@ -201,6 +222,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
     if (!ticket) return
     const generation = attemptGeneration.current
     setInvalid(false)
+    setEntryError(undefined)
     setResolvedUrl(parsed.data)
     setSelectedGooglePlaceId(null)
     track('place_import_submitted')
@@ -251,7 +273,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   const verified = result?.status === 'RESOLVED' && !!candidate
   const contributionPlaceId = verified ? candidate.googlePlaceId : result?.status === 'CANDIDATE_SELECTION' ? selectedGooglePlaceId : undefined
   const branchSelectionDisabled = foregroundBusy(state) || ['retiring', 'completed', 'submissionUnknown'].includes(state.phase)
-  const offline = !online || resolve.isPaused || (resolve.isError && resolve.error instanceof NetworkError)
+  const offline = !online || resolve.isPaused || (resolutionFailed && resolutionError instanceof NetworkError)
   const validFormat = mapsUrlSchema.safeParse(url).success
   const showValidation = url.trim().length > 0 || invalid
 
@@ -269,7 +291,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   const wizardProps = {
     googlePlaceId: contributionPlaceId ?? '', registered: actorStatus === 'user', online,
     submitting: state.phase === 'submitting', blocked: notOpenYet || accepted,
-    onBack: changeLink, onFocus: revealFocused, onSubmit: () => { void onSubmitPlace() },
+    onBack: entry ? () => router.back() : changeLink, onFocus: revealFocused, onSubmit: () => { void onSubmitPlace() },
   }
 
   async function pasteLink() {
@@ -291,9 +313,9 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
   return (
     <Atmosphere redesign style={!verified ? styles.inputCanvas : undefined}>
       <AppHeader testID="import-header" title={t(verified ? 'placeImport.metaTitle' : 'placeImport.title')}
-        onBack={() => exit.requestExit(verified ? changeLink : () => router.back())} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
+        onBack={() => exit.requestExit(verified && !entry ? changeLink : () => router.back())} backDisabled={state.phase === 'retiring' || state.phase === 'submissionUnknown'}
         bellTestID="import-bell" unreadDotTestID="import-unread-dot"
-        rightAction={!verified ? <AppHeaderAction accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }}><MaterialIcon name="help" size={24} color="redesign.secondary" /></AppHeaderAction> : undefined} />
+        rightAction={!verified ? <AppHeaderAction accessibilityLabel={t('placeImport.help')} onPress={() => { Keyboard.dismiss(); scrollRef.current?.scrollTo({ y: guideY.current, animated: true }) }}><MaterialIcon name="help" size={24} color="text.secondary" /></AppHeaderAction> : undefined} />
       <FocusedFieldGroup.Provider value={focusedGroup}>
         <KeyboardAvoidingView testID="import-keyboard-avoider" style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView
@@ -316,35 +338,31 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
               <View ref={contentRef} collapsable={false}>
                 <View style={styles.intro}>
                   {!verified ? <Chip label={t('placeImport.community')} /> : null}
-                  <Text variant={verified ? 'introSection' : 'display'} color="redesign.ink">{t(verified ? 'placeImport.completeTitle' : 'placeImport.syncTitle')}</Text>
-                  <Text variant={verified ? "introBody" : "bodySmall"} color="redesign.secondary" style={styles.introBody}>{t(verified ? 'placeImport.completeBody' : 'placeImport.body')}</Text>
+                  <Text variant={verified ? 'introSection' : 'display'} color="text.primary">{t(verified ? 'placeImport.completeTitle' : 'placeImport.syncTitle')}</Text>
+                  <Text variant={verified ? "introBody" : "bodySmall"} color="text.secondary" style={styles.introBody}>{t(verified ? 'placeImport.completeBody' : 'placeImport.body')}</Text>
                 </View>
 
                 {verified ? <View testID="import-synced-link" style={styles.syncedRow}>
-                  <View style={styles.linkDisc}><MaterialIcon name="link" size={20} color="redesign.importSyncedText" /></View>
+                  <View style={styles.linkDisc}><MaterialIcon name="link" size={20} color="status.onSuccessContainer" /></View>
                   <View style={styles.syncedText}>
                     <View style={styles.syncedTitleRow}>
-                      <Text numberOfLines={1} variant="introLabel" color="redesign.ink" style={styles.syncedUrl}>{resolvedUrl?.replace(/^https?:\/\//, '')}</Text>
+                      <Text numberOfLines={1} variant="introLabel" color="text.primary" style={styles.syncedUrl}>{resolvedUrl?.replace(/^https?:\/\//, '')}</Text>
                       <Chip testID="import-verified-confirmation" variant="positive" label={t('placeImport.synced')} />
                     </View>
-                    <Text numberOfLines={1} variant="introCaption" color="redesign.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
+                    <Text numberOfLines={1} variant="introCaption" color="text.secondary">{t('placeImport.verifiedLocation', { name: candidate.name })}</Text>
                   </View>
                 </View> : <>
                   <FieldFocusGroup style={[styles.inputCard, linkFocused && styles.inputCardFocused]}>
                     <View style={styles.inputHeading}>
-                      <View style={styles.inputLabel}><MaterialIcon name="link" size={18} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.ink">{t('placeImport.linkLabel')}</Text></View>
+                      <View style={styles.inputLabel}><MaterialIcon name="link" size={18} color="accent.text" /><Text variant="introLabel" color="text.primary">{t('placeImport.linkLabel')}</Text></View>
                       <Pressable accessibilityRole="button" disabled={linkFrozen} onPress={() => void pasteLink()} style={({ pressed }) => [styles.pasteLink, pressed && styles.pressed]}>
-                        <Icon name="copy" size={14} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.primaryText">{t('placeImport.pasteLink')}</Text>
+                        <Icon name="copy" size={14} color="accent.text" /><Text variant="introLabel" color="accent.text">{t('placeImport.pasteLink')}</Text>
                       </Pressable>
                     </View>
                     <View style={styles.linkInputRow}>
-                      <View pointerEvents="none" style={styles.inputLocation}><MaterialIcon name="location" size={20} color="redesign.greenText" /></View>
-                      <TextInput
+                      <LinkInput
                         ref={inputRef}
-                        testID="import-link-input"
-                        multiline={false}
-                        numberOfLines={1}
-                        scrollEnabled
+                        testID="import-link-input" clearTestID="import-clear-link" displayTestID="import-link-display"
                         onFocus={() => { setLinkFocused(true); revealFocused() }}
                         onBlur={() => setLinkFocused(false)}
                         value={url}
@@ -356,26 +374,19 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                           setUrl(value)
                         }}
                         placeholder={t('placeImport.placeholder')}
-                        placeholderTextColor={theme.redesign.outline}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        keyboardType="url"
                         returnKeyType="go"
                         onSubmitEditing={onResolve}
                         accessibilityLabel={t('placeImport.linkLabel')}
                         accessibilityHint={showValidation && !validFormat ? t('placeImport.invalidUrl') : undefined}
-                        style={[styles.input, styles.linkInput, !linkFocused && !!url && styles.linkInputUnfocused, showValidation && !validFormat && styles.inputError]}
+                        error={showValidation && !validFormat}
+                        onClear={() => exit.requestExit(changeLink)}
                       />
-                      {!linkFocused && !!url ? <View testID="import-link-display" pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.linkDisplay}>
-                        <Text variant="bodySmall" numberOfLines={1} ellipsizeMode="tail">{url}</Text>
-                      </View> : null}
-                      {url ? <Pressable testID="import-clear-link" accessibilityRole="button" accessibilityLabel={t('placeImport.clearLink')} disabled={linkFrozen} onPress={() => exit.requestExit(changeLink)} style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}><View style={styles.clearDisc}><Icon name="x" size={14} /></View></Pressable> : null}
                     </View>
                     {showValidation ? <View accessibilityLiveRegion="polite" style={[styles.validationBadge, !validFormat && styles.validationInvalid]}>
-                      <MaterialIcon name={validFormat ? 'checkCircle' : 'info'} size={15} color={validFormat ? 'redesign.greenText' : 'status.warningText'} />
-                      <Text variant="introCaptionMedium" color={validFormat ? 'redesign.greenText' : 'status.warningText'} style={styles.flex}>{t(validFormat ? 'placeImport.validFormat' : 'placeImport.invalidUrl')}</Text>
+                      <MaterialIcon name={validFormat ? 'checkCircle' : 'info'} size={15} color={validFormat ? 'status.successText' : 'status.warningText'} />
+                      <Text variant="introCaptionMedium" color={validFormat ? 'status.successText' : 'status.warningText'} style={styles.flex}>{t(validFormat ? 'placeImport.validFormat' : 'placeImport.invalidUrl')}</Text>
                     </View> : null}
-                    <View style={styles.formatHint}><MaterialIcon name="info" size={13} color="redesign.outline" /><Text variant="introCaption" color="redesign.secondary" style={styles.flex}>{t('placeImport.formatHint')}</Text></View>
+                    <View style={styles.formatHint}><MaterialIcon name="info" size={13} color="border.outline" /><Text variant="introCaption" color="text.secondary" style={styles.flex}>{t('placeImport.formatHint')}</Text></View>
                     {linkFailed ? <Text variant="introSmall" color="status.dangerText">{t('placeImport.clipboardFailed')}</Text> : null}
                   </FieldFocusGroup>
                   {!result ? <View onLayout={event => { guideY.current = event.nativeEvent.layout.y }}><ImportGuide onLinkFailed={() => setLinkFailed(true)} /></View> : null}
@@ -385,15 +396,15 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                   </View>
                 </>}
 
-                {resolve.isError && !offline ? (
+                {resolutionFailed && !offline ? (
                   <View style={styles.rejectedCard}>
                     <Text variant="title2" color="status.dangerText">
-                      {t(providerUnavailable(resolve.error) ? 'placeImport.providerUnavailableTitle' : 'placeImport.rejectedTitle')}
+                      {t(providerUnavailable(resolutionError) ? 'placeImport.providerUnavailableTitle' : 'placeImport.rejectedTitle')}
                     </Text>
                     <Text variant="bodySmall" style={styles.rejectedReason}>
-                      {providerUnavailable(resolve.error)
+                      {providerUnavailable(resolutionError)
                         ? t('placeImport.providerUnavailable')
-                        : isApiError(resolve.error) && resolve.error.status === 429
+                        : isApiError(resolutionError) && resolutionError.status === 429
                           ? t('placeImport.rateLimited')
                           : t('common.errorBody')}
                     </Text>
@@ -407,7 +418,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
 
                 {result ? (
                   <View style={styles.analysisHeading}>
-                    <Text variant="introHeading" color="redesign.ink" style={styles.analysisLabel}>{t(result.status === 'RESOLVED' ? 'placeImport.extractedTitle' : 'placeImport.analysisTitle')}</Text>
+                    <Text variant="introHeading" color="text.primary" style={styles.analysisLabel}>{t(result.status === 'RESOLVED' ? 'placeImport.extractedTitle' : 'placeImport.analysisTitle')}</Text>
                   </View>
                 ) : null}
 
@@ -455,7 +466,7 @@ function PlaceImportContent({ prefillConsumedRef }: { prefillConsumedRef: Mutabl
                         }}
                         style={styles.previewMaps}
                       >
-                        <MaterialIcon name="map" color="redesign.primaryText" />
+                        <MaterialIcon name="map" color="accent.text" />
                       </Pressable>
                     ) : null}
                     style={styles.resultCard}

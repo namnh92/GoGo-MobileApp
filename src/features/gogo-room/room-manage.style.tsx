@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   loading: { padding: spacing[4] },
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dangerCard: { padding: spacing[4], marginTop: spacing[2], gap: spacing[3], backgroundColor: theme.status.dangerSoft },
-  tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

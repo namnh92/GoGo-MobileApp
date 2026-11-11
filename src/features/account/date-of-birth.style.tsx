@@ -5,7 +5,7 @@ import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 /** PROF-APP-006 — the date-of-birth block in account information. */
 export const styles = StyleSheet.create(theme => ({
   inputWrap: { position: 'relative' },
-  calendarInput: { paddingRight: 40, borderRadius: 12, borderWidth: 1, borderColor: theme.redesign.outline },
+  calendarInput: { paddingRight: 40, borderRadius: 12, borderWidth: 1, borderColor: theme.border.outline },
   activeInput: { borderWidth: 1, borderColor: theme.accent.primary },
   calendar: { position: 'absolute', right: 14, top: 14, pointerEvents: 'none' },
   embedded: { gap: spacing[2] },

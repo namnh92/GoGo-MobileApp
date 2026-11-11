@@ -6,7 +6,7 @@ import '@/shared/i18n'
 
 /**
  * GoGo-MobileApp#379 (AI-APP-002) — the `/assistant` route opened by every
- * entry point: header with Close (×), the avatar, the greeting and the
+ * entry point: header with Back, the avatar, the greeting and the
  * removable place chip. Since #378 it is the real assistant (Welcome, then the
  * conversation), so these specs run it against the scripted backend, and the
  * "Chat saved" toast fires on the first close once a chat exists.
@@ -16,7 +16,7 @@ const mockRouter = { back: jest.fn(), replace: jest.fn(), canGoBack: () => true 
 const mockParams: { value: Record<string, string> } = { value: {} }
 const mockGate = { on: true }
 
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(),
   useRouter: () => mockRouter,
   useLocalSearchParams: () => mockParams.value,
   Redirect: function Redirect({ href }: { href: string }) {
@@ -70,9 +70,9 @@ it('greets, with the composer ready — no more "coming soon"', async () => {
   expect(view.getByPlaceholderText('Hỏi GoGo bất cứ điều gì…')).toBeTruthy()
 })
 
-it('closes with the × in its header', async () => {
+it('goes back with the arrow in its header', async () => {
   const view = await open()
-  await fireEvent.press(view.getByRole('button', { name: 'Đóng GoGo AI' }))
+  await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
   expect(mockRouter.back).toHaveBeenCalledTimes(1)
 })
 
@@ -139,9 +139,10 @@ it('with the gate off the route leads home', async () => {
   expect(view.queryByText('GoGo AI')).toBeNull()
 })
 
-it('is presented as an iOS page sheet (swipe down closes) and full screen on Android', () => {
+it('is a normal full-screen stack card on both platforms', () => {
   const layout = readFileSync(path.resolve(__dirname, '../../app/_layout.tsx'), 'utf8')
   expect(layout).toMatch(/<Stack\.Screen\s+name="assistant"/)
-  expect(layout).toMatch(/presentation: Platform\.OS === 'ios' \? 'pageSheet' : 'fullScreenModal'/)
+  expect(layout).toMatch(/presentation: 'card'/)
+  expect(layout).not.toMatch(/pageSheet|formSheet|transparentModal|fullScreenModal/)
   expect(layout).toMatch(/gestureEnabled: true/)
 })

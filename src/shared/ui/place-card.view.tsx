@@ -67,7 +67,7 @@ export function useCardData(props: PlaceCardProps) {
   const statusLabel = candidate && place.openNow && schedule ? `${t('common.open')} · ${schedule}` : undefined
   return { place, candidate, statusLabel, loading: !!candidate && candidatePhoto.status === 'loading',
     photoError: () => setFailedPhoto(photo?.uri ?? null),
-    extraCredits: [...new Set(candidate?.attributions ?? [])].filter(credit => credit.trim() !== photo?.attribution.trim()) }
+    extraCredits: photo ? [...new Set(candidate?.attributions ?? [])].filter(credit => credit.trim() !== photo.attribution.trim()) : [] }
 }
 export type CardData = ReturnType<typeof useCardData>
 
@@ -76,11 +76,10 @@ export function CardImage({ data, small = false, loadingSkeleton = false }: { da
   return <>
     <PlacePhoto placeId={data.place.id} name={data.place.name} uri={data.place.photoUrl}
       loadingSkeleton={loadingSkeleton}
-      cachePolicy={data.candidate ? 'none' : undefined}
       imageTestID={data.candidate ? small ? 'place-preview-thumbnail' : 'import-candidate-photo' : undefined}
       onPhotoError={data.photoError} style={StyleSheet.absoluteFill} />
     {data.loading ? <View testID="import-candidate-photo-loading" style={StyleSheet.absoluteFill} accessible accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} /> : null}
-    {data.loading && loadingSkeleton ? <PhotoSkeleton testID="contribution-photo-fetch-loading" /> : null}
+    {data.loading ? <PhotoSkeleton testID="contribution-photo-fetch-loading" /> : null}
   </>
 }
 
@@ -178,7 +177,7 @@ export function PlaceCardAddress({ place, compact = false, pin = true }: {
   return <FormattedPlaceAddress place={place}>{address => address.trim() ?
     <View testID="place-card-address-row" style={styles.addressRow}>
       {pin ? <MaterialIcon name="location" size={compact ? 13 : 16} color="accent.primary" /> : null}
-      <Text testID="place-card-meta" style={styles.addressText} variant={compact ? 'introCaption' : 'introSmall'} color="redesign.secondary"
+      <Text testID="place-card-meta" style={styles.addressText} variant={compact ? 'introCaption' : 'introSmall'} color="text.secondary"
         numberOfLines={compact ? 1 : 2} ellipsizeMode="tail" accessibilityLabel={address}>{address}</Text>
     </View> : null}</FormattedPlaceAddress>
 }
@@ -186,7 +185,7 @@ export function PlaceCardAddress({ place, compact = false, pin = true }: {
 /** Informational tags have no 44pt action target: Stitch draws caption pills. */
 export function PlaceCardTags({ tags = [] }: { tags?: readonly string[] }) {
   return tags.length ? <View testID="place-card-tags" style={styles.discoveryTags}>{[...new Set(tags)].map(tag =>
-    <View key={tag} style={styles.factTag}><Text variant="introCaption" color="redesign.secondary">{tag}</Text></View>)}</View> : null
+    <View key={tag} style={styles.factTag}><Text variant="introCaption" color="text.secondary">{tag}</Text></View>)}</View> : null
 }
 
 export function Verified({ compact = false }: { compact?: boolean }) {
@@ -205,11 +204,11 @@ export function PlaceCardStatus({ place, inline = false, label }: { place: Place
   return <View testID="place-card-photo-badges" style={styles.photoBadges}>
     {open ? <View testID="place-card-hours-badge" style={[styles.photoBadge, !inline && styles.inverseBadge]}>
       <View testID="place-card-status-dot" style={[styles.openDot, !open.open && styles.closedDot, !inline && (open.open ? styles.photoOpenDot : styles.photoClosedDot)]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
-      <Text style={styles.photoBadgeText} variant="introCaptionMedium" color={inline ? open.open ? 'redesign.greenText' : 'status.dangerText' : open.open ? 'onDark.success' : 'onDark.danger'}>{label ?? open.label}</Text>
+      <Text style={styles.photoBadgeText} variant="introCaptionMedium" color={inline ? open.open ? 'status.successText' : 'status.dangerText' : open.open ? 'onDark.success' : 'onDark.danger'}>{label ?? open.label}</Text>
     </View> : null}
     {distance ? <View testID="place-card-distance" style={[styles.photoBadge, !inline && styles.inverseBadge]}>
       <MaterialIcon name="nearMe" size={14} color={inline ? 'accent.primary' : 'text.inverse'} />
-      <Text variant="introCaptionMedium" color={inline ? 'redesign.secondary' : 'text.inverse'} accessibilityLabel={t('saved.straightDistance', { distance })}>{distance}</Text>
+      <Text variant="introCaptionMedium" color={inline ? 'text.secondary' : 'text.inverse'} accessibilityLabel={t('saved.straightDistance', { distance })}>{distance}</Text>
     </View> : null}
   </View>
 }

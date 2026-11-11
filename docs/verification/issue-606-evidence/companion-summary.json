@@ -1,0 +1,685 @@
+{
+  "results": [
+    {
+      "id": "companion-01",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-01.json"
+      ],
+      "started_at": "2026-11-10T02:38:30.343183+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-02",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-02.json"
+      ],
+      "started_at": "2026-11-10T02:38:41.716679+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-03",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-03.json"
+      ],
+      "started_at": "2026-11-10T02:38:51.852727+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-04",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-04.json"
+      ],
+      "started_at": "2026-11-10T02:39:07.052478+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-05",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-05.json"
+      ],
+      "started_at": "2026-11-10T02:39:19.017622+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-06",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-06.json"
+      ],
+      "started_at": "2026-11-10T02:39:33.593136+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-07",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-07.json"
+      ],
+      "started_at": "2026-11-10T02:39:39.549136+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-08",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-08.json"
+      ],
+      "started_at": "2026-11-10T02:39:45.231707+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-09",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-09.json"
+      ],
+      "started_at": "2026-11-10T02:39:49.964657+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-10",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-10.json"
+      ],
+      "started_at": "2026-11-10T02:39:54.641397+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-11",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-11.json"
+      ],
+      "started_at": "2026-11-10T02:39:58.850766+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-12",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-12.json"
+      ],
+      "started_at": "2026-11-10T02:40:03.187045+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-13",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-13.json"
+      ],
+      "started_at": "2026-11-10T02:40:07.424280+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-14",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-14.json"
+      ],
+      "started_at": "2026-11-10T02:40:12.019670+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-15",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-15.json"
+      ],
+      "started_at": "2026-11-10T02:40:16.296395+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-16",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-16.json"
+      ],
+      "started_at": "2026-11-10T02:40:20.602070+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-17",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-17.json"
+      ],
+      "started_at": "2026-11-10T02:40:24.864471+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-18",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-18.json"
+      ],
+      "started_at": "2026-11-10T02:40:29.368787+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-19",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-19.json"
+      ],
+      "started_at": "2026-11-10T02:40:34.531080+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-20",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-20.json"
+      ],
+      "started_at": "2026-11-10T02:40:39.231869+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-21",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-21.json"
+      ],
+      "started_at": "2026-11-10T02:40:43.418341+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-22",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-22.json"
+      ],
+      "started_at": "2026-11-10T02:40:48.022689+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-23",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-23.json"
+      ],
+      "started_at": "2026-11-10T02:40:53.032742+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-24",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-24.json"
+      ],
+      "started_at": "2026-11-10T02:40:57.610823+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-25",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-25.json"
+      ],
+      "started_at": "2026-11-10T02:41:02.207865+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-26",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-26.json"
+      ],
+      "started_at": "2026-11-10T02:41:06.522598+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-27",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-27.json"
+      ],
+      "started_at": "2026-11-10T02:41:10.857307+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-28",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-28.json"
+      ],
+      "started_at": "2026-11-10T02:41:15.276987+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-29",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-29.json"
+      ],
+      "started_at": "2026-11-10T02:41:19.660443+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-30",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-30.json"
+      ],
+      "started_at": "2026-11-10T02:41:23.809524+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-31",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-31.json"
+      ],
+      "started_at": "2026-11-10T02:41:27.862507+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-32",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-32.json"
+      ],
+      "started_at": "2026-11-10T02:41:31.872878+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-33",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-33.json"
+      ],
+      "started_at": "2026-11-10T02:41:36.351669+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-34",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-34.json"
+      ],
+      "started_at": "2026-11-10T02:41:40.524827+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-35",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-35.json"
+      ],
+      "started_at": "2026-11-10T02:41:44.604320+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-36",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-36.json"
+      ],
+      "started_at": "2026-11-10T02:41:48.853907+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-37",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-37.json"
+      ],
+      "started_at": "2026-11-10T02:41:53.104708+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-38",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-38.json"
+      ],
+      "started_at": "2026-11-10T02:41:57.667970+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-39",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-39.json"
+      ],
+      "started_at": "2026-11-10T02:42:01.916714+00:00",
+      "exit_code": 0
+    },
+    {
+      "id": "companion-40",
+      "command": [
+        "pnpm",
+        "exec",
+        "jest",
+        "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+        "src/features/__tests__/home-location-scope.spec.tsx",
+        "src/shared/ui/__tests__/sheet.spec.tsx",
+        "--maxWorkers=4",
+        "--verbose=false",
+        "--json",
+        "--outputFile=/tmp/gogo-606/stress/companion-40.json"
+      ],
+      "started_at": "2026-11-10T02:42:06.287385+00:00",
+      "exit_code": 0
+    }
+  ],
+  "failures": 0
+}

@@ -39,7 +39,6 @@ let mockReviews: QueryLike
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockPlace,
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: () => mockReviews,
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),

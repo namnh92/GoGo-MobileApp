@@ -1,0 +1,16 @@
+{
+  "snapshot_id": "e14e367a37cd409792268278dd58f948bd29b0b16eb3175fb7ca8723bed10018",
+  "scope": "10 edited source and test files for issue 603; no git commands",
+  "files": {
+    "src/app/places/contribution.tsx": "645ad754789d0fd1b3d045a11b0d13a458cc9e40eb1703da93182e331f6e979c",
+    "src/features/__tests__/saved-link-import.spec.tsx": "7683abbbc17a98eeb398b7316bd42a967e62c6220d98b7b0c25ee7d6a365f7d5",
+    "src/features/__tests__/saved-link.spec.tsx": "44650a47a2d5819faab15d661847a25c3bfe27d33010603e975a2c76a55be541",
+    "src/features/place-import/import-flow-controller.tsx": "77c76d45100869aa358dd8ae636337c24b4c70613ae6038653a29332dd8ef869",
+    "src/features/place-import/import-flow.ts": "c037178b707676327f2f9b85438eb27ef67fcba8cfedb37999ddf868181d7219",
+    "src/features/place-import/import.style.tsx": "5e598398952ab8a1ecb2130be5ac5d616a62b5b6af344d27b1b2b3ad21678691",
+    "src/features/place-import/import.view.tsx": "4bf8a50f189635483fd3d6612f854b42645c58c8e498ace8d41d3f4bdc314bd4",
+    "src/features/place-import/saved-link-handoff.ts": "121c81f835c8f648ae3455090b13c34d3184ba248529c42406bef9808a9fc977",
+    "src/features/tabs/saved-link.view.tsx": "7f45eaa2afcdbf4ca9e61199ac3171164a56e3fa0dcef7fc8e8822bddb5c8f0c",
+    "src/shared/observability/screen-templates.ts": "dcf2786448395a579831454611605df0fb4e0c3d3a5d1adc014b17321e81b9c5"
+  }
+}

@@ -15,7 +15,7 @@ import {
   usePlanStopPlaces,
   useRoom,
 } from '@/shared/api'
-import { EmptyState, ErrorState, LoadingState } from '@/shared/ui/async-state.view'
+import { EmptyState, ErrorState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon } from '@/shared/ui/icons'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
@@ -23,6 +23,7 @@ import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import { PlanStopListSkeleton } from '@/shared/ui/skeleton.view'
 import { styles } from './plan-edit.style'
 
 /** The contract accepts 1..8 stops. */
@@ -74,7 +75,7 @@ export default function PlanEditScreen() {
     return (
       <Atmosphere>
         {header}
-        <LoadingState />
+        <View testID="plan-edit-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.loading}><PlanStopListSkeleton /></View>
       </Atmosphere>
     )
   }

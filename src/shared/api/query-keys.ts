@@ -6,6 +6,10 @@ import type { PlaceSearchQuery } from './endpoints/places'
  * nested under it.
  */
 export const queryKeys = {
+  /** Personal financial facts: memory only, isolated even across A → B → A. */
+  credits: (userId: string, generation: number) => ['credits', userId, generation] as const,
+  creditSummary: (userId: string, generation: number) => ['credits', userId, generation, 'summary'] as const,
+  creditLedger: (userId: string, generation: number) => ['credits', userId, generation, 'ledger'] as const,
   me: () => ['me'] as const,
   taxonomies: (locale: string) => ['taxonomies', locale, 'current'] as const,
   taxonomyVersion: (locale: string, version: number) => ['taxonomies', locale, version] as const,
@@ -48,6 +52,7 @@ export const queryKeys = {
    * history lives on the server, not on the device.
    */
   assistant: () => ['assistant'] as const,
+  assistantConversation: (id: string) => ['assistant', 'conversation', id] as const,
   assistantStatus: () => ['assistant', 'status'] as const,
   assistantConversations: () => ['assistant', 'conversations'] as const,
   assistantConversationList: (q: string) => ['assistant', 'conversations', 'list', q] as const,

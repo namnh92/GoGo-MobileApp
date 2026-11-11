@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[4], paddingBottom: theme.spacing[8], gap: theme.spacing[2] },
@@ -76,14 +76,14 @@ export const styles = StyleSheet.create(theme => ({
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing[3],
+    gap: chipRowGap,
     paddingVertical: theme.spacing[2],
     paddingHorizontal: theme.spacing[3],
     borderRadius: theme.radius.compact,
     backgroundColor: theme.surface.subtle,
     minHeight: touchTarget.min,
   },
-  memberNameRow: { alignItems: 'flex-start', gap: theme.spacing[1], flex: 1 },
+  memberNameRow: { alignItems: 'flex-start', gap: chipRowGap, flex: 1 },
   // Was body at 600. Regular: the avatar, the badge and the status chip carry
   // the row's hierarchy; the name does not need a face of its own.
   memberName: { flexShrink: 1 },

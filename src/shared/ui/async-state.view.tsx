@@ -34,8 +34,8 @@ export function EmptyState({ title, body, action, illustration, appearance = 'de
   return (
     <View style={[styles.container, stitch && styles.stitchContainer]}>
       {illustration ? <View style={styles.illustration}>{illustration}</View> : null}
-      <Text variant={stitch ? 'introSection' : 'title2'} color={stitch ? 'redesign.ink' : 'text.primary'} style={styles.title}>{title}</Text>
-      {body ? <Text variant={stitch ? 'introBody' : 'bodySmall'} color={stitch ? 'redesign.secondary' : 'text.secondary'} style={[styles.body, stitch && styles.stitchBody]}>{body}</Text> : null}
+      <Text variant={stitch ? 'introSection' : 'title2'} color={stitch ? 'text.primary' : 'text.primary'} style={styles.title}>{title}</Text>
+      {body ? <Text variant={stitch ? 'introBody' : 'bodySmall'} color={stitch ? 'text.secondary' : 'text.secondary'} style={[styles.body, stitch && styles.stitchBody]}>{body}</Text> : null}
       {action}
     </View>
   )

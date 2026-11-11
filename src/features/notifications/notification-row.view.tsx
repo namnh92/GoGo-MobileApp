@@ -5,7 +5,7 @@ import { Text, type TextColor } from '@/shared/ui/text'
 import { styles } from './notification-row.style'
 
 /** Shared card geometry for personal notifications and public system broadcasts. */
-export function NotificationRow({ id, testID, headingTestID, title, titleColor = 'redesign.ink', relativeTime,
+export function NotificationRow({ id, testID, headingTestID, title, titleColor = 'text.primary', relativeTime,
   unread = false, icon, iconStyle, openTarget, actions, children }: {
   id?: string | null; testID?: string; headingTestID?: string
   title: string; titleColor?: TextColor; relativeTime: string | null
@@ -17,7 +17,7 @@ export function NotificationRow({ id, testID, headingTestID, title, titleColor =
     <View testID={headingTestID ?? `notification-heading-${id}`} style={styles.cardHeading}>
       <Text variant="introLabel" color={titleColor} numberOfLines={2} ellipsizeMode="tail" style={styles.kind}>{title}</Text>
       <View style={styles.timeRow}>
-        {relativeTime ? <Text variant="introCaption" color="redesign.secondary">{relativeTime}</Text> : null}
+        {relativeTime ? <Text variant="introCaption" color="text.secondary">{relativeTime}</Text> : null}
         {unread ? <View testID={`notification-unread-${id}`} style={styles.unreadDot} /> : null}
       </View>
     </View>

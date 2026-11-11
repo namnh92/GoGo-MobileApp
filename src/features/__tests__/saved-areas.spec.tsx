@@ -1,9 +1,8 @@
 import i18n from '@/shared/i18n'
 import { useAppAreaStore } from '@/shared/location/app-area'
-import { act, fireEvent, within } from '@testing-library/react-native'
+import { act, fireEvent } from '@testing-library/react-native'
 import { Platform, StyleSheet } from 'react-native'
 
-import { TAB_BAR_HEIGHT } from '@/shared/ui/bottom-bar-inset'
 import { touchTarget } from '@/shared/ui/tokens'
 import { constrainedTouchTarget } from '@/shared/ui/__tests__/touch-target-geometry'
 
@@ -127,25 +126,12 @@ beforeEach(() => {
 afterEach(() => { Platform.OS = originalOS })
 
 describe('Saved by area', () => {
-  it.each(['ios', 'android'] as const)('covers the city tabs and bottom safe area with glass (%s)', async os => {
+  it.each(['ios', 'android'] as const)('keeps the city child screen dock-free with bottom safe area (%s)', async os => {
     Platform.OS = os
     const view = await renderScreen(<SavedCityScreen />)
-    const dock = view.getByTestId('saved-city-tabs')
-    const wash = within(dock).getByTestId('glass-bar-wash')
-    // The material must fill the dock that contains both the tabs and safe area,
-    // rather than a childless sibling that collapses to its top hairline.
-    expect(wash.parent === dock).toBe(true)
-    expect(StyleSheet.flatten(wash.props.style)).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 })
-    expect(StyleSheet.flatten(dock.props.style)).toMatchObject({ position: 'absolute', bottom: 0, paddingBottom: 34, borderTopWidth: 1 })
-    const tabs = within(dock).getAllByRole('tab')
-    expect(tabs).toHaveLength(4)
-    const row = tabs[0]!.parent!
-    expect(row.parent === dock).toBe(true)
-    expect(StyleSheet.flatten(row.props.style).height).toBe(TAB_BAR_HEIGHT)
-    expect(tabs.every(tab => tab.parent === row)).toBe(true)
-    expect(tabs[2]!.props.accessibilityState).toMatchObject({ selected: true })
-    await press(tabs[0]!)
-    expect(mockReplace).toHaveBeenCalledWith('/')
+    expect(view.queryByTestId('saved-city-tabs')).toBeNull()
+    expect(view.queryAllByRole('tab')).toHaveLength(0)
+    expect(StyleSheet.flatten(view.getByTestId('saved-list').props.contentContainerStyle).paddingBottom).toBe(34 + 24)
   })
 
   it('offers city saved-place lists without maps', async () => {
@@ -239,16 +225,11 @@ describe('Saved by area', () => {
     expect(view.getByText(i18n.t('saved.actionFailed'))).toBeTruthy()
   })
 
-  it('renders the live city count, subtitle and working Saved navigation', async () => {
+  it('renders the live city count and subtitle without app tabs', async () => {
     const view = await renderScreen(<SavedCityScreen />)
     expect(view.getByText('1 địa điểm')).toBeTruthy()
     expect(view.getByText('Danh sách các địa điểm bạn đã lưu')).toBeTruthy()
-    const selected = view.getByRole('tab', { name: i18n.t('tabs.saved') })
-    expect(selected.props.accessibilityState.selected).toBe(true)
-    await press(selected)
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/saved')
-    await press(view.getByRole('tab', { name: i18n.t('tabs.plans') }))
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/plans')
+    expect(view.queryAllByRole('tab')).toHaveLength(0)
   })
 
   it('shows a city-specific empty state even when another city has saved places', async () => {
@@ -278,6 +259,8 @@ describe('Saved by area', () => {
     expect(view.getByText(HCM[1])).toBeTruthy()
     expect(view.getByLabelText('Quay lại')).toBeTruthy()
     expect(view.queryByTestId('saved-list')).toBeNull()
+    expect(view.getAllByTestId('place-card-skeleton')).toHaveLength(4)
+    expect(view.queryByTestId('loading-indicator')).toBeNull()
     expect(view.queryByText('Chưa có địa điểm đã lưu')).toBeNull()
   })
 
@@ -369,6 +352,8 @@ describe('Saved by area', () => {
     const view = await renderScreen(<SavedScreen />)
     expect(view.queryByText('Chưa lưu gì cả')).toBeNull()
     expect(view.queryByTestId('saved-list')).toBeNull()
+    expect(view.getAllByTestId('place-card-skeleton')).toHaveLength(4)
+    expect(view.queryByTestId('loading-indicator')).toBeNull()
   })
 
   it('shows a retryable error when the saved list fails', async () => {

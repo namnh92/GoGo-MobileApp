@@ -169,9 +169,9 @@ export default function HomeScreen() {
         <View style={styles.intro}>
           <View style={{ flex: 1 }}>
             <Pressable testID="home-location" accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={chooseArea} style={styles.locationRow}>
-              <MaterialIcon name="location" size={15} color="redesign.primaryText" />
-              <Text variant="introCaptionMedium" color="redesign.secondary">{scopeLabel ?? t('home.chooseArea')}</Text>
-              <MaterialIcon name="expandMore" size={16} color="redesign.secondary" />
+              <MaterialIcon name="location" size={15} color="accent.text" />
+              <Text variant="introCaptionMedium" color="text.secondary">{scopeLabel ?? t('home.chooseArea')}</Text>
+              <MaterialIcon name="expandMore" size={16} color="text.secondary" />
             </Pressable>
             <Text variant="discoveryHeading">{me.data?.displayName?.trim() ? t('discovery.greetingName', { name: me.data.displayName.trim() }) : t('discovery.greeting')}</Text>
           </View>
@@ -186,31 +186,31 @@ export default function HomeScreen() {
 
         <DraftResume />
 
-        <LinearGradient colors={[theme.redesign.heroStart, theme.redesign.heroMiddle, theme.redesign.heroEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-          <View pointerEvents="none" style={styles.heroDecor}><MaterialIcon name="groups" size={140} color="redesign.primaryText" /></View>
+        <LinearGradient colors={[theme.accent.gradientStart, theme.accent.gradientMiddle, theme.status.infoGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+          <View pointerEvents="none" style={styles.heroDecor}><MaterialIcon name="groups" size={140} color="accent.text" /></View>
           <Chip label={t('discovery.heroBadge')} icon="zap" />
           <Text variant="discoveryTitle">{t('discovery.heroTitle')}</Text>
-          <Text variant="introSmall" color="redesign.secondary" style={styles.heroBody}>{t('discovery.heroBody')}</Text>
+          <Text variant="introSmall" color="text.secondary" style={styles.heroBody}>{t('discovery.heroBody')}</Text>
           <Pressable accessibilityRole="button" onPress={startCreate} style={styles.heroPrimary}>
             <MaterialIcon name="plus" color="accent.onAccent" /><Text variant="introLabel" color="accent.onAccent">{t('discovery.createRoom')}</Text>
           </Pressable>
         </LinearGradient>
         <QuickJoin knownName={me.data?.displayName} />
         {showRoom && banner ? <Pressable testID="home-room-banner" accessibilityRole="button" accessibilityLabel={`${t(banner.status)}. ${roomTitle}. ${t(banner.secondary)}. ${t(banner.cta)}`} style={styles.nearestRoom} onPress={() => router.push(banner.destination)}>
-          <View style={styles.roomIcon}><MaterialIcon name="groups" color="redesign.violetText" size={20} /></View>
+          <View style={styles.roomIcon}><MaterialIcon name="groups" color="status.infoText" size={20} /></View>
           <View style={styles.roomCopy}>
-            <View style={styles.roomStatus}><View style={styles.roomDot} /><Text variant="introCaptionMedium" color="redesign.violetText">{t(banner.status)}</Text></View>
+            <View style={styles.roomStatus}><View style={styles.roomDot} /><Text variant="introCaptionMedium" color="status.infoText">{t(banner.status)}</Text></View>
             <Text variant="discoveryHeader">{roomTitle}</Text>
-            <Text variant="introCaption" color="redesign.secondary">{t(banner.secondary)}</Text>
+            <Text variant="introCaption" color="text.secondary">{t(banner.secondary)}</Text>
           </View>
-          <View style={styles.roomAction}><Text variant="introCaptionMedium" color="redesign.white">{t(banner.cta)}</Text></View>
+          <View style={styles.roomAction}><Text variant="introCaptionMedium" color="text.inverse">{t(banner.cta)}</Text></View>
         </Pressable> : null}
         <View testID="home-suggestions" style={styles.suggestions}>
           <View style={styles.sectionHeader}>
             <Text variant="discoveryTitle">{t('discovery.suggested')}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} style={styles.moreAction} onPress={() => router.push({ pathname: '/places/search', params: { suggestions: '1', ...(moods.length ? { moods: moods.join(',') } : {}) } })}>
-              <Text variant="introSmall" color="redesign.primaryText">{t('discovery.more')}</Text>
-              <MaterialIcon name="chevronRight" size={16} color="redesign.primaryText" />
+              <Text variant="introSmall" color="accent.text">{t('discovery.more')}</Text>
+              <MaterialIcon name="chevronRight" size={16} color="accent.text" />
             </Pressable>
           </View>
           {Object.keys(moodOptions).length ? <ScrollView testID="home-mood-chips" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moods}>

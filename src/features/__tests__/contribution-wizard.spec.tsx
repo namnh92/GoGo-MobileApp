@@ -458,6 +458,18 @@ it.each(['vi', 'en'])('grows multiline tips with the schema character counter in
   expect(screen.queryByText(i18n.t('placeWizard.tick'))).toBeNull()
   expect(screen.queryByText(i18n.t('placeWizard.amenitiesHelp'))).toBeNull()
   expect(screen.getByText(i18n.t('placeWizard.vibeCount'))).toBeTruthy()
+  const rule = screen.getByText(locale === 'vi' ? 'Chọn 1–3 vibe phù hợp' : 'Choose 1–3 suitable vibes')
+  const title = screen.getByTestId('contribution-section-title-mood')
+  const column = title.parent!
+  expect(rule.parent).toBe(column)
+  expect(column.children).toHaveLength(2)
+  expect(column.children[0]).toBe(title)
+  expect(column.children[1]).toBe(rule)
+  expect(StyleSheet.flatten(column.props.style)).toMatchObject({ alignItems: 'flex-start', gap: spacing[1] })
+  expect(spacing[1]).toBe(4)
+  expect(screen.queryByText('Cảm giác thực tế khi ngồi tại quán:')).toBeNull()
+  expect(screen.queryByText('How does it feel to spend time here?')).toBeNull()
+  expect(i18n.exists('placeWizard.vibesHelp', { lng: locale })).toBe(false)
   expect(disabled(i18n.t('placeWizard.next'))).toBe(true)
   await fireEvent.press(screen.getByRole('checkbox', { name: locale === 'vi' ? 'Sôi động' : 'Festive' }))
   await fireEvent.press(button(i18n.t('placeWizard.next')))
@@ -485,7 +497,22 @@ it.each(['vi', 'en'])('puts All beside each checklist title and shows five rows 
   await fireEvent.press(button(i18n.t('placeWizard.next')))
   for (const [key, icon] of [['vibes', 'mood'], ['amenities', 'activity']]) {
     const title = screen.getByTestId(`contribution-section-title-${icon}`)
-    expect(within(title.parent!).getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: i18n.t(`placeWizard.${key}`), count: 8 }) })).toHaveTextContent(i18n.t('placeWizard.all'))
+    const action = within(title.parent!).getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: i18n.t(`placeWizard.${key}`), count: 8 }) })
+    expect(action).toHaveTextContent(i18n.t('placeWizard.all'))
+    expect(StyleSheet.flatten(title.parent!.props.style)).toEqual({
+      flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch',
+    })
+    expect(StyleSheet.flatten(title.props.style)).toMatchObject(type.introHeading)
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minWidth: 44, minHeight: 22 })
+    expect(action.props.hitSlop).toBe(12)
+    expect(22 + 2 * action.props.hitSlop).toBeGreaterThanOrEqual(44)
+    if (icon === 'mood') {
+      const column = title.parent!.parent!
+      const rule = within(column).getByText(i18n.t('placeWizard.vibeCount'))
+      expect(rule.parent).toBe(column)
+      expect(StyleSheet.flatten(column.props.style)).toEqual({ flex: 1, minWidth: 0, alignItems: 'flex-start', gap: spacing[1] })
+      expect(StyleSheet.flatten(rule.props.style)).toMatchObject(type.introCaption)
+    }
   }
   expect(screen.getAllByRole('checkbox')).toHaveLength(10)
   expect(screen.queryByText(/^\+\d+ (khác|more)$/)).toBeNull()
@@ -494,6 +521,12 @@ it.each(['vi', 'en'])('puts All beside each checklist title and shows five rows 
   const title = screen.getByTestId('contribution-section-title-reviews')
   const action = within(title.parent!).getByRole('button', { name: i18n.t('placeWizard.allChoices', { title: i18n.t('placeWizard.ratings'), count: 8 }) })
   expect(action).toHaveTextContent(i18n.t('placeWizard.all'))
+  expect(StyleSheet.flatten(title.parent!.props.style)).not.toHaveProperty('minHeight')
+  expect(StyleSheet.flatten(title.parent!.parent!.props.style).gap).toBe(spacing[1])
+  for (const icon of ['receipt', 'tips']) {
+    const heading = screen.getByTestId(`contribution-section-title-${icon}`)
+    expect(StyleSheet.flatten(heading.parent!.props.style).gap).toBe(spacing[1])
+  }
   expect(screen.getAllByRole('checkbox')).toHaveLength(5)
   expect(screen.queryByText(/^\+\d+ (khác|more)$/)).toBeNull()
   await fireEvent.press(screen.getAllByRole('radio')[3])

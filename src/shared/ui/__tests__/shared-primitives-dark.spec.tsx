@@ -36,7 +36,7 @@ describe('shared primitives on a dark device', () => {
     jest.mocked(Image).mockClear()
     await render(<RemoteImage uri="https://example.test/a.jpg" style={{ width: 4, height: 4 }} />)
     const [props] = jest.mocked(Image).mock.calls[0]
-    expect(props.source).toEqual({ uri: 'https://example.test/a.jpg' })
+    expect(props.source).toEqual({ uri: 'https://example.test/a.jpg', cacheKey: 'https://example.test/a.jpg' })
     expect(props.contentFit).toBe('cover')
     expect(props.transition).toBe(150)
     expect(flat(props.style)).toMatchObject({ backgroundColor: darkSurface.subtle, width: 4, height: 4 })
@@ -50,13 +50,13 @@ describe('shared primitives on a dark device', () => {
     expect(props.source).toBe(106)
     expect(props.contentFit).toBe('contain')
     expect(props.transition).toBe(0)
-    expect(flat(props.style)).toMatchObject({ backgroundColor: themes.orangeDark.redesign.low, width: 4, height: 4 })
+    expect(flat(props.style)).toMatchObject({ backgroundColor: themes.orangeDark.surface.low, width: 4, height: 4 })
   })
 
   it('the AppHeader canvas follows the dark device', async () => {
     const { AppHeader } = jest.requireActual<typeof import('@/shared/ui/app-header.view')>('@/shared/ui/app-header.view')
     await render(<AppHeader title="T" onBack={jest.fn()} />)
-    expect(flat(screen.getByTestId('app-header').props.style).backgroundColor).toBe(themes.orangeDark.redesign.canvas)
+    expect(flat(screen.getByTestId('app-header').props.style).backgroundColor).toBe(themes.orangeDark.surface.canvas)
   })
 
   it('the map fallback surface is not the light map green', async () => {

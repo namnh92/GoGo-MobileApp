@@ -27,7 +27,7 @@ import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
-import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
+import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
 
 import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
@@ -76,7 +76,14 @@ export default function RoomManageScreen() {
     return (
       <Atmosphere>
         {header}
-        <View style={styles.loading}>{waitingForNetwork ? <OfflineState /> : <RoomMemberSkeleton count={4} />}</View>
+        {waitingForNetwork ? (
+          <View style={styles.loading}><OfflineState /></View>
+        ) : (
+          <View testID="room-manage-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')} style={styles.card}>
+            <Skeleton width="60%" height={20} /><Skeleton width="100%" height={88} />
+            <Skeleton width="45%" height={20} /><RoomMemberSkeleton />
+          </View>
+        )}
       </Atmosphere>
     )
   }

@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { ACCENTS, themes } from '../theme'
-import { accents, colors, glass, status, surface, text } from '../tokens'
+import { accents, border, glass, status, surface, text } from '../tokens'
 
 /**
  * GoGo-MobileApp#141. Contrast is a number, so it can be a test rather than an
  * opinion someone raises in review.
  *
- * These three failed at once and none of them looked wrong: `neutral[500]` at
- * 3.78 on the ivory background carried most of the metadata in the product,
- * `neutral[300]` at 1.61 was the placeholder colour, and the primary CTA's
- * gradient started light enough to put white text at 4.09. WCAG 2.2 AA wants
+ * Historically the neutral secondary was 3.78 on ivory and the placeholder
+ * was 1.61. The current role values come from Stitch. Keep thresholds intact;
+ * the local AA trial below uses the approved alternatives. WCAG 2.2 AA wants
  * 4.5 for body text, 3.0 for large text and UI boundaries.
  *
  * #294 adds the four accent themes. The spec's starting values put white on
@@ -33,17 +32,15 @@ function contrast(a: string, b: string): number {
   return (hi! + 0.05) / (lo! + 0.05)
 }
 
-const { neutral } = colors
 /** The app background, and the reason "on white" alone is not enough. */
-const IVORY = neutral[50]
-const WHITE = neutral[0]
+const IVORY = surface.canvas
+const WHITE = surface.card
 
 describe('colour contrast', () => {
   it.each([
-    ['neutral[900] on ivory', neutral[900], IVORY],
-    ['neutral[700] on ivory', neutral[700], IVORY],
-    ['neutral[500] on ivory', neutral[500], IVORY],
-    ['neutral[500] on white', neutral[500], neutral[0]],
+    ['text.primary on ivory', text.primary, IVORY],
+    ['text.secondary on ivory', text.secondary, IVORY],
+    ['text.secondary on white', text.secondary, surface.card],
   ])('%s reads at AA for body text', (_label, fg, bg) => {
     expect(contrast(fg, bg)).toBeGreaterThanOrEqual(AA_TEXT)
   })
@@ -51,26 +48,26 @@ describe('colour contrast', () => {
   // The coral CTA gradient and the coral accent went with #297: every accent
   // surface now reads `theme.accent.*`, measured per theme below.
 
-  it('white on the swipe "pass" stamp reads at AA — it is status.danger, not the accent (#297)', () => {
+  it('white on the Light danger fill reads at AA', () => {
     // Under the green theme an accent-coloured "pass" would match the mint
     // "like" stamp beside it; the two must stay apart in every theme.
     expect(contrast(WHITE, status.danger)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 
-  it('neutral[300] stays out of the text palette', () => {
+  it('border.hairline stays out of the text palette', () => {
     // Kept deliberately: it is the line/disabled colour. The assertion is here so
     // that anyone tempted to use it for text sees why it is not a candidate.
-    expect(contrast(neutral[300], IVORY)).toBeLessThan(AA_LARGE)
-    expect(text.tertiary).toBe(neutral[300])
+    expect(contrast(border.hairline, IVORY)).toBeLessThan(AA_LARGE)
+    expect(text.tertiary).toBe(border.outline)
   })
 })
 
 describe('design-system cleanup (#382)', () => {
-  it('a UI glyph in text.secondary clears 3:1 on every light surface — the chevron was neutral[300] at 1.8', () => {
+  it('a UI glyph in text.secondary clears 3:1 on every light surface', () => {
     for (const surfaceColor of [surface.card, surface.canvas, surface.subtle]) {
       expect(contrast(text.secondary, surfaceColor)).toBeGreaterThanOrEqual(AA_LARGE)
     }
-    expect(contrast(neutral[300], surface.card)).toBeLessThan(AA_LARGE)
+    expect(contrast(border.hairline, surface.card)).toBeLessThan(AA_LARGE)
   })
 
   it('a past or completed card on the canvas tone keeps its meta at AA — no fade needed', () => {
@@ -78,11 +75,11 @@ describe('design-system cleanup (#382)', () => {
     expect(contrast(text.primary, surface.canvas)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 
-  it('a disabled label is text.secondary on surface.subtle — legible, where text.tertiary was 1.6:1', () => {
+  it('a disabled label uses the legible secondary role on surface.subtle', () => {
     // WCAG exempts inactive controls; the design system still asks they read.
-    // 4.12 today: above the 3:1 UI floor, and the same pair as the disabled Button.
+    // The secondary is held to the same UI floor as the disabled Button.
     expect(contrast(text.secondary, surface.subtle)).toBeGreaterThanOrEqual(AA_LARGE)
-    expect(contrast(text.tertiary, surface.subtle)).toBeLessThan(AA_LARGE)
+    expect(contrast(text.tertiary, surface.subtle)).toBeLessThan(AA_TEXT)
   })
 
   it.each(ACCENTS)('%s: the check-in toggle (accent.onSoft on accent.soft) reads at AA', accent => {
@@ -178,8 +175,8 @@ describe('status text (#293 §1)', () => {
     expect(contrast(label, pill)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 
-  it('the success fill is not a text colour — which is why successText exists', () => {
-    expect(contrast(status.success, WHITE)).toBeLessThan(AA_LARGE)
+  it('the Stitch success fill itself supports a white label', () => {
+    expect(contrast(status.success, WHITE)).toBeGreaterThanOrEqual(AA_TEXT)
   })
 })
 
@@ -236,20 +233,30 @@ describe('glass bar wash (#296, #293 §5)', () => {
     })
   })
 
-  it('documents the limit: dark content (a photo) under the wash drops secondary text below AA', () => {
-    // Not a pass condition — a record of where the 78 % wash stops being
-    // enough, so nobody reads the tests above as "any backdrop". Mid-grey
-    // measures 3.92; `neutral[300]` (lines, not areas) 4.47. A screen that
-    // scrolls photos under a bar is the case to watch on device.
-    expect(contrast(text.secondary, composite(glass.bar.wash, '#808080'))).toBeLessThan(AA_TEXT)
+  it('Stitch secondary text clears AA even when a photo sits under the bar wash', () => {
+    // The Stitch secondary is darker than the previous neutral. Preserve the
+    // 4.5 floor while recording the improvement, with no change to the wash.
+    expect(contrast(text.secondary, composite(glass.bar.wash, '#808080'))).toBeGreaterThanOrEqual(AA_TEXT)
     expect(contrast(text.primary, composite(glass.bar.wash, '#000000'))).toBeGreaterThanOrEqual(AA_TEXT)
   })
 })
 
 
 it.each(Object.values(themes))('discovery small text meets 4.5:1 in $mode', theme => {
-  const r = theme.redesign
-  for (const [foreground, background] of [[r.ink, r.card], [r.secondary, r.high], [r.violetText, r.violetSoft], [r.primaryText, r.primarySoft], [r.primaryText, r.canvas], [r.white, r.primaryFill]]) {
+  const { text: t, surface: s, status: st, accent: a } = theme
+  for (const [foreground, background] of [[t.primary, s.card], [t.secondary, s.high], [st.infoText, st.infoSoft], [a.onSoft, a.container], [a.text, s.canvas], [t.inverse, a.primary]]) {
     expect(contrast(foreground, background), `${foreground} on ${background}`).toBeGreaterThanOrEqual(4.5)
   }
+})
+
+// Small onboarding captions use supporting text; outline remains a border/icon role.
+it.each([['canvas', surface.canvas], ['card', surface.card]])(
+  'onboarding supporting captions on %s read at AA', (_role, background) => {
+    expect(contrast(text.supporting, background)).toBeGreaterThanOrEqual(AA_TEXT)
+  },
+)
+it('pins the local AA alternatives and preserves the outline value', () => {
+  expect(status.danger).toBe('#CC4B46')
+  expect(text.supporting).toBe('#8A6C66')
+  expect(border.outline).toBe('#8E706A')
 })

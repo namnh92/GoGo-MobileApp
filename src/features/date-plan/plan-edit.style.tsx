@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native-unistyles'
 import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  loading: { paddingHorizontal: theme.spacing[5] },
   /** The one line that says what editing does, on a soft card at the top. */
   intro: {
     flexDirection: 'row',

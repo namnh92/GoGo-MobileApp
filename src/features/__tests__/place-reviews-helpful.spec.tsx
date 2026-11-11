@@ -25,7 +25,6 @@ const mockUseMine = jest.fn((_placeId: string, _options: { enabled: boolean }) =
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded({ id: 'place-1', name: 'Quán thử', photos: [] }),
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: (placeId: string, order: string) => mockUsePlaceReviews(placeId, order),
   useMyReviewReactions: (placeId: string, options: { enabled: boolean }) => mockUseMine(placeId, options),
   useToggleReviewHelpful: () => mockToggle,

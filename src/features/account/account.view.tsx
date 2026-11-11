@@ -308,7 +308,7 @@ function AccountEditor({ me }: { me: ReturnType<typeof useMe> }) {
       <AppHeader showNotifications={false} variant="sub-screen" onBack={() => void goBack()} backDisabled={saving} title={t('account.title')}
         rightAction={canManage && me.data ? <AppHeaderAction accessibilityLabel={t('account.save')} onPress={() => void save()}
           disabled={!dirty || !valid || saving} accessibilityState={{ busy: saving }}>
-          {saving ? <LoadingIndicator size={loadingIndicator.compactSize} /> : <Text variant="introSmall" color="redesign.primaryText">{t('account.save')}</Text>}
+          {saving ? <LoadingIndicator size={loadingIndicator.compactSize} /> : <Text variant="introSmall" color="accent.text">{t('account.save')}</Text>}
         </AppHeaderAction> : undefined} />
     </View>
   )

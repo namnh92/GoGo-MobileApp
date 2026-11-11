@@ -2,6 +2,9 @@ import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import { act, fireEvent } from '@testing-library/react-native'
 
 import { loaded, renderScreen, type QueryLike } from './harness'
+import { scriptedTime } from './scripted-time'
+
+scriptedTime()
 
 /**
  * ADM-202 (#207), ADR-0022 — the location step offers two choices that exclude

@@ -14,7 +14,7 @@ const MyContributionsScreen = jest.requireActual<typeof import('../contributions
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn(), push: jest.fn() }), useLocalSearchParams: () => ({}) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => ({ count: 0, more: false }) }))
-jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmission: () => ({}), useMyPlaceSubmissions: () => ({ data: { pages: [{ items: [{ id: 's1', name: 'Real submission', status: 'pending', createdAt: '2026-11-07T00:00:00Z', providerDisplay: mockSnapshot }] }] }, refetch: jest.fn() }) }))
+jest.mock('@/shared/api/queries/use-my-place-submissions', () => ({ useMyPlaceSubmission: () => ({}), useMyPlaceSubmissions: () => ({ data: { pages: [{ items: [{ id: 's1', name: 'Real submission', status: 'pending', createdAt: '2026-11-07T00:00:00Z', providerDisplay: mockSnapshot, photo: mockSnapshot?.storedPhoto }] }] }, refetch: jest.fn() }) }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), usePlaceDetail: () => ({ data: undefined }), useSaved: () => ({ data: [] }), useToggleSaved: () => ({}), useMyReviews: () => ({ data: [], refetch: jest.fn() }) }))
 
 type Node = { props: { fill?: { payload?: number } }; children: (Node | string)[] }
@@ -74,18 +74,20 @@ it('keeps English controls and empty review actions readable with dark tokens', 
 })
 
 
-it('renders snapshot rating and proxy credits while omitting hours with dark card tokens', async () => {
+it('renders snapshot rating and CDN credits while omitting hours with dark card tokens', async () => {
   mockSnapshot = {
     googleRating: 4.7, googleRatingCount: 123, attributions: ['Google Maps'],
     openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1440, isOvernight: false })),
+    storedPhoto: { id: 'cover', source: 'google', attribution: 'Google Maps', authorAttributions: [{ displayName: 'CDN photographer' }], url: 'https://cdn.example.com/cover.jpg' },
     photo: { url: '/v1/places/google-provider-photo/ChIJtest578', provider: 'google' },
   }
   jest.spyOn(api, 'get').mockResolvedValue({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'cGhvdG8=', authorAttributions: [{ displayName: 'Proxy photographer' }] }] })
   await renderScreen(<MyContributionsScreen />)
-  expect(StyleSheet.flatten(screen.getByTestId('place-google-rating').props.style).backgroundColor).toBe(themes.orangeDark.redesign.container)
+  expect(StyleSheet.flatten(screen.getByTestId('place-google-rating').props.style).backgroundColor).toBe(themes.orangeDark.surface.container)
   expect(screen.getByLabelText('★ 4,7 (123) Google')).toBeTruthy()
   expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
-  expect(screen.getByTestId('import-candidate-photo').props.source).toEqual([{ uri: 'data:image/jpeg;base64,cGhvdG8=' }])
-  expect(screen.getByTestId('import-photo-credit').props.accessibilityLabel).toContain('Proxy photographer')
+  expect(screen.getByTestId('place-photo-image').props.source).toEqual([{ uri: 'https://cdn.example.com/cover.jpg', cacheKey: 'https://cdn.example.com/cover.jpg' }])
+  expect(screen.getByTestId('saved-photo-attribution').props.accessibilityLabel).toContain('CDN photographer')
   expect(screen.queryByText('Xác minh')).toBeNull()
+  expect(api.get).not.toHaveBeenCalled()
 })

@@ -91,7 +91,7 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { useDiscoveryAreaStore } from '@/features/search/discovery-area-store'
 import { createQueryClient } from '@/shared/api/query-client'
 import { NetworkError } from '@/shared/api/errors'
-import { accents, redesignLight, surface, type } from '@/shared/ui/tokens'
+import { accents, surface, type } from '@/shared/ui/tokens'
 
 function emptyPage() {
   return {
@@ -311,7 +311,7 @@ describe('#515 Stitch search row and empty recovery', () => {
     const row = StyleSheet.flatten(view.getByTestId('search-summary-row').props.style)
     expect(row.flexDirection).toBe('row')
     expect(row.flexWrap).toBeUndefined()
-    expect(StyleSheet.flatten(view.getByText('0').props.style).color).toBe(redesignLight.primary)
+    expect(StyleSheet.flatten(view.getByText('0').props.style).color).toBe(themes.orange.accent.primaryDeep)
     expect(view.getByText('Tìm thấy 0 địa điểm')).toBeTruthy()
     expect(view.getByTestId('search-filter-off-badge')).toBeTruthy()
     expect(view.getByText(i18n.t('discovery.contributeTitle'))).toBeTruthy()
@@ -664,8 +664,8 @@ describe('#561 marker selection and compact map card', () => {
       }], meta: {} }] } }
       const view = await renderScreen(<SearchScreen />)
       await fireEvent.press(view.getByText(i18n.t('discovery.map')))
-      expect(view.getByTestId('app-tab-dock')).toBeTruthy()
-      expect(view.getByRole('tab', { name: i18n.t('tabs.home') }).props.accessibilityState.selected).toBe(true)
+      expect(view.queryByTestId('app-tab-dock')).toBeNull()
+      expect(view.queryByRole('tab', { name: i18n.t('tabs.home') })).toBeNull()
       expect(view.queryByTestId('search-map-card')).toBeNull()
       const select = async () => fireEvent.press(within(view.getByTestId('discovery-native-map')).getByLabelText('Top place'))
       await select()
@@ -685,7 +685,7 @@ describe('#561 marker selection and compact map card', () => {
       }
       for (const text of ['Cà phê', 'Mở đến 20:00']) expect(card.queryByText(text)).toBeNull()
       for (const id of ['place-card-price', 'place-card-hours-badge', 'place-card-tags', 'place-card-distance']) expect(card.queryByTestId(id)).toBeNull()
-      expect(StyleSheet.flatten(view.getByTestId('search-map-card').props.style).bottom).toBe(16)
+      expect(StyleSheet.flatten(view.getByTestId('search-map-card').props.style).bottom).toBe(34 + 16)
       await fireEvent.press(card.getByTestId('place-card-save'))
       expect(mockToggleSaved).toHaveBeenCalledWith({ type: 'place', id: 'top', saved: false })
       expect(mockPush).not.toHaveBeenCalled()
@@ -711,8 +711,7 @@ describe('#561 marker selection and compact map card', () => {
       await select()
       await fireEvent.press(view.getByTestId('place-card-open-target'))
       expect(mockPush).toHaveBeenCalledWith('/places/top')
-      await fireEvent.press(view.getByRole('tab', { name: i18n.t('tabs.plans') }))
-      expect(mockReplace).toHaveBeenCalledWith('/(tabs)/plans')
+      expect(view.queryByRole('tab', { name: i18n.t('tabs.plans') })).toBeNull()
     } finally { UnistylesStyleSheet.configure({ themes }) }
   })
 })
@@ -988,10 +987,10 @@ describe('owner verification round 3', () => {
     await fireEvent.press(view.getByLabelText(i18n.t('search.filters')))
     const group = view.getByTestId('amenity-status-options')
     expect(within(group).getAllByRole('button').map(chip => chip.props.accessibilityLabel)).toEqual(['Mở cửa ngay', 'Wi-Fi', 'Đậu xe'])
-    expect(StyleSheet.flatten(group.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap', gap: 8 })
+    expect(StyleSheet.flatten(group.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap', gap: 4 })
     const presets = view.getByTestId('price-presets')
     expect(within(presets).getAllByRole('button')).toHaveLength(3)
-    expect(StyleSheet.flatten(presets.props.style)).toMatchObject({ flexWrap: 'wrap', gap: 8 })
+    expect(StyleSheet.flatten(presets.props.style)).toMatchObject({ flexWrap: 'wrap', gap: 4 })
     expect(view.getByLabelText(i18n.t('search.priceFromLabel')).props.placeholder).toBeUndefined()
     expect(view.getByLabelText(i18n.t('search.priceToLabel')).props.placeholder).toBeUndefined()
   })
@@ -1422,4 +1421,15 @@ it('pulls to refresh the explore list and requests pages of ten', async () => {
   await act(async () => { screen.getByTestId('search-results').props.refreshControl.props.onRefresh() })
   expect(refetch).toHaveBeenCalledTimes(1)
   expect(mockQueries.at(-1)).toMatchObject({ limit: 10 })
+})
+
+
+it.each(['home', 'search-list', 'search-map'])('%s uses place-card skeletons without a loading mark on page one (#619)', async screen => {
+  mockSearch.value = { ...emptyPage(), data: undefined, isPending: true, isSuccess: false }
+  mockPreview.value = { isPending: true, isFetching: true, data: undefined }
+  const view = await renderScreen(screen === 'home' ? <HomeScreen /> : <SearchScreen />)
+  if (screen === 'search-list') await fireEvent.press(view.getByRole('tab', { name: 'Danh sách' }))
+  expect(view.getAllByTestId('place-card-skeleton').length).toBeGreaterThan(0)
+  expect(view.queryByTestId('loading-indicator')).toBeNull()
+  expect(view.queryByTestId('search-loading-more')).toBeNull()
 })

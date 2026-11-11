@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   // Progress card: where the date is, in one glance.
@@ -25,7 +25,7 @@ export const styles = StyleSheet.create(theme => ({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   titleText: { flex: 1 },
   area: { marginTop: spacing[1] },
-  factRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing[2] },
+  factRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: chipRowGap },
 
   mapThumb: {
     height: 140,

@@ -3,16 +3,14 @@ import { notifyManager, QueryClient, QueryClientProvider } from '@tanstack/react
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 
 const mockReviews = jest.fn()
-const mockPhotos = jest.fn()
 const mockReport = jest.fn()
 jest.mock('@/shared/api/endpoints/places', () => ({
   ...jest.requireActual('@/shared/api/endpoints/places'),
   listPlaceReviews: (...args: unknown[]) => mockReviews(...args),
-  getPlaceProviderPhotos: (...args: unknown[]) => mockPhotos(...args),
   reportPlace: (...args: unknown[]) => mockReport(...args),
 }))
 
-import { usePlaceProviderPhotos, usePlaceReviews, useReportPlace } from '@/shared/api/queries/use-places'
+import { usePlaceReviews, useReportPlace } from '@/shared/api/queries/use-places'
 import { queryKeys } from '@/shared/api/query-keys'
 import type { PlaceDetail } from '@/shared/api/types'
 
@@ -45,15 +43,6 @@ it('sends limit/cursor, keeps every page and resets the cursor on order change',
   expect(client.getQueryData<PlaceDetail>(queryKeys.place('p'))).toMatchObject({ gogoRatingCount: 8, gogoRating: 4.8 })
   await rerender({ order: 'helpful' })
   await waitFor(() => expect(mockReviews).toHaveBeenLastCalledWith('p', 'helpful', { limit: 10, cursor: undefined }))
-})
-
-it('fetches provider bytes once per detail view and drops them when unmounted', async () => {
-  mockPhotos.mockResolvedValue({ status: 'budget_exhausted', provider: 'google', attribution: 'Google Maps', photos: [] })
-  const { result, unmount } = await renderHook(() => usePlaceProviderPhotos('p'), { wrapper })
-  await waitFor(() => expect(result.current.isSuccess).toBe(true))
-  expect(mockPhotos).toHaveBeenCalledTimes(1)
-  await unmount()
-  await waitFor(() => expect(client.getQueryData(['place-provider-photos', 'p'])).toBeUndefined())
 })
 
 it('replays one report intent key on a retry', async () => {

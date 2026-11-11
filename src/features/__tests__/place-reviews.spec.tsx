@@ -21,7 +21,6 @@ jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () =>
     mockLoaded({ id: 'place-1', name: 'Quán thử', rating: 4.6, ratingCount: 812, photos: [] }),
-  usePlaceProviderPhotos: () => ({ data: undefined }),
   usePlaceReviews: (placeId: string, order?: string) => mockUsePlaceReviews(placeId, order),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
@@ -158,4 +157,12 @@ it('loads the next page inside detail, deduplicates rows, and has no separate pa
   await renderScreen(<PlaceDetailScreen />)
   expect(screen.getAllByText('Người viết 1')).toHaveLength(1)
   expect(screen.getByText('Người viết 2')).toBeTruthy()
+})
+
+
+it('renders review rows as skeletons without the loading mark on page one (#619)', async () => {
+  mockReviews = mockPending()
+  await renderScreen(<PlaceDetailScreen />)
+  expect(section().getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
+  expect(section().queryByTestId('loading-indicator')).toBeNull()
 })

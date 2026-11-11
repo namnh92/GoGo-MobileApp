@@ -1,5 +1,6 @@
+import { render } from './query-render'
 import '@/shared/i18n'
-import { fireEvent, render, screen, within } from '@testing-library/react-native'
+import { fireEvent,  screen, within } from '@testing-library/react-native'
 import { StyleSheet, View } from 'react-native'
 import { detailToPlaceCard, toPlaceCard, type PlaceDetail, type PlaceSearchResult, type PlaceCard as PlaceCardModel } from '@/shared/api'
 import { PlaceCardLarge } from '../place-card-large.view'
@@ -214,7 +215,7 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     try {
       jest.isolateModules(() => { jest.requireActual('../place-card.style') })
       const factory = create.mock.calls[0][0] as (value: typeof themes.orange) => { compactVerified: { backgroundColor: string } }
-      expect(factory(themes[theme]).compactVerified.backgroundColor).toBe(themes[theme].redesign.verifiedFill)
+      expect(factory(themes[theme]).compactVerified.backgroundColor).toBe(themes[theme].status.successStrongFill)
     } finally { create.mockRestore() }
   })
   it('LARGE retains the existing status-pill fix at narrow widths', async () => {

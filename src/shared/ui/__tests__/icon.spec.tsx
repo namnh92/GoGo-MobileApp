@@ -30,7 +30,7 @@ describe('Icon primitive (#382)', () => {
     expect(svg('icon-settings')).toMatchObject({
       strokeWidth: 1.8,
       strokeLinecap: 'round',
-      stroke: accents.orange.primary,
+      stroke: accents.orange.text,
       width: 18,
     })
   })

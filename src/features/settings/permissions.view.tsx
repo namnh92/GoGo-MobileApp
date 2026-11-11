@@ -29,13 +29,13 @@ export default function PermissionsSettingsScreen() {
   return (
     <SettingsPage title={t('permissionsSettings.title')}>
         <Card appearance="stitch" padded={false} style={styles.intro}>
-          <View style={styles.introRow}><View style={styles.icon}><MaterialIcon name="shield" size={24} color="redesign.violetText" /></View><View style={styles.introText}>
+          <View style={styles.introRow}><View style={styles.icon}><MaterialIcon name="shield" size={24} color="status.infoText" /></View><View style={styles.introText}>
             <Text variant="introHeading">{t('g11.permissionsHeading')}</Text>
-            <Text variant="introRelaxed" color="redesign.secondary">{t('g11.permissionsIntro')}</Text>
+            <Text variant="introRelaxed" color="text.secondary">{t('g11.permissionsIntro')}</Text>
           </View></View>
         </Card>
         <View style={styles.section}>
-        <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.devicePermissions')}</Text>
+        <Text variant="introSmall" color="text.secondary" accessibilityRole="header" style={styles.sectionTitle}>{t('g11.devicePermissions')}</Text>
         <Card appearance="stitch" padded={false} style={styles.deviceCard}>
         <NotificationSettingsRow />
         {status !== 'user' ? <DevicePromotionsSection showSettingsButton={false} /> : null}
@@ -45,7 +45,7 @@ export default function PermissionsSettingsScreen() {
         </View>
 
         <View testID="permissions-system-section" style={styles.section}>
-          <Text variant="introSmall" color="redesign.secondary" accessibilityRole="header" style={styles.systemSectionTitle}>{t('g11.system')}</Text>
+          <Text variant="introSmall" color="text.secondary" accessibilityRole="header" style={styles.systemSectionTitle}>{t('g11.system')}</Text>
           <TrackingConsentSection showSettingsButton={false} testID="permissions-system-card" footer={
             <>
               <PrimaryBtn variant="pill" label={t('g11.openSystem')} leadingIcon="external" onPress={() => void openSystemSettings()} />

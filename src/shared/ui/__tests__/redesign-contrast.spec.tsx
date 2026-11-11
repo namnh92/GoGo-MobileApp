@@ -21,8 +21,8 @@ it('Light checklist binds the same opaque scoped colour to text and SVG', async 
 it('Light recommendation retains white label and SVG on the scoped fill', async () => {
   await render(<Badge appearance="stitchGreen" icon="verified" label="Gợi ý" />)
   const label = screen.getByText('Gợi ý')
-  expect(StyleSheet.flatten(label.props.style).color).toBe(themes.orange.redesign.white)
-  expect(fills(label.parent!)).toContain(processColor(themes.orange.redesign.white))
+  expect(StyleSheet.flatten(label.props.style).color).toBe(themes.orange.text.inverse)
+  expect(fills(label.parent!)).toContain(processColor(themes.orange.text.inverse))
   expect(StyleSheet.flatten(label.parent!.props.style)).toMatchObject({ backgroundColor: '#237C51' })
   expect(StyleSheet.flatten(label.parent!.props.style).opacity).toBeUndefined()
 })

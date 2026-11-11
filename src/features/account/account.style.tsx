@@ -3,11 +3,11 @@ import { StyleSheet } from 'react-native-unistyles'
 import { fill, overlay, radius, shadows, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  card: { padding: spacing[4], marginTop: spacing[4], gap: spacing[3], borderRadius: 16, ...shadows.stitch },
+  card: { padding: spacing[4], marginTop: spacing[4], gap: spacing[3], borderRadius: 16, ...shadows.subtle },
   sectionMark: { width: 6, height: 16, borderRadius: 3, backgroundColor: theme.accent.primary },
   neutralMark: { backgroundColor: theme.text.secondary },
   dangerMark: { backgroundColor: theme.status.danger },
-  emailRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], minHeight: 44, paddingHorizontal: spacing[3], borderRadius: 12, borderWidth: 1, borderColor: theme.redesign.outline, backgroundColor: theme.surface.subtle },
+  emailRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], minHeight: 44, paddingHorizontal: spacing[3], borderRadius: 12, borderWidth: 1, borderColor: theme.border.outline, backgroundColor: theme.surface.subtle },
   emailValue: { flex: 1 },
   avatarBlock: { paddingTop: spacing[5], paddingBottom: spacing[2], alignItems: 'center', gap: spacing[1] },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
@@ -16,7 +16,7 @@ export const styles = StyleSheet.create(theme => ({
     // A line height on a single-line field makes iOS wrap a long value; the fixed height centres it.
     lineHeight: undefined,
     height: touchTarget.min,
-    borderWidth: 1, borderColor: theme.redesign.outline,
+    borderWidth: 1, borderColor: theme.border.outline,
     borderRadius: 12,
     paddingHorizontal: spacing[4],
     color: theme.text.primary,

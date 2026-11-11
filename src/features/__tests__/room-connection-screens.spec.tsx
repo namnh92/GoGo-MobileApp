@@ -52,7 +52,7 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/ui/place-photo.view', () => ({ PlacePhoto: () => null }))
 jest.mock('@/shared/ui/map-canvas.view', () => ({ MapCanvas: () => null }))
 jest.mock('@/features/active-date/checkin-sheet.view', () => ({ CheckinSheet: () => null }))
-jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: () => true }))
+jest.mock('@/shared/ui/feedback', () => ({ ...jest.requireActual('@/shared/ui/feedback'), haptic: jest.fn(), useReducedMotion: () => true }))
 jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
 
 jest.mock('@/shared/api', () => ({

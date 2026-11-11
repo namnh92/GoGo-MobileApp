@@ -283,3 +283,13 @@ broken. Each is pinned by a regression test now.
   `pnpm dev` in GoGo-BE fails because the docs controller reads
   `openapi/gogo.v1.yaml` from `process.cwd()`, which the filtered script sets to
   `apps/api`. Start the API from the repo root instead.
+
+## CDN submission covers (GoGo-MobileApp #592)
+
+Vendored BE `9.0.0-alpha.1` from `be-822/openapi/gogo.v1.yaml`; regenerate
+with `pnpm api:types`, verify with `pnpm api:check`. Submission lists and hydrated
+details render the stored `photo` with author attribution using expo-image
+`memory-disk`. Rejected covers disappear at `updateDeadline`; vi/en captions
+show remaining hours or expiry. Place Detail uses stored `photos` plus approved
+`userPhotos`, with community uploader credit. The removed provider-photos endpoint/query is no longer used;
+`google-provider-photo` remains limited to link-paste candidate previews.

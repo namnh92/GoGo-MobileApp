@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react-native
 import { StyleSheet } from 'react-native'
 import { StyleSheet as UnistylesSheet } from 'react-native-unistyles'
 import { themes } from '@/shared/ui/theme'
+import { spacing } from '@/shared/ui/tokens'
 import '@/shared/i18n'
 
 jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
@@ -26,6 +27,14 @@ it('uses dark role tokens in the wizard and keeps every action in the shared row
   await fireEvent.press(screen.getByRole('button', { name: 'Cặp đôi' }))
   await fireEvent.press(bar.getByRole('button', { name: 'Tiếp tục' }))
   expect(bar.getAllByRole('button')).toHaveLength(3)
+  const title = screen.getByTestId('contribution-section-title-mood')
+  const rule = screen.getByText('Chọn 1–3 vibe phù hợp')
+  expect(rule.parent).toBe(title.parent)
+  expect(rule.parent!.children).toHaveLength(2)
+  expect(rule.parent!.children[0]).toBe(title)
+  expect(rule.parent!.children[1]).toBe(rule)
+  expect(StyleSheet.flatten(rule.parent!.props.style)).toMatchObject({ alignItems: 'flex-start', gap: spacing[1] })
+  expect(screen.queryByText('Cảm giác thực tế khi ngồi tại quán:')).toBeNull()
   await fireEvent.press(screen.getByRole('checkbox', { name: 'Sôi động' }))
   await fireEvent.press(bar.getByRole('button', { name: 'Tiếp tục' }))
   expect(bar.getByRole('button', { name: 'Gửi' })).toBeTruthy()

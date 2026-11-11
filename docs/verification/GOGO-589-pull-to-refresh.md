@@ -31,3 +31,24 @@ Validation on 2026-11-09:
 - Cursor-reset tests exercise fresh cursor traversal, cancellation of pending
   load-more and cached first-page retention after refresh failure.
 - No simulator verification in this task. No git commands, commits or API changes.
+
+## GOGO-619 / PR #621 — Refresh indicator ownership
+
+The shared `PullToRefresh` native control and GoGo overlay now use only the
+user-initiated pull flag. Initial loading and background query refetches cannot
+show either indicator. A pull stays busy until its `onRefresh` promise settles,
+including rejection; duplicate pulls remain guarded.
+
+Regression coverage exercises ScrollView, FlatList and SectionList in light and
+dark themes: first-load skeletons with `refreshing=false`, silent background
+refetch, then a pull with `refreshing=true` until completion. Notifications also
+asserts that first-page skeletons never have the refresh overlay above them.
+The six new shared-wrapper cases failed before the fix and pass afterward.
+
+Validation on 2026-11-10 for this follow-up:
+
+- `pnpm typecheck`: passed.
+- `pnpm lint`: passed.
+- `pnpm test:ui --runInBand`: 238 suites, 3520 tests and 11 snapshots passed.
+- No simulator rerun in this follow-up; the supplied simulator evidence was the
+  starting reproduction. No git commands were run.

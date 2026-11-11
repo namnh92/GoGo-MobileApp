@@ -1,10 +1,14 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
+import { render } from '@/shared/ui/__tests__/query-render'
+import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import i18n from '@/shared/i18n'
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { ToastProvider } from '@/shared/ui/toast.view'
 import type { AssistantMessage, AssistantProposal, AssistantConversation } from '@/shared/api'
+import { scriptedTime } from './scripted-time'
+
+scriptedTime()
 
 const mockRouter = { replace: jest.fn(), back: jest.fn(), push: jest.fn(), canGoBack: () => true }
 let mockSignedIn = true
@@ -12,7 +16,7 @@ const mockStatus = jest.fn()
 const mockMessages = jest.fn()
 const mockHistory = jest.fn()
 const mockRefetch = jest.fn()
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}), Redirect: () => null }))
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(), useRouter: () => mockRouter, useLocalSearchParams: () => ({}), Redirect: () => null }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => mockSignedIn ? { status: 'user', session: { kind: 'user', userId: 'u1' } } : { status: 'guest', session: { kind: 'guest', roomId: 'r1' } } }))
 jest.mock('@/shared/api/queries/use-online-status', () => ({ useOnlineStatus: () => true }))
 jest.mock('@/shared/api', () => ({
@@ -54,7 +58,7 @@ function query(state: State, items: unknown[] = []) {
 }
 const noop = () => {}
 const message: AssistantMessage = { id: 'm1', conversationId: 'c1', role: 'user', text: 'A real saved question', status: 'complete', createdAt: '2026-11-08T10:00:00Z' }
-const conversation: AssistantConversation = { id: 'c1', title: 'A real chat', preview: 'A saved answer', messageCount: 2, expiresAt: '2027-02-08T10:00:00Z', createdAt: '2026-11-08T10:00:00Z', lastMessageAt: '2026-11-08T10:00:00Z' }
+const conversation: AssistantConversation = { credits: { creditsUsed: 0, creditsReserved: 0, pendingTurns: 0, state: 'settled', asOf: '2026-11-11T00:00:00Z' }, id: 'c1', title: 'A real chat', preview: 'A saved answer', messageCount: 2, expiresAt: '2027-02-08T10:00:00Z', createdAt: '2026-11-08T10:00:00Z', lastMessageAt: '2026-11-08T10:00:00Z' }
 const proposal: AssistantProposal = { id: 'p1', kind: 'create_room', status: 'pending', createdAt: '2026-11-08T10:00:00Z', values: [{ field: 'title', value: 'A real room', origin: 'explicit', editable: true }], expiresAt: '2026-11-09T10:00:00Z' }
 async function mount(element: React.ReactElement) { await render(<ToastProvider>{element}</ToastProvider>) }
 
@@ -156,24 +160,77 @@ describe.each(['orange', 'orangeDark'] as const)('group 09 %s', themeName => {
     }
   })
 
-  it('uses the shared PlaceCard with separate community score, real photo and price unit', async () => {
+  it('uses the default PlaceCardSmall rows with a common left edge, community score and real photo', async () => {
     const open = jest.fn()
-    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: true, facts: { name: 'A verified place', priceMin: 85000, priceMax: 85000, gogoRating: 4.6, gogoRatingCount: 12, photoUrl: 'https://example.com/real.jpg' } }} onOpenPlace={open} onOpenPlan={noop} />)
-    expect(screen.getByTestId('place-card')).toBeTruthy()
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: true, facts: { name: 'A verified place', addressText: '123 Verified Street', openNow: true, priceMin: 85000, priceMax: 85000, gogoRating: 4.6, gogoRatingCount: 12, photoUrl: 'https://example.com/real.jpg' } }} onOpenPlace={open} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-card-small')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-large')).toBeNull()
+    expect(screen.getByText('123 Verified Street')).toBeTruthy()
+    expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
+    expect(StyleSheet.flatten(screen.getByTestId('place-card-surface').props.style).backgroundColor).toBe(currentTheme.surface.card)
     expect(screen.getByTestId('place-photo-image').props.source[0].uri).toBe('https://example.com/real.jpg')
-    expect(screen.getByText(/85.*\/người/)).toBeTruthy()
+    expect(screen.queryByTestId('place-card-price')).toBeNull()
+    const body = screen.getByTestId('place-card-body')
+    const rows = body.children.filter(child => typeof child !== 'string')
+    expect(rows.map(row => row.props.testID)).toEqual(['place-card-name', 'place-card-address-row', 'place-card-ratings'])
+    // RN tests have no native layout engine: prove each row's horizontal origin
+    // from the common column and all ancestor offsets, rather than fake onLayout.
+    for (const node of [body, ...rows, screen.getByTestId('place-gogo-rating')]) {
+      const style = StyleSheet.flatten(node.props.style) ?? {}
+      for (const key of ['margin', 'marginHorizontal', 'marginLeft', 'marginStart', 'left', 'start', 'translateX'] as const) {
+        expect(style[key] ?? 0).toBe(0)
+      }
+      expect(style.transform ?? []).toEqual([])
+    }
+    for (const node of [body, screen.getByTestId('place-card-ratings')]) {
+      const style = StyleSheet.flatten(node.props.style)
+      for (const key of ['padding', 'paddingHorizontal', 'paddingLeft', 'paddingStart'] as const) expect(style[key] ?? 0).toBe(0)
+      expect(style.alignItems ?? 'stretch').toMatch(/^(stretch|flex-start)$/)
+    }
     expect(screen.getByText(/GoGo/)).toBeTruthy()
-    expect(screen.queryByText(/Google/)).toBeNull()
-    await fireEvent.press(screen.getByRole('button', { name: i18n.t('assistant.card.viewPlace') }))
+    expect(screen.queryByTestId('place-google-rating')).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('assistant.card.viewPlace') })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'A verified place' }))
     expect(open).toHaveBeenCalledWith('place1')
   })
 
+  it('keeps Google and GoGo ratings in separate shared chips with their own counts', async () => {
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'rated', available: true, facts: { name: 'Rated place', providerRating: 4.7, providerRatingCount: 1280, providerRatingSource: 'google', gogoRating: 4.6, gogoRatingCount: 12 } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-card-small')).toBeTruthy()
+    expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,7 (1.280) Google')
+    expect(screen.getByLabelText('★ 4,7 (1.280) Google')).toBeTruthy()
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('★ 4,6 (12) GoGo')
+  })
+
   it('omits unknown prices and unavailable place actions', async () => {
-    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: false, facts: { name: 'Unavailable place' } }} onOpenPlace={noop} onOpenPlan={noop} />)
-    expect(screen.queryByTestId('place-card-rating-price')).toBeNull()
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'place1', available: false, facts: { name: 'Unavailable place', addressText: 'Hidden street', priceMin: 85000, gogoRating: 4.6, gogoRatingCount: 12, openNow: true, photoUrl: 'https://example.com/hidden.jpg' } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.queryByTestId('place-card-price')).toBeNull()
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(i18n.t('discovery.gogoFewReviews'))
+    expect(screen.queryByTestId('place-card-meta')).toBeNull()
+    expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
+    expect(screen.queryByTestId('place-photo-image')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unavailable place' })).toBeNull()
     expect(screen.queryByTestId('place-photo-placeholder')).toBeNull()
     expect(screen.queryByRole('button', { name: i18n.t('assistant.card.viewPlace') })).toBeNull()
     expect(screen.getByText(i18n.t('assistant.card.unavailable'))).toBeTruthy()
+  })
+
+  it('omits absent place facts without inventing prices, ratings or opening hours', async () => {
+    const open = jest.fn()
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'minimal', available: true, facts: { name: 'Minimal place' } }} onOpenPlace={open} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-card-small')).toBeTruthy()
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(i18n.t('discovery.gogoFewReviews'))
+    for (const id of ['place-card-meta', 'place-card-price', 'place-card-hours-badge', 'place-photo-image']) {
+      expect(screen.queryByTestId(id)).toBeNull()
+    }
+    await fireEvent.press(screen.getByRole('button', { name: 'Minimal place' }))
+    expect(open).toHaveBeenCalledWith('minimal')
+  })
+
+  it.each([true, false, null] as const)('omits status consistently with every default small card (%s)', async openNow => {
+    await mount(<ResultCard card={{ kind: 'place', placeId: 'hours', available: true, facts: { name: 'Hours place', openNow, gogoRatingCount: 0 } }} onOpenPlace={noop} onOpenPlan={noop} />)
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá (0)')
+    expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
   })
 
   it('renders the localized gate and welcome labels in English', async () => {

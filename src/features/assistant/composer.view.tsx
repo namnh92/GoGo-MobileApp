@@ -1,15 +1,15 @@
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Image } from 'expo-image'
+import { useRef } from 'react'
+import { Keyboard, Pressable, View } from 'react-native'
+import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon } from '@/shared/ui/icons'
-import { useKeyboardVisible } from '@/shared/ui/keyboard'
 import { Text } from '@/shared/ui/text'
-import { hitSlop, loadingIndicator, spacing } from '@/shared/ui/tokens'
+import { hitSlop, loadingIndicator } from '@/shared/ui/tokens'
 
 import { ContextChip } from './context-chip.view'
 import { styles } from './composer.style'
@@ -28,8 +28,8 @@ export interface ComposerImage {
  * to five lines with the microphone inside it, and Send — which becomes Stop
  * while a reply is being written. The only glass on the screen (#295). It
  * sits in the layout under the thread, so the keyboard-avoiding view around
- * both lifts it onto the keyboard; with the keyboard up the home-indicator
- * inset is dropped.
+ * composer and credit row lifts the footer onto the keyboard. The footer owns
+ * the home-indicator inset and drops it while the keyboard is up.
  *
  * The microphone waits for voice input (#380, its native module needs an
  * ADR): it is drawn, disabled, and named "Voice input coming soon", so the
@@ -65,14 +65,19 @@ export function Composer({
 }) {
   const { t } = useTranslation()
   const { theme } = useUnistyles()
-  const insets = useSafeAreaInsets()
-  const keyboard = useKeyboardVisible()
+  const inputRef = useRef<TextInputRef>(null)
   const uploading = images.some(image => image.uploadKey === null)
   const canSend = !disabled && !uploading && value.trim().length > 0
+  const submit = () => {
+    if (!canSend || generating) return
+    Keyboard.dismiss()
+    inputRef.current?.blur()
+    onSend()
+  }
   const attachDisabled = disabled || images.length >= MAX_IMAGES
 
   return (
-    <GlassBar testID="assistant-composer" style={[styles.bar, { paddingBottom: (keyboard ? 0 : insets.bottom) + spacing[2] }]}>
+    <GlassBar testID="assistant-composer" style={styles.bar}>
       {context ? (
         <View style={styles.context}>
           <ContextChip label={context.label} onRemove={context.onRemove} />
@@ -82,7 +87,7 @@ export function Composer({
         <View style={styles.images}>
           {images.map((image, index) => (
             <View key={image.uri} style={styles.image}>
-              <Image source={{ uri: image.uri }} style={styles.imageFill} accessibilityIgnoresInvertColors />
+              <Image cachePolicy="memory-disk" source={{ uri: image.uri, cacheKey: image.uri }} style={styles.imageFill} />
               {image.uploadKey === null ? (
                 <View style={styles.imageBusy} accessibilityLabel={t('assistant.composer.uploading')} accessible>
                   <LoadingIndicator size={loadingIndicator.compactSize} />
@@ -115,6 +120,7 @@ export function Composer({
         </Pressable>
         <View style={styles.field}>
           <TextInput
+            ref={inputRef}
             testID="assistant-input"
             accessibilityLabel={t('assistant.composer.label')}
             placeholder={t('assistant.composer.placeholder')}
@@ -122,6 +128,8 @@ export function Composer({
             value={value}
             onChangeText={onChangeText}
             multiline
+            submitBehavior="submit"
+            onSubmitEditing={submit}
             maxLength={2000}
             style={styles.input}
           />
@@ -156,7 +164,7 @@ export function Composer({
             accessibilityLabel={t('assistant.composer.send')}
             accessibilityState={{ disabled: !canSend }}
             disabled={!canSend}
-            onPress={onSend}
+            onPress={submit}
             style={[styles.send, !canSend && styles.sendDisabled]}
           >
             <Icon name="send" size={20} color={canSend ? 'accent.onAccent' : 'text.secondary'} />

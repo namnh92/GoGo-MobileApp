@@ -1,4 +1,4 @@
-import { captureSessionScope } from '../session'
+import { captureSessionScope, getSession } from '../session'
 import {
   useInfiniteQuery,
   useMutation,
@@ -10,7 +10,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { getAssistantBackend } from '../assistant-backend'
-import { isApiError, isForbidden, isRetryable } from '../errors'
+import { ApiError, isApiError, isForbidden, isOffline, isRetryable } from '../errors'
+import { appActivity } from '../realtime/app-activity'
 import { newIdempotencyKey } from '../idempotency'
 import { queryKeys } from '../query-keys'
 import {
@@ -27,10 +28,12 @@ import type {
   AssistantMessage,
   AssistantMessagePage,
   AssistantProposal,
+  AssistantStatus,
   AssistantTurn,
 } from '../types'
 import { useIntentKey } from './use-intent-key'
 import {
+  NEW_CHAT,
   useAssistantDraftStore,
   type OutgoingImage,
   type OutgoingMessage,
@@ -110,12 +113,12 @@ function patchProposal(client: QueryClient, conversationId: string, proposal: As
 function insertTurn(client: QueryClient, conversationId: string, turn: AssistantTurn): void {
   const fresh = [turn.assistantMessage, turn.userMessage]
   client.setQueryData<MessagesData>(queryKeys.assistantMessages(conversationId), data => {
-    if (!data || data.pages.length === 0) return { pages: [{ items: fresh, nextCursor: null }], pageParams: [null] }
+    if (!data || data.pages.length === 0) return { pages: [{ items: fresh, nextCursor: null, conversationCredits: turn.conversationCredits }], pageParams: [null] }
     const ids = new Set(fresh.map(message => message.id))
     const [first, ...rest] = data.pages
     return {
       ...data,
-      pages: [{ ...first!, items: [...fresh, ...first!.items.filter(item => !ids.has(item.id))] }, ...rest],
+      pages: [{ ...first!, conversationCredits: turn.conversationCredits, items: [...fresh, ...first!.items.filter(item => !ids.has(item.id))] }, ...rest],
     }
   })
 }
@@ -137,10 +140,14 @@ function patchConversationLists(
 export function useAssistantStatus(enabled = true) {
   return useQuery({
     queryKey: queryKeys.assistantStatus(),
-    queryFn: () => getAssistantBackend().getStatus(),
+    queryFn: () => captureSessionScope().wait(getAssistantBackend().getStatus()),
     enabled,
     staleTime: 60_000,
     retry: retryAssistant,
+    refetchInterval: query => {
+      const reset = Date.parse(query.state.data?.resetsAt ?? '') - Date.now()
+      return Number.isFinite(reset) && reset > 0 ? Math.min(reset + 100, 2_147_483_647) : false
+    },
   })
 }
 
@@ -168,7 +175,7 @@ export function useAssistantMessages(conversationId: string | null) {
   return useInfiniteQuery({
     queryKey: queryKeys.assistantMessages(conversationId ?? 'none'),
     queryFn: ({ pageParam }) =>
-      getAssistantBackend().listMessages(conversationId!, pageParam ? { cursor: pageParam } : {}),
+      captureSessionScope().wait(getAssistantBackend().listMessages(conversationId!, { limit: 10, ...(pageParam ? { cursor: pageParam } : {}) })),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
     enabled: conversationId !== null,
@@ -215,38 +222,62 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
       if (!item) return
       store.updateOutgoing(localId, { status: 'sending', error: undefined })
       const backend = getAssistantBackend()
+      let target = item.conversationId
       try {
-        let target = item.conversationId
+        const status = client.getQueryData<AssistantStatus>(queryKeys.assistantStatus())
+        if (status?.state === 'insufficient_credit') {
+          throw new ApiError(409, { code: 'ASSISTANT_INSUFFICIENT_CREDIT', message: 'Insufficient assistant credit',
+            details: status.paidCreditsRequired === null ? undefined : { creditBalance: status.creditBalance,
+              creditReserved: status.creditReserved, creditAvailable: status.creditAvailable,
+              requiredCredits: status.paidCreditsRequired, remainingToday: 0, resetsAt: status.resetsAt } })
+        }
         if (!target) {
           const conversation = await backend.createConversation(item.context ? { context: item.context } : {}, item.createKey)
           scope.assert()
           target = conversation.id
           useAssistantDraftStore.getState().updateOutgoing(localId, { conversationId: target })
           client.setQueryData<MessagesData>(queryKeys.assistantMessages(target), data =>
-            data ?? { pages: [{ items: [], nextCursor: null }], pageParams: [null] },
+            data ?? { pages: [{ items: [], nextCursor: null, conversationCredits: conversation.credits }], pageParams: [null] },
           )
+          client.setQueryData(queryKeys.assistantConversation(target), conversation)
+          const drafts = useAssistantDraftStore.getState()
+          if (drafts.drafts[NEW_CHAT] && !drafts.drafts[target]) drafts.setDraft(target, drafts.drafts[NEW_CHAT]!)
           onConversationRef.current(target)
         }
         const turn = await backend.sendMessage(
           target,
           {
             text: item.text,
-            locale: localeRef.current,
+            locale: item.locale ?? localeRef.current,
             ...(item.context ? { context: item.context } : {}),
             ...(item.images.length > 0 ? { attachments: item.images.map(image => ({ uploadKey: image.uploadKey })) } : {}),
           },
           item.idempotencyKey,
         )
         scope.assert()
+        // An older in-flight read must not overwrite the authoritative 202 facts.
+        await Promise.all([
+          client.cancelQueries({ queryKey: queryKeys.assistantConversation(target) }),
+          client.cancelQueries({ queryKey: queryKeys.assistantMessages(target) }),
+        ])
+        scope.assert()
+        void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
+        const userId = getSession()?.userId
+        if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, scope.generation) })
         insertTurn(client, target, turn)
+        client.setQueryData<AssistantConversation>(queryKeys.assistantConversation(target), existing =>
+          existing ? { ...existing, credits: turn.conversationCredits } : existing)
+        void client.invalidateQueries({ queryKey: queryKeys.assistantConversation(target) })
         useAssistantDraftStore.getState().removeOutgoing(localId)
         void client.invalidateQueries({ queryKey: queryKeys.assistantConversations() })
+        return { accepted: true, conversationId: target }
       } catch (error) {
         if (scope.signal.aborted) return
         useAssistantDraftStore.getState().updateOutgoing(localId, { status: 'failed', error })
-        if (isApiError(error) && (error.status === 429 || error.status === 503)) {
+        if (isApiError(error) && (error.status === 429 || error.status === 503 || error.code === 'ASSISTANT_INSUFFICIENT_CREDIT')) {
           void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
         }
+        return { accepted: false, conversationId: target }
       }
     },
     [client],
@@ -255,11 +286,19 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
   const send = useCallback(
     (input: SendAssistantInput) => {
       localeRef.current = input.locale
+      const uncertain = useAssistantDraftStore.getState().outgoing.find(item =>
+        item.conversationId === conversationId && item.status === 'failed'
+        && (isOffline(item.error) || (isApiError(item.error) && item.error.status >= 500))
+        && item.text === input.text.trim()
+        && JSON.stringify(item.context) === JSON.stringify(input.context)
+        && JSON.stringify(item.images) === JSON.stringify(input.images ?? []))
+      if (uncertain) return deliver(uncertain.localId)
       localIds += 1
       const message: OutgoingMessage = {
         localId: `local-${Date.now().toString(36)}-${localIds}`,
         conversationId,
         text: input.text.trim(),
+        locale: input.locale,
         ...(input.context ? { context: input.context } : {}),
         images: input.images ?? [],
         idempotencyKey: newIdempotencyKey(),
@@ -303,6 +342,7 @@ export function useAssistantReply(conversationId: string | null, message: Assist
 
   useEffect(() => {
     if (!conversationId || !streamingId) return
+    const creditScope = captureSessionScope()
     const update = (change: { step?: string | null; connection?: AssistantReplyConnection | null }) =>
       setLive(current => {
         const base = current?.id === streamingId ? current : { id: streamingId, step: null, connection: null }
@@ -314,15 +354,18 @@ export function useAssistantReply(conversationId: string | null, message: Assist
       open: getAssistantBackend().openStream,
       onConnection: state => update({ connection: state }),
       onEvent: event => {
+        if (creditScope.signal.aborted) return
         if (event.type === 'step') update({ step: event.step })
         patchMessage(client, conversationId, streamingId, existing => applyAssistantEvent(existing, event))
         if (isTerminalEvent(event)) {
-          update({ step: null, connection: null })
-          // Cut short: the stream's structured outputs were dropped; the stored
-          // row says which of them the server completed and kept.
-          if (event.type === 'done' && event.status === 'truncated') {
-            void client.invalidateQueries({ queryKey: queryKeys.assistantMessages(conversationId) })
+          if (!creditScope.signal.aborted) {
+            const userId = getSession()?.userId
+            if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, creditScope.generation) })
           }
+          update({ step: null, connection: null })
+          void client.invalidateQueries({ queryKey: queryKeys.assistantConversation(conversationId) })
+          // The stored page also carries current per-turn and full-conversation credit facts.
+          void client.invalidateQueries({ queryKey: queryKeys.assistantMessages(conversationId) })
           void client.invalidateQueries({ queryKey: queryKeys.assistantConversations() })
           void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
         }
@@ -349,9 +392,17 @@ export function useAssistantReply(conversationId: string | null, message: Assist
 export function useStopAssistantReply(conversationId: string | null) {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (messageId: string) => getAssistantBackend().stopMessage(conversationId!, messageId),
+    mutationFn: (messageId: string) => captureSessionScope().wait(getAssistantBackend().stopMessage(conversationId!, messageId)),
     onSuccess: stopped => {
-      if (conversationId) patchMessage(client, conversationId, stopped.id, existing => ({ ...existing, ...stopped }))
+      if (conversationId) {
+        patchMessage(client, conversationId, stopped.id, existing => ({ ...existing, ...stopped }))
+        void client.invalidateQueries({ queryKey: queryKeys.assistantConversation(conversationId) })
+        void client.invalidateQueries({ queryKey: queryKeys.assistantMessages(conversationId) })
+      }
+      void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
+      const scope = captureSessionScope()
+      const userId = getSession()?.userId
+      if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, scope.generation) })
     },
   })
 }
@@ -460,4 +511,45 @@ export function useAssistantFeedback(conversationId: string) {
     onSuccess: ({ messageId, feedback }) =>
       patchMessage(client, conversationId, messageId, existing => ({ ...existing, feedback })),
   })
+}
+
+/** Full-conversation accounting, independently refreshed without touching a live text stream. */
+export function useAssistantConversation(conversationId: string | null) {
+  const client = useQueryClient()
+  const query = useQuery({
+    queryKey: queryKeys.assistantConversation(conversationId ?? 'none'),
+    queryFn: () => captureSessionScope().wait(getAssistantBackend().getConversation(conversationId!)),
+    enabled: conversationId !== null,
+    retry: retryAssistant,
+  })
+  const pending = query.data?.credits.pendingTurns !== undefined && query.data.credits.pendingTurns > 0
+  useEffect(() => {
+    if (!conversationId || !pending) return
+    const scope = captureSessionScope()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let cancelled = false
+    let attempt = 0
+    const delays = [2000, 5000, 15000]
+    const cancel = () => { cancelled = true; clearTimeout(timer) }
+    const schedule = () => {
+      if (cancelled || scope.signal.aborted || !appActivity.isActive() || attempt >= delays.length) return
+      timer = setTimeout(async () => {
+        attempt += 1
+        try {
+          const conversation = await scope.wait(getAssistantBackend().getConversation(conversationId))
+          if (cancelled || !appActivity.isActive()) return
+          client.setQueryData(queryKeys.assistantConversation(conversationId), conversation)
+          void client.invalidateQueries({ queryKey: queryKeys.assistantStatus() })
+          const userId = getSession()?.userId
+          if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, scope.generation) })
+          if (conversation.credits.pendingTurns > 0) schedule()
+        } catch { schedule() }
+      }, delays[attempt])
+    }
+    const unsubscribe = appActivity.subscribe(active => { if (!active) cancel() })
+    scope.signal.addEventListener('abort', cancel)
+    schedule()
+    return () => { cancel(); unsubscribe(); scope.signal.removeEventListener('abort', cancel) }
+  }, [client, conversationId, pending])
+  return query
 }

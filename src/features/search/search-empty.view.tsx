@@ -58,27 +58,27 @@ export function SearchEmpty({ filters, query, onApply, onMore, onPlacePress, lab
   return <View testID="search-empty-content" style={styles.emptyContent}>
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <MaterialIcon name="travelExplore" size={38} color="redesign.primaryText" />
-        <View testID="search-filter-off-badge" style={styles.emptyIconBadge}><MaterialIcon name="filterOff" size={18} color="redesign.violetText" /></View>
+        <MaterialIcon name="travelExplore" size={38} color="accent.text" />
+        <View testID="search-filter-off-badge" style={styles.emptyIconBadge}><MaterialIcon name="filterOff" size={18} color="status.infoText" /></View>
       </View>
-      <Text variant="discoveryHeading" color="redesign.ink" style={styles.centerText}>{t('discovery.emptyTitle')}</Text>
-      <Text variant="introCaption" color="redesign.secondary" style={styles.emptyHint}>{t('discovery.emptyBody')}</Text>
+      <Text variant="discoveryHeading" color="text.primary" style={styles.centerText}>{t('discovery.emptyTitle')}</Text>
+      <Text variant="introCaption" color="text.secondary" style={styles.emptyHint}>{t('discovery.emptyBody')}</Text>
     </View>
     {visible.length ? <View testID="search-relaxations" style={styles.relaxBlock}>
-      <View style={styles.relaxHeading}><MaterialIcon name="sparkle" size={18} color="redesign.primaryText" /><Text variant="introLabel" color="redesign.ink">{t('discovery.relaxTitle')}</Text></View>
+      <View style={styles.relaxHeading}><MaterialIcon name="sparkle" size={18} color="accent.text" /><Text variant="introLabel" color="text.primary">{t('discovery.relaxTitle')}</Text></View>
       {visible.map(candidate => <View key={candidate.id} style={styles.relaxRow}>
-        <MaterialIcon name={candidate.icon} size={18} color="redesign.primaryText" />
+        <MaterialIcon name={candidate.icon} size={18} color="accent.text" />
         <View style={styles.relaxCopy}>
-          <Text variant="introSmall" color="redesign.ink">{candidate.title}</Text>
-          <Text variant="introCaptionMedium" color="redesign.greenText">{t('discovery.relaxCount', { count: candidate.count })}</Text>
+          <Text variant="introSmall" color="text.primary">{candidate.title}</Text>
+          <Text variant="introCaptionMedium" color="status.successText">{t('discovery.relaxCount', { count: candidate.count })}</Text>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel={`${t(candidate.apply ? 'discovery.relaxApply' : 'discovery.relaxRemove')}: ${candidate.title}`} onPress={() => onApply(candidate.filters)} style={styles.relaxActionTarget}>
-          <View style={[styles.relaxAction, candidate.apply && styles.relaxApply]}><Text variant="introCaptionMedium" color={candidate.apply ? 'redesign.primaryText' : 'redesign.ink'}>{t(candidate.apply ? 'discovery.relaxApply' : 'discovery.relaxRemove')}</Text></View>
+          <View style={[styles.relaxAction, candidate.apply && styles.relaxApply]}><Text variant="introCaptionMedium" color={candidate.apply ? 'accent.text' : 'text.primary'}>{t(candidate.apply ? 'discovery.relaxApply' : 'discovery.relaxRemove')}</Text></View>
         </Pressable>
       </View>)}
     </View> : null}
     {places.length ? <View testID="search-nearby" style={styles.nearby}>
-      <View style={styles.nearbyHeading}><Text variant="introLabel" color="redesign.ink" style={styles.relaxCopy}>{t('discovery.nearbyTitle')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} onPress={onMore} style={styles.moreTarget}><Text variant="introCaptionMedium" color="redesign.primaryText">{t('discovery.more')}</Text></Pressable></View>
+      <View style={styles.nearbyHeading}><Text variant="introLabel" color="text.primary" style={styles.relaxCopy}>{t('discovery.nearbyTitle')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('discovery.more')} onPress={onMore} style={styles.moreTarget}><Text variant="introCaptionMedium" color="accent.text">{t('discovery.more')}</Text></Pressable></View>
       {places.map(place => <NearbyPlace key={place.id} place={place} onPress={() => onPlacePress(place)} />)}
     </View> : null}
   </View>

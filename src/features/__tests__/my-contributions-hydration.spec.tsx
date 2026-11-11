@@ -63,13 +63,13 @@ afterEach(async () => {
   jest.restoreAllMocks()
 })
 
-it.each(['pending', 'rejected'])('hydrates a deferred %s row from DETAIL, including address, Google credit and supplement URL', async status => {
+it.each(['pending', 'rejected'])('hydrates a deferred %s row from DETAIL, including address and supplement URL without lone photo credits', async status => {
   mockItems = [row('s1', status, { providerStatus: 'deferred' })]
   const read = jest.spyOn(api, 'get').mockResolvedValue({ ...mockItems[0], name: 'Hydrated café', addressShort: 'Phường Bến Thành, TP.HCM', providerStatus: 'ok', providerDisplay: display() })
   await renderScreen(view())
   expect(await screen.findByText('Hydrated café')).toBeTruthy()
   expect(screen.getByText('Phường Bến Thành, TP.HCM')).toBeTruthy()
-  expect(screen.getByRole('link', { name: 'Google Maps' })).toBeTruthy()
+  expect(screen.queryByRole('link', { name: 'Google Maps' })).toBeNull()
   expect(read).toHaveBeenCalledTimes(1)
   expect(read.mock.calls[0][0]).toBe('/me/place-submissions/{id}')
   expect(read.mock.calls[0][1]).toMatchObject({ pathParams: { id: 's1' } })
@@ -112,7 +112,7 @@ it.each(['budget_exhausted', 'deferred'])('preserves real list identity and cach
   expect(await screen.findByText('Thông tin địa điểm sẽ hiện khi GoGo lấy được dữ liệu')).toBeTruthy()
   expect(screen.getByText('Submitted café')).toBeTruthy()
   expect(screen.getByText('Real address')).toBeTruthy()
-  expect(screen.getByRole('link', { name: 'Google Maps' })).toBeTruthy()
+  expect(screen.queryByRole('link', { name: 'Google Maps' })).toBeNull()
   await rendered.rerender(view())
   // Make the ordinary one-minute cache stale without advancing the GC timer.
   jest.setSystemTime(Date.now() + 61_000)
@@ -164,11 +164,11 @@ it('renders the non-retry note in English', async () => {
   }
 })
 
-it('retains the Stitch tab dock and renders supported SVG paths for contribution icons', async () => {
+it('omits the tab dock and renders supported SVG paths for contribution icons', async () => {
   mockItems = []
   await renderScreen(view())
   for (const name of ['Khám phá', 'Kế hoạch', 'Đã lưu', 'Cá nhân']) {
-    expect(screen.getByRole('tab', { name })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name })).toBeNull()
   }
   expect(mockSvgPaths.length).toBeGreaterThan(0)
   for (const path of mockSvgPaths) expect(path).toEqual(expect.stringMatching(/^M/))
@@ -230,7 +230,9 @@ it('keeps private detail keys out of disk persistence and logout-surviving publi
   await renderScreen(view())
   expect(await screen.findByText('Private café')).toBeTruthy()
   const keys = client.getQueryCache().getAll().map(query => query.queryKey)
-  expect(keys).toHaveLength(1)
-  expect(shouldPersistQuery(keys[0]!)).toBe(false)
-  expect(isPublicAppQuery(keys[0]!)).toBe(false)
+  const detailKeys = keys.filter(key => key[0] === 'my-place-submissions')
+  expect(detailKeys).toHaveLength(1)
+  expect(shouldPersistQuery(detailKeys[0]!)).toBe(false)
+  expect(isPublicAppQuery(detailKeys[0]!)).toBe(false)
+  for (const key of keys) expect(shouldPersistQuery(key)).toBe(false)
 })

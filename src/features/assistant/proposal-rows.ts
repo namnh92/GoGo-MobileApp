@@ -42,9 +42,11 @@ export interface RowContext {
   locale: string
   /** Place names from the cards in the thread; a proposal carries only ids. */
   placeNames: ReadonlyMap<string, string>
+  administrativeAreaLabel?: string
 }
 
-const str = (value: unknown) => (typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value))
+// Structured values must have an explicit presenter; never serialize API data into copy.
+const str = (value: unknown) => (typeof value === 'string' ? value : typeof value === 'number' && Number.isFinite(value) ? String(value) : '')
 
 export function effectiveValues(values: ProposalValueLike[], edits: Record<string, unknown>): ProposalValueLike[] {
   return values.map(value =>
@@ -52,14 +54,10 @@ export function effectiveValues(values: ProposalValueLike[], edits: Record<strin
   )
 }
 
-export function proposalRows(values: ProposalValueLike[], { t, locale, placeNames }: RowContext): ProposalRow[] {
+export function proposalRows(values: ProposalValueLike[], { t, locale, placeNames, administrativeAreaLabel }: RowContext): ProposalRow[] {
   const by = new Map(values.map(value => [value.field, value]))
-  const used = new Set<string>()
   const rows: ProposalRow[] = []
-  const take = (field: string) => {
-    used.add(field)
-    return by.get(field)
-  }
+  const take = (field: string) => by.get(field)
   const assumed = (value: ProposalValueLike | undefined) => value?.origin === 'assumed'
 
   const title = take('title')
@@ -128,7 +126,14 @@ export function proposalRows(values: ProposalValueLike[], { t, locale, placeName
 
   const amount = take('budgetAmount')
   const mode = take('budgetMode')
-  if (amount && typeof amount.value === 'number') {
+  // #401 / core.md 13: zero is not a known budget. Keep both fields
+  // consumed when the amount or scope is unknown, so neither leaks through
+  // the generic field/JSON fallback below. This only changes presentation.
+  if (
+    amount && typeof amount.value === 'number'
+    && Number.isSafeInteger(amount.value) && amount.value > 0
+    && (mode?.value === 'per_person' || mode?.value === 'total')
+  ) {
     const money = formatMoney(amount.value)
     rows.push({
       key: 'budget',
@@ -145,8 +150,6 @@ export function proposalRows(values: ProposalValueLike[], { t, locale, placeName
         ? { edit: { kind: 'budget', label: t('assistant.field.budget'), hasMode: mode !== undefined } }
         : {}),
     })
-  } else if (mode) {
-    used.delete('budgetMode')
   }
 
   const room = take('roomId')
@@ -165,12 +168,16 @@ export function proposalRows(values: ProposalValueLike[], { t, locale, placeName
   const area = take('areaKey')
   if (area) rows.push({ key: 'area', icon: 'map', label: t('assistant.field.area'), value: str(area.value) })
 
-  // Unknown kinds render generically from `values` (contract): field and value as sent.
-  for (const value of values) {
-    if (used.has(value.field)) continue
-    rows.push({ key: value.field, icon: 'info', label: value.field, value: str(value.value) })
+  const administrativeArea = take('administrativeArea')
+  if (administrativeArea?.value != null) {
+    rows.push({ key: 'administrativeArea', icon: 'map', label: t('assistant.field.area'), value: administrativeAreaLabel ?? t('assistant.value.areaUnavailable') })
   }
-  return rows
+  const seeds = take('seedPlaceIds')
+  if (Array.isArray(seeds?.value) && seeds.value.every(id => typeof id === 'string')) {
+    rows.push({ key: 'seedPlaceIds', icon: 'mapPin', label: t('assistant.field.suggestedPlaces'), value: t('assistant.value.suggestedPlaces', { count: seeds.value.length }) })
+  }
+  // New contract fields need an explicit localized presenter before being displayed.
+  return rows.filter(row => row.value !== '')
 }
 
 export function proposalTitle(proposal: Pick<AssistantProposal, 'kind' | 'values'>, t: TFunction): string {

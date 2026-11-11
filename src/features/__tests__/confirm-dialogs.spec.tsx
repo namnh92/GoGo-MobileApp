@@ -1,8 +1,10 @@
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { Alert } from 'react-native'
+import { onlineManager } from '@tanstack/react-query'
+import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
-import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen, failed, pending, type Audience, type QueryLike } from './harness'
+import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen, failed, pending, pausedOffline, type Audience, type QueryLike } from './harness'
 
 /**
  * GoGo-MobileApp#381 — confirmations with consequences used `Alert.alert`: the
@@ -123,7 +125,14 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
   it.each(audiences.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
     mockRoomState.query = state === 'loading' ? pending() : state === 'error' ? failed() : mockLoaded(mockRoomFor(audience, state === 'empty' ? { members: [], seedPlaces: [] } : {}))
     const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
-    if (state === 'loading') expect(view.queryByText('Huỷ phòng')).toBeNull()
+    if (state === 'loading') {
+      expect(view.queryByText('Huỷ phòng')).toBeNull()
+      const loading = view.getByTestId('room-manage-loading')
+      expect(loading.props.accessibilityRole).toBe('progressbar')
+      expect(loading.props.accessibilityLabel).toBe('Đang tải…')
+      expect(within(loading).getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(3)
+      expect(view.queryByTestId('loading-indicator')).toBeNull()
+    }
     else if (state === 'error') expect(view.getByText('Thử lại')).toBeTruthy()
     else if (audience === 'group-guest') {
       expect(view.getByText('Chỉ chủ phòng')).toBeTruthy()
@@ -137,6 +146,31 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
       await fireEvent.press(view.getAllByText('Sửa')[0])
       expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
     }
+  })
+})
+
+describe('room management waits for network', () => {
+  beforeEach(() => jest.useFakeTimers())
+  afterEach(async () => {
+    await act(async () => onlineManager.setOnline(true))
+    jest.useRealTimers()
+  })
+
+  it('replaces the layout skeleton with offline state, then restores it on reconnect', async () => {
+    mockRoomState.query = pausedOffline()
+    const view = await renderScreen(<RoomManageScreen />)
+    expect(view.getByTestId('room-manage-loading')).toBeTruthy()
+    expect(view.queryByText('Không có kết nối')).toBeNull()
+
+    await act(async () => onlineManager.setOnline(false))
+    await act(async () => jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS))
+    expect(view.getByText('Không có kết nối')).toBeTruthy()
+    expect(view.queryByTestId('room-manage-loading')).toBeNull()
+    expect(view.queryAllByTestId('skeleton-block', { includeHiddenElements: true })).toHaveLength(0)
+
+    await act(async () => onlineManager.setOnline(true))
+    expect(view.queryByText('Không có kết nối')).toBeNull()
+    expect(view.getByTestId('room-manage-loading')).toBeTruthy()
   })
 })
 

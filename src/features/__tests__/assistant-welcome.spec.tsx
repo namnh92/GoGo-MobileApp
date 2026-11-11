@@ -9,7 +9,7 @@ import { act, fireEvent, waitFor } from '@testing-library/react-native'
 
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn(), canGoBack: () => true }
 const mockParams: { value: Record<string, string> } = { value: {} }
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(),
   useRouter: () => mockRouter,
   useLocalSearchParams: () => mockParams.value,
   Redirect: () => null,
@@ -42,6 +42,8 @@ it('greets with the fixed copy and four starting points', async () => {
     expect(view.getByRole('button', { name: new RegExp(`^${title}\\.`) })).toBeTruthy()
   }
   expect(view.getByTestId('assistant-avatar-lg', { includeHiddenElements: true })).toBeTruthy()
+  expect(view.queryByTestId('assistant-new-chat')).toBeNull()
+  expect(view.getByTestId('assistant-history')).toBeTruthy()
   await settle()
 })
 
@@ -70,8 +72,9 @@ it('a starting point sends its title as the first message and the conversation o
   await waitFor(() => expect(view.getByTestId('assistant-sources')).toBeTruthy())
   expect(callsTo(backend, 'sendMessage')[0]![1]).toMatchObject({ text: 'Cách dùng GoGo', locale: 'vi' })
   expect(view.queryByTestId('assistant-welcome')).toBeNull()
-  // A conversation exists now: New chat appears in the header.
-  expect(view.getByRole('button', { name: 'Cuộc trò chuyện mới' })).toBeTruthy()
+  expect(view.queryByTestId('assistant-new-chat')).toBeNull()
+  expect(view.queryByRole('button', { name: 'Cuộc trò chuyện mới' })).toBeNull()
+  expect(view.getByTestId('assistant-history')).toBeTruthy()
   await settle()
 })
 

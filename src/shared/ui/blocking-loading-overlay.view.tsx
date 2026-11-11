@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, Keyboard, Modal, Platform, View } from 'react-native'
 import { LoadingIndicator } from './loading-indicator.view'
 import { styles } from './blocking-loading-overlay.style'
+import { loadingIndicator } from './tokens'
 
 const blockDismiss = () => {}
 
@@ -32,7 +33,7 @@ export function BlockingLoadingOverlay({ visible, accessibilityLabel, onClosed }
       accessibilityViewIsModal accessibilityRole="progressbar" accessibilityLabel={label}
       accessibilityState={{ busy: true }} accessibilityLiveRegion="polite"
       onAccessibilityEscape={blockDismiss} onStartShouldSetResponder={() => true}>
-      <LoadingIndicator decorative />
+      <LoadingIndicator variant="dark" decorative size={loadingIndicator.overlaySize} />
     </View>
   </Modal>
 }
