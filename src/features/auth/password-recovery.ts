@@ -47,7 +47,12 @@ export function useRecoveryRequest() {
       blockRecoveryRequests(email, Date.parse(challenge.resendAvailableAt) || 0)
       return { ...challenge, expiresAt: Number.isFinite(Date.parse(challenge.expiresAt)) ? challenge.expiresAt : new Date(requestedAt + 300_000).toISOString() }
     } catch (error) {
-      blockRecoveryRequests(email, recoveryRetryAt(error))
+      if (error instanceof ApiError && error.status === 404 && error.code === accountNotFoundCode) {
+        // No code was sent: release this attempt so the email can be retried immediately.
+        useRecoveryRequests.setState(state => ({ emails: { ...state.emails, [email]: history ?? { times: [], retryAt: 0 } } }))
+      } else {
+        blockRecoveryRequests(email, recoveryRetryAt(error))
+      }
       throw error
     }
   })

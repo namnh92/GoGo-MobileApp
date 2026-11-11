@@ -15,7 +15,7 @@
   tiếp theo. Không tự retry vì BE tính quota cả replay. 429 dùng `Retry-After`,
   chờ 60 giây nếu thiếu mốc hợp lệ. Lịch sử request trong bộ nhớ theo email
   chuẩn hóa (trim/lowercase) áp dụng 1/phút + 3/giờ, gồm request đầu tiên,
-  request lỗi và replay; rời màn hình không xóa quota phiên.
+  request lỗi và replay, trừ 404 RECOVERY_ACCOUNT_NOT_FOUND; rời màn hình không xóa quota phiên.
 - Email không có placeholder; nút gửi chỉ bật khi schema email chung với đăng
   nhập hợp lệ. Lỗi inline khi blur hoặc submit bàn phím.
 - Countdown mã dùng `expiresAt` từ API; fallback request time + 300 giây nếu
@@ -28,6 +28,8 @@
 - Owner 2026-11-10 / BE#835: bỏ copy anti-enumeration vi/en. Chỉ request
   202 mới chuyển sang trạng thái OTP trên cùng màn; 404 + RECOVERY_ACCOUNT_NOT_FOUND hiện
   “Tài khoản không tồn tại.” dưới email, giữ màn hiện tại và xóa lỗi khi sửa email.
+  Owner 2026-11-11 / #639: bỏ cooldown client cho lỗi 404 này; sau khi loading overlay đóng,
+  nút “Gửi mã” bật ngay để sửa email hoặc thử lại. Giữ countdown sau khi gửi thành công.
   Contract `9.2.0-alpha.1` (BE#836) được sao chép nguyên byte; client được generate
   lại bằng `pnpm api:types`. Dùng status của ApiError và code được ràng buộc bằng
   response 404 generated; fixture 404 cũng kiểm tra theo type này. RECOVERY_INVALID, offline, 429, 503 mail

@@ -124,6 +124,28 @@ it.each([
   expect(fetchMock.mock.calls[0][1].headers['idempotency-key']).not.toBe(fetchMock.mock.calls[1][1].headers['idempotency-key'])
 })
 
+it('enables send immediately after a missing-account 404 and permits retry without advancing time', async () => {
+  let resolve!: (value: unknown) => void
+  fetchMock.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+  await render(<ForgotPassword />)
+  await fireEvent.changeText(screen.getByLabelText('Email'), 'absent@example.com')
+  await fireEvent.press(button('Gửi mã'))
+  expect(screen.getByTestId('blocking-loading-overlay')).toBeTruthy()
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+
+  await act(async () => { resolve(response(404, accountNotFoundBody)) })
+  expect(await screen.findByText('Tài khoản không tồn tại.')).toBeTruthy()
+  await waitFor(() => expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull())
+  expect(button('Gửi mã').props.accessibilityState.disabled).toBe(false)
+  expect(screen.queryByText(/Gửi lại mã sau/)).toBeNull()
+
+  // A retry for the same email must reach the server immediately as well.
+  await fireEvent.press(button('Gửi mã'))
+  await waitFor(() => expect(screen.queryByLabelText('Email')).toBeNull())
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(button('Gửi lại mã sau 5:00').props.accessibilityState.disabled).toBe(true)
+})
+
 it.each([
   [200, 'UNEXPECTED_SUCCESS'],
   [204, 'UNEXPECTED_SUCCESS'],
@@ -154,7 +176,7 @@ it.each([
   expect(screen.queryByText(/NEVER DISPLAY/)).toBeNull()
   if (status === 429) {
     expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
-    expect(screen.getByText('Gửi lại mã sau 60:00')).toBeTruthy()
+    expect(screen.queryByText('Gửi lại mã sau 60:00')).toBeNull()
   }
 })
 
@@ -553,6 +575,7 @@ it('counts the initial request and two resends per email and unlocks when the fi
   await render(<ForgotPassword />)
   await fireEvent.changeText(screen.getByLabelText('Email'), 'BINH@example.com')
   expect(button('Gửi mã').props.accessibilityState.disabled).toBe(true)
+  expect(screen.queryByText(/Gửi lại mã sau/)).toBeNull()
   await fireEvent.changeText(screen.getByLabelText('Email'), 'other@example.com')
   expect(button('Gửi mã').props.accessibilityState.disabled).toBe(false)
   await fireEvent.changeText(screen.getByLabelText('Email'), 'binh@example.com')
@@ -598,6 +621,10 @@ it.each([
   await fireEvent.press(button(i18n.t('auth.recovery.sendCode')))
   expect(await screen.findByText(context)).toBeTruthy()
   expect(button(countdown).props.accessibilityState.disabled).toBe(true)
+  // The countdown belongs only to the button, never a separate text row.
+  expect(screen.getAllByText(countdown)).toHaveLength(1)
+  expect(within(button(countdown)).getByText(countdown)).toBeTruthy()
+  expect(screen.queryByText(/Mã hết hạn sau|Code expires in/)).toBeNull()
   expect(screen.queryByText(i18n.t('auth.recovery.expiry'))).toBeNull()
   expect(screen.queryByText(i18n.t('auth.recovery.backToSignIn'))).toBeNull()
   expect(screen.queryByRole('button', { name: change })).toBeNull()

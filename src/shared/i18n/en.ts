@@ -20,7 +20,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "auth.recovery.codeDigit": "Digit {{position}} of 6",
   "auth.recovery.codeRequired": "Enter all 6 digits.",
   "auth.recovery.resendCountdown": "Resend code in {{time}}",
-  "auth.recovery.codeCountdown": "Code expires in {{time}}",
   "auth.recovery.codeExpired": "The code has expired. Please request a new code.",
   "auth.recovery.resend": "Resend code",
   "auth.recovery.newPassword": "New password",
