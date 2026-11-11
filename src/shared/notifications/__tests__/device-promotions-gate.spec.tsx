@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import * as React from 'react'
 
 /**
  * GoGo-MobileApp#398 (shape D6) — when the promotions disclosure appears: a device
@@ -71,7 +72,7 @@ function deferred() {
 }
 
 async function mountWithWrite(write: () => Promise<void>, transition = async () => {}) {
-  const setItem = jest.fn(async () => {})
+  const setItem = jest.fn<Promise<void>, [string, string]>(async () => {})
   const store: DevicePromotionsStore = createDevicePromotionsStore({
     storage: { getItem: async () => null, setItem },
   })
@@ -228,20 +229,27 @@ describe('what the answers do', () => {
   })
 
   it('does not flash back while the store still reports absent', async () => {
-    const { actions: calls, store, view } = await mount()
+    const { actions: calls, store, view, setItem } = await mountWithWrite(async () => {})
+    const absent = store.snapshot()
+    setItem.mockClear()
     // A stale subscriber must not reopen a locally completed answer.
-    calls.answer.mockResolvedValueOnce(undefined)
     await act(async () => {
       fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
     })
-    expect(store.snapshot().read).toBe('absent')
+    expect(store.snapshot()).toMatchObject({ answer: 'accepted', save: 'saved' })
+    expect(JSON.parse(setItem.mock.calls[0][1]).disclosure.answer).toBe('accepted')
     expect(screen.queryByText(TITLE)).toBeNull()
 
-    await act(async () => { store.setServiceOff(true) })
-    await view.rerender(<DevicePromotionsGate store={store} actions={calls} />)
-    expect(store.snapshot().read).toBe('absent')
-    expect(screen.queryByText(TITLE)).toBeNull()
-    expect(calls.answer).toHaveBeenCalledTimes(1)
+    const snapshot = jest.spyOn(store, 'snapshot').mockReturnValue(absent)
+    try {
+      await act(async () => { store.setServiceOff(true) })
+      await view.rerender(<DevicePromotionsGate store={store} actions={calls} />)
+      expect(store.snapshot().read).toBe('absent')
+      expect(screen.queryByText(TITLE)).toBeNull()
+      expect(calls.answer).toHaveBeenCalledTimes(1)
+    } finally {
+      snapshot.mockRestore()
+    }
   })
 
   it('handles a background answer rejection without reopening or another commit haptic', async () => {
@@ -285,22 +293,69 @@ describe('what the answers do', () => {
     expect(jest.mocked(haptic).mock.calls.filter(([kind]) => kind === 'select')).toHaveLength(1)
   })
 
-  it('does not update state or haptic when unmounted during permission', async () => {
-    const permission = deferred()
-    const { actions: calls, view } = await mount()
-    calls.requestPermission.mockImplementationOnce(() => permission.promise)
+  it('closes after a failed acceptance save followed by a successful decline save', async () => {
+    const { actions: calls, store, setItem } = await mountWithWrite(async () => { throw new Error('disk') })
     await act(async () => {
       fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
     })
-    await view.unmount()
-    const errors = jest.spyOn(console, 'error').mockImplementation(() => {})
+    expect(store.snapshot()).toMatchObject({ answer: 'accepted', save: 'unsaved' })
+    expect(screen.getByText(TITLE)).toBeTruthy()
+    expect(haptic).not.toHaveBeenCalledWith('select')
+
+    const decline = deferred()
+    setItem.mockImplementation(() => decline.promise)
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Không nhận ưu đãi' }))
+    })
+    expect(calls.answer).toHaveBeenLastCalledWith('declined')
+    expect(store.snapshot()).toMatchObject({ answer: 'declined', save: 'saving' })
+    expect(screen.getByText(TITLE)).toBeTruthy()
+    // The shared GhostBtn already emits press feedback; count completion only.
+    jest.mocked(haptic).mockClear()
+
+    await act(async () => { decline.resolve() })
+    expect(store.snapshot()).toMatchObject({ answer: 'declined', save: 'saved' })
+    expect(screen.queryByText(TITLE)).toBeNull()
+    expect(jest.mocked(haptic).mock.calls.filter(([kind]) => kind === 'select')).toHaveLength(1)
+  })
+
+  it('records acceptance without state updates or haptic when unmounted during permission', async () => {
+    const permission = deferred()
+    // Capture the gate's four setters so post-unmount updates are checked directly.
+    const setters: jest.Mock[] = []
+    const useState = React.useState
+    const state = jest.spyOn(React, 'useState')
+    for (let index = 0; index < 4; index += 1) {
+      state.mockImplementationOnce((initial?: unknown): [unknown, React.Dispatch<React.SetStateAction<unknown>>] => {
+        const [value, setValue] = useState(initial)
+        const setter = jest.fn(setValue)
+        setters.push(setter)
+        return [value, setter]
+      })
+    }
     try {
+      const { actions: calls, store, view } = await mount()
+      state.mockRestore()
+      expect(setters).toHaveLength(4)
+      calls.requestPermission.mockImplementationOnce(() => permission.promise)
+      await act(async () => {
+        fireEvent.press(screen.getByRole('button', { name: 'Tiếp tục' }))
+      })
+      await view.unmount()
+      for (const setter of setters) setter.mockClear()
+      jest.mocked(haptic).mockClear()
       await act(async () => { permission.resolve() })
-      expect(calls.answer).not.toHaveBeenCalled()
-      expect(haptic).not.toHaveBeenCalledWith('select')
-      expect(errors).not.toHaveBeenCalled()
+      expect(calls.answer).toHaveBeenCalledTimes(1)
+      expect(calls.answer).toHaveBeenCalledWith('accepted')
+      expect(store.snapshot()).toMatchObject({ answer: 'accepted', save: 'saved' })
+      for (const setter of setters) expect(setter).not.toHaveBeenCalled()
+      expect(haptic).not.toHaveBeenCalled()
+
+      await render(<DevicePromotionsGate store={store} actions={calls} />)
+      await act(async () => {})
+      expect(screen.queryByText(TITLE)).toBeNull()
     } finally {
-      errors.mockRestore()
+      state.mockRestore()
     }
   })
 

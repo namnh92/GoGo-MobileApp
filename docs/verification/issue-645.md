@@ -77,3 +77,43 @@ Code/test review snapshot: `rs-7001b4182771`, created before the final checks an
 Final command logs: `/tmp/mobile-645-round2-{typecheck,ui,notifications,lint}.log`.
 
 Component/unit evidence only; simulator/DEV acceptance and independent Round 2 review have not run. No staging or commit.
+
+## Round 3 — F-02 and F-03
+
+2026-11-11 · base `6635b55c` (`feature/GOGO-645-promo-sheet-close`) + uncommitted diff. Owner approved this extra fix round after Astra's changes-required review at `6635b55`.
+
+- **F-02 (P2):** after a failed acceptance save, decline now starts its answer write, consumes background identity rejection, and waits for `store.saved()`. While saving, the sheet stays busy. A successful decline clears `saveFailed`, marks local completion and closes; a failed save leaves the sheet open for retry. Identity convergence does not hold completion open.
+- **F-03 (P2):** permission settlement always starts `actions.answer('accepted')`, including after unmount. The mounted guard applies only to component state updates and the completion haptic after storage confirmation. This supersedes Round 2's unmount-during-permission behavior. The test asserts a saved acceptance, no calls to the gate's four captured state setters or any haptic after unmount, and no sheet on remount.
+- **Stale subscriber coverage:** the answer now uses the real store write and asserts the persisted JSON contains `accepted`. Only after successful persistence does the test expose the prior `absent` snapshot and verify it cannot reopen the sheet. No no-op answer or earlier preparation write stands in for saved acceptance.
+
+Round 2's pending-save, failed-save/retry, never-settling identity transition and consumed background rejection coverage remains passing. No identity-session, coordinator, store, dependency, view/style or i18n changes.
+
+### FAIL before / PASS after
+
+```sh
+pnpm test:ui device-promotions-gate --runInBand --watchman=false -t 'closes after a failed acceptance save|records acceptance without state updates'
+```
+
+The initial regression run used the unchanged `6635b55` gate before the fixes. After finalizing test annotations/assertions, the same final tests were run again with the gate temporarily replaced by the exact `git show 6635b55:src/shared/notifications/device-promotions-gate.tsx` contents; the fixed bytes were restored in a `finally` block. No Git reset, staging or commit was used. The tested-code snapshot verified `MATCH` after restoration.
+
+| Finding | FAIL before on `6635b55` (exit 1) | PASS after (exit 0) |
+| --- | --- | --- |
+| F-02 | Store reached `{ answer: 'declined', save: 'saved' }`, but the title remained visible and `toBeNull()` failed. | The sheet stays open during the decline write, then closes after it succeeds. |
+| F-03 | After unmount and permission resolution, `answer` had 0 calls instead of 1. | Acceptance is saved; no state setter/haptic runs after unmount; remount does not ask again. |
+
+Focused totals: **2 failed, 20 skipped, 22 total before; 2 passed, 20 skipped, 22 total after**. Logs: `/tmp/mobile-645-round3-fail-before.log` and `/tmp/mobile-645-round3-pass-after.log`.
+
+### Checks
+
+Tested-code snapshot: `rs-f343e2631525`, scope = gate + gate spec; verification documentation excluded. Created before the final checks and verified `MATCH` before and after them. Manifest and retrievable patch: `/tmp/mobile-645-round3-snapshots/mobile-645-round3-tested-rs-f343e2631525/`.
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm test:ui device-promotions --runInBand --watchman=false` | PASS, exit 0; 2 suites, 31 tests |
+| `CI=1 pnpm lint src/shared/notifications/device-promotions-gate.tsx src/shared/notifications/__tests__/device-promotions-gate.spec.tsx` | PASS, exit 0; allowed by sandbox |
+| `git diff --check` | PASS |
+
+Final logs: `/tmp/mobile-645-round3-{typecheck,ui,lint}.log`. The first typecheck caught a test-only `useState` spy overload annotation; the annotation was corrected before the final passing runs.
+
+Component evidence only; simulator/DEV acceptance and independent Round 3 review have not run. No staging or commit.

@@ -85,7 +85,6 @@ export function DevicePromotionsGate({
       .requestPermission()
       .catch(() => undefined)
       .then(async () => {
-        if (!mounted.current) return
         // The coordinator starts the write now. Wait for durable storage only;
         // identity convergence already reports failures and continues in the background.
         void actions.answer('accepted').catch(() => undefined)
@@ -99,8 +98,16 @@ export function DevicePromotionsGate({
   }
 
   const onDecline = () => {
-    void actions.answer('declined')
-    haptic('select')
+    if (requesting || answered) return
+    setRequesting(true)
+    void actions.answer('declined').catch(() => undefined)
+    void store.saved().then(saved => {
+      if (!mounted.current) return
+      setSaveFailed(!saved)
+      setAnswered(saved)
+      setRequesting(false)
+      if (saved) haptic('select')
+    })
   }
 
   const onLater = () => {
