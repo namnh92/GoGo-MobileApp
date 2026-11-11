@@ -35,7 +35,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "auth.recovery.mailNotConfigured": "GoGo has not configured recovery email delivery yet. Please try again later.",
   "auth.recovery.unavailable": "Password recovery is temporarily unavailable. Please try again later.",
   "auth.recovery.invalidCode": "The code is invalid or expired. Please check it or request a new code.",
-  "assistant.credit.usageMeaning": "Used in this conversation / Balance",
   "credits.unknown": "Unknown",
   "credits.pending": "Calculating credits",
   "credits.deletedConversation": "Deleted conversation",

@@ -52,7 +52,6 @@ function CreditBalanceContent({ assistant, conversationCredits, assistantStatus 
               : <View testID="credit-balance-loading"><Skeleton width={64} height={24} /></View>}
       </View>
     </Pressable>
-    {assistant ? <Text variant="caption" color="text.secondary">{t('assistant.credit.usageMeaning')}</Text> : null}
     {assistant && pending ? <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">{t('credits.pending')}</Text> : null}
     {assistant && (reserved ?? 0) > 0 ? <Text variant="caption" color="text.secondary">{t('assistant.credit.heldAvailable', { held: amount(reserved), available: amount(available) })}</Text> : null}
     {!credits.data && credits.isError && online ? <GhostBtn label={t('common.retry')} onPress={() => void refetch()} /> : null}

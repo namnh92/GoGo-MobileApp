@@ -26,7 +26,6 @@ export const viMessages = {
   "auth.recovery.mailNotConfigured": "GoGo chưa cấu hình dịch vụ gửi email khôi phục. Vui lòng thử lại sau.",
   "auth.recovery.unavailable": "Dịch vụ khôi phục mật khẩu tạm thời không khả dụng. Vui lòng thử lại sau.",
   "auth.recovery.invalidCode": "Mã không đúng hoặc đã hết hạn.",
-  "assistant.credit.usageMeaning": "Đã dùng trong cuộc trò chuyện / số dư",
   "credits.unknown": "Chưa xác định",
   "credits.pending": "Đang tính credit",
   "credits.deletedConversation": "Cuộc trò chuyện đã xoá",

@@ -181,10 +181,17 @@ it.each(['vi', 'en'])('renders posted conversation use, pending, unknown and hol
   const facts = { creditsUsed: 12, creditsReserved: 5, pendingTurns: 1, state: 'pending', asOf: status.asOf }
   const view = await render(<UsageFooter status={{ data: { ...status, creditReserved: 5, creditAvailable: 70 }, isPending: false, isError: false }} conversationCredits={facts} />)
   expect(view.getByText('12/75')).toBeTruthy()
+  const usageLabel = locale === 'vi' ? 'Đã dùng trong cuộc trò chuyện: 12 / Số dư: 75' : 'Used in this conversation: 12 / Balance: 75'
+  const usageMeaning = locale === 'vi' ? 'Đã dùng trong cuộc trò chuyện / số dư' : 'Used in this conversation / Balance'
+  expect(view.getByLabelText(usageLabel)).toBeTruthy()
+  expect(view.queryByText(usageLabel)).toBeNull()
+  expect(view.queryByText(usageMeaning)).toBeNull()
+  expect(view.getByText(`${i18n.t('credits.title')}:`)).toBeTruthy()
   expect(view.getByText(i18n.t('credits.pending'))).toBeTruthy()
   expect(view.getByText(i18n.t('assistant.credit.heldAvailable', { held: 5, available: 70 }))).toBeTruthy()
   await view.rerender(<UsageFooter status={{ data: status, isPending: false, isError: false }} conversationCredits={{ ...facts, creditsUsed: null, state: 'unavailable', pendingTurns: 0 }} />)
   expect(view.getByText(`${i18n.t('credits.unknown')}/75`)).toBeTruthy()
+  expect(view.getByLabelText(i18n.t('assistant.credit.usageLabel', { used: i18n.t('credits.unknown'), balance: 75 }))).toBeTruthy()
   expect(view.queryByText('0/75')).toBeNull()
 })
 
