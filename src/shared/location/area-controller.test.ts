@@ -19,6 +19,47 @@ function setup(overrides: Partial<AreaDependencies> = {}) {
 }
 
 describe('app-wide current area', () => {
+  it('silently refreshes the startup position on demand and deduplicates focus calls (#594)', async () => {
+    const { app, deps } = setup()
+    await app.initialize()
+    vi.mocked(deps.position).mockResolvedValue({ status: 'granted', lat: 21.04, lng: 105.76, label: null })
+    await Promise.all([app.refresh(), app.refresh()])
+    expect(vi.mocked(deps.position).mock.calls).toEqual([[false], [false]])
+    expect(scopeSearchParams(app.store.getState().scope)).toEqual({ lat: 21.04, lng: 105.76 })
+  })
+
+  it('does not replace a manual area on focus refresh (#594)', async () => {
+    const { app, deps } = setup()
+    await app.initialize()
+    app.store.getState().setArea(OTHER)
+    await app.refresh()
+    expect(deps.position).toHaveBeenCalledTimes(1)
+    expect(app.store.getState()).toMatchObject({ manual: true, area: OTHER, scope: { source: 'selected_area' } })
+  })
+
+  it.each(['denied', 'unavailable'] as const)('keeps the startup position and renders %s on refresh (#594)', async status => {
+    const position = vi.fn<AreaDependencies['position']>().mockResolvedValueOnce({ status: 'granted', lat: 10.77, lng: 106.7, label: null }).mockResolvedValue({ status })
+    const { app, deps } = setup({ position })
+    await app.initialize()
+    await app.refresh()
+    expect(app.store.getState().location).toEqual({ status })
+    expect(scopeSearchParams(app.store.getState().scope)).toEqual({ lat: 10.77, lng: 106.7 })
+    expect(position).toHaveBeenLastCalledWith(false)
+    expect(deps.fallback).not.toHaveBeenCalled()
+  })
+
+  it('keeps a newer manual choice when a slow focus refresh completes (#594)', async () => {
+    const { app, deps } = setup()
+    await app.initialize()
+    let finish!: (position: Awaited<ReturnType<AreaDependencies['position']>>) => void
+    vi.mocked(deps.position).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const refreshing = app.refresh()
+    await vi.waitFor(() => expect(finish).toBeDefined())
+    app.store.getState().setArea(OTHER)
+    finish({ status: 'granted', lat: 1, lng: 2, label: null })
+    await refreshing
+    expect(app.store.getState()).toMatchObject({ area: OTHER, manual: true, scope: { source: 'selected_area' } })
+  })
   it('deduplicates concurrent startup and never reads GPS for unchanged foreground permission', async () => {
     const { app, deps } = setup()
     await Promise.all([app.initialize(), app.initialize(), app.initialize()])

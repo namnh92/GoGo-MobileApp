@@ -78,7 +78,7 @@ it('features use shared Chip instead of native capsule surfaces', () => {
 })
 it('the explicitly requested surfaces and legacy wrappers use the one implementation', () => {
   for (const file of ['search/search', 'home/home', 'account/profile-defaults', 'contributions/my-contributions',
-    'place-import/contribution-choices', 'create-date/create-budget', 'create-date/create-location']) {
+    'place-import/contribution-choices', 'create-date/create-budget', 'create-date/create-location-fields']) {
     expect(readFileSync(resolve(src, `features/${file}.view.tsx`), 'utf8')).toMatch(/<Chip[\s>]/)
   }
   expect(readFileSync(resolve(src, 'shared/ui/primitives.tsx'), 'utf8')).toContain("export { Chip, type ChipVariant } from './chip.view'")

@@ -20,5 +20,7 @@ export const styles = StyleSheet.create(theme => ({
     gap: theme.spacing[2],
     ...theme.shadows.toast,
   },
+  actionRow: { flexDirection: 'row' },
+  actionCell: { flex: 1 },
   actions: { gap: theme.spacing[2], marginTop: theme.spacing[3] },
 }))

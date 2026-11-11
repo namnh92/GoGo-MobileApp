@@ -5,6 +5,15 @@
  * started eleven hours ago.
  */
 export function slotToIso(slot: string, now = new Date()): string | null {
+  const iso = slotOnDateToIso(slot, now)
+  if (!iso) return null
+  const candidate = new Date(iso)
+  if (candidate.getTime() <= now.getTime()) candidate.setDate(candidate.getDate() + 1)
+  return candidate.toISOString()
+}
+
+/** Resolve a slot on an explicit local date without finding its next occurrence. */
+export function slotOnDateToIso(slot: string, date: Date): string | null {
   const match = /^(\d{2}):(\d{2})$/.exec(slot)
   if (!match) return null
 
@@ -12,9 +21,8 @@ export function slotToIso(slot: string, now = new Date()): string | null {
   const minutes = Number(match[2])
   if (hours > 23 || minutes > 59) return null
 
-  const candidate = new Date(now)
+  const candidate = new Date(date)
   candidate.setHours(hours, minutes, 0, 0)
-  if (candidate.getTime() <= now.getTime()) candidate.setDate(candidate.getDate() + 1)
 
   return candidate.toISOString()
 }

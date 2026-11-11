@@ -5,6 +5,7 @@ import { captureSessionScope } from '@/shared/api/session'
 import { useRoomStore } from './roomStore'
 
 export const draftStepSchema = z.enum(['type', 'group-setup', 'location', 'time', 'budget', 'mood'])
+// `location` remains readable for snapshots written before owner round 3.
 export type DraftStep = z.infer<typeof draftStepSchema>
 const nullableNumber = z.number().finite().nullable()
 const code = z.string().regex(/^\d{2,5}$/)
@@ -81,7 +82,7 @@ export async function loadRoomDraft(ownerId: string | null): Promise<void> {
 }
 
 export async function saveRoomDraft(ownerId: string, step: DraftStep): Promise<void> {
-  const snapshot = savedRoomDraftSchema.parse({ version: 2, ownerId, step, fields: useRoomStore.getState() })
+  const snapshot = savedRoomDraftSchema.parse({ version: 2, ownerId, step: step === 'location' ? 'type' : step, fields: useRoomStore.getState() })
   const saveGeneration = ++generation
   await write(() => AsyncStorage.setItem(KEY, JSON.stringify(snapshot)))
   if (saveGeneration === generation) useSavedRoomDraft.setState({ draft: snapshot })
@@ -100,14 +101,13 @@ export async function clearSavedRoomDraft(scope = captureSessionScope()): Promis
 /**
  * A v1 area pick was a provider/service-area key whose centre was stored as the
  * origin. That centre is not the user's position and the key is not a canonical
- * area (ADM-202), so the pick is dropped and the draft resumes at the location
- * step to choose again. A device fix (no key) is kept as it was.
+ * area (ADM-202), so the pick is dropped and the draft resumes at step 1
+ * to choose again. A device fix (no key) is kept as it was.
  */
 export function migrateLegacyDraft(legacy: z.infer<typeof legacyDraftSchema>): SavedDraft {
   const { areaKey, ...fields } = legacy.fields
   const pickedArea = areaKey !== null
-  const order = draftStepSchema.options
-  const step = pickedArea && order.indexOf(legacy.step) > order.indexOf('location') ? 'location' : legacy.step
+  const step = pickedArea || legacy.step === 'location' ? 'type' : legacy.step
   return {
     version: 2,
     ownerId: legacy.ownerId,
@@ -125,19 +125,19 @@ export function restoreRoomDraft(ownerId: string): DraftStep | null {
   if (!snapshot || snapshot.ownerId !== ownerId) return null
   useRoomStore.getState().resetDraft()
   useRoomStore.setState(snapshot.fields)
-  return snapshot.step
+  return snapshot.step === 'location' ? 'type' : snapshot.step
 }
 
 /**
  * Every wizard route up to and including `step`, in the order the wizard
- * walks them. A resumed draft pushes this whole path (not just its step) so
+ * walks them. The mounted create entry restores this nested path so
  * Back returns to the previous step with restored data instead of leaving
  * the wizard — the same shape the stack has when the user got there by hand.
  */
 export function draftStepPath(step: DraftStep, audience: 'couple' | 'group-host' | 'group-guest'): DraftStep[] {
   const order: DraftStep[] = audience === 'couple'
-    ? ['type', 'location', 'time', 'budget', 'mood']
-    : ['type', 'group-setup', 'location', 'time', 'budget', 'mood']
+    ? ['type', 'time', 'budget', 'mood']
+    : ['type', 'group-setup', 'time', 'budget', 'mood']
   const index = order.indexOf(step)
   return index < 0 ? ['type'] : order.slice(0, index + 1)
 }

@@ -1,0 +1,230 @@
+GoGo-MobileApp#594 round 2 verification — 2026-11-10 Asia/Ho_Chi_Minh
+Branch: feature/GOGO-594-redesign-g05a-create
+HEAD: 8f68365ab8b59183735430f581b631f8f2fcd1b5; fixes remain uncommitted. No push.
+Final git diff -- src SHA-256: 7a7b0545768f4a75a3a96e984dcfe8a7c5ce65308c650cd92a86c3f140d6c2dd
+FAIL-before: the three new regression tests ran on unchanged production files at HEAD.
+PASS-after: same regression tests, with the UI fixes in the working tree.
+
+=== FAIL-before F-01/F-02 ===
+EXIT 1
+
+> gogo-mobile@0.1.0 test:ui /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> jest --runInBand src/features/__tests__/create-time-day.spec.tsx src/features/__tests__/prefill-budget.spec.tsx -t '#594 F-'
+
+FAIL src/features/__tests__/create-time-day.spec.tsx
+  ● Stitch inline calendar (#594) › keeps an inline day without a time when opening the staged sheet (#594 F-01)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      249 |     await press(view.getByTestId('date-inline-shortcut-tomorrow'))
+      250 |     await openSheet(view)
+    > 251 |     expect(state(view, 'date-sheet-day-2026-11-06').selected).toBe(true)
+          |                                                               ^
+      252 |     expect(state(view, 'date-sheet-shortcut-today').selected).toBe(false)
+      253 |     await press(view.getByTestId('date-sheet-shortcut-weekend'))
+      254 |     await chooseTime(view, '20:00')
+
+      at Object.toBe (src/features/__tests__/create-time-day.spec.tsx:251:63)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● Stitch inline calendar (#594) › saves and resumes an inline day before choosing any time (#594 F-01)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      273 |     expect(restoreRoomDraft('user-1')).toBe('time')
+      274 |     const resumed = await renderScreen(<CreateTimeScreen />)
+    > 275 |     expect(state(resumed, 'date-inline-day-2026-11-07').selected).toBe(true)
+          |                                                                   ^
+      276 |     expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-07', startTime: null, startAt: null })
+      277 |     await press(resumed.getByText('Tiếp tục'))
+      278 |     expect(mockPush).not.toHaveBeenCalled()
+
+      at Object.toBe (src/features/__tests__/create-time-day.spec.tsx:275:67)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+(node:43034) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+FAIL src/features/__tests__/prefill-budget.spec.tsx
+  ● usual budget prefill on the budget step › renders the prefill amount and unit without ellipsis and includes both in its accessible label (#594 F-02)
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 1
+
+      56 |     expect(action.props.accessibilityLabel).toContain('300.000đ – 500.000đ /người')
+      57 |     for (const amount of view.getAllByText(/300.000đ – 500.000đ \/người/)) {
+    > 58 |       expect(amount.props.numberOfLines ?? 0).toBe(0)
+         |                                               ^
+      59 |       expect(amount.props.ellipsizeMode).not.toBe('tail')
+      60 |     }
+      61 |   })
+
+      at Object.toBe (src/features/__tests__/prefill-budget.spec.tsx:58:47)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+Test Suites: 2 failed, 2 total
+Tests:       3 failed, 32 skipped, 35 total
+Snapshots:   0 total
+Time:        2.295 s, estimated 4 s
+Ran all test suites matching /src\/features\/__tests__\/create-time-day.spec.tsx|src\/features\/__tests__\/prefill-budget.spec.tsx/i with tests matching "#594 F-".
+ ELIFECYCLE  Command failed with exit code 1.
+
+=== PASS-after F-01/F-02 ===
+EXIT 0
+
+> gogo-mobile@0.1.0 test:ui /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> jest --runInBand src/features/__tests__/create-time-day.spec.tsx src/features/__tests__/prefill-budget.spec.tsx -t '#594 F-'
+
+(node:52028) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/features/__tests__/prefill-budget.spec.tsx
+PASS src/features/__tests__/create-time-day.spec.tsx
+
+Test Suites: 2 passed, 2 total
+Tests:       32 skipped, 3 passed, 35 total
+Snapshots:   0 total
+Time:        2.921 s, estimated 5 s
+Ran all test suites matching /src\/features\/__tests__\/create-time-day.spec.tsx|src\/features\/__tests__\/prefill-budget.spec.tsx/i with tests matching "#594 F-".
+
+=== Affected UI specs: create-time-day, prefill-budget, create-time, wizard-exit ===
+EXIT 0
+
+> gogo-mobile@0.1.0 test:ui /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> jest --runInBand src/features/__tests__/create-time-day.spec.tsx src/features/__tests__/prefill-budget.spec.tsx src/features/__tests__/create-time.spec.tsx src/features/__tests__/wizard-exit.spec.tsx
+
+(node:43756) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+PASS src/features/__tests__/prefill-budget.spec.tsx
+  ● Console
+
+    console.debug
+      [analytics] profile_prefill_used { field: 'usualBudget' }
+
+      at debug (src/shared/analytics/index.ts:64:11)
+
+PASS src/features/__tests__/create-time-day.spec.tsx
+PASS src/features/__tests__/create-time.spec.tsx
+PASS src/features/__tests__/wizard-exit.spec.tsx
+
+Test Suites: 4 passed, 4 total
+Tests:       46 passed, 46 total
+Snapshots:   0 total
+Time:        5.294 s, estimated 6 s
+Ran all test suites matching /src\/features\/__tests__\/create-time-day.spec.tsx|src\/features\/__tests__\/prefill-budget.spec.tsx|src\/features\/__tests__\/create-time.spec.tsx|src\/features\/__tests__\/wizard-exit.spec.tsx/i.
+
+=== Affected unit: pnpm exec vitest run src/shared/store/__tests__/saved-room-day.test.ts src/shared/store/__tests__/saved-room-draft.test.ts src/shared/store/__tests__/room-draft.test.ts src/features/create-date/__tests__ ===
+EXIT 0
+
+ RUN  v4.1.11 /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+
+
+ Test Files  7 passed (7)
+      Tests  49 passed (49)
+   Start at  00:32:40
+   Duration  1.35s (transform 108ms, setup 0ms, import 290ms, tests 53ms, environment 0ms)
+
+
+=== pnpm typecheck ===
+EXIT 0
+
+> gogo-mobile@0.1.0 typecheck /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> tsc --noEmit
+
+
+=== pnpm lint ===
+EXIT 0
+
+> gogo-mobile@0.1.0 lint /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> expo lint
+
+
+=== pnpm test:ui --maxWorkers=2 (final full run) ===
+EXIT 0
+PASS src/features/__tests__/account-delete-copy.spec.tsx
+
+Test Suites: 231 passed, 231 total
+Tests:       3340 passed, 3340 total
+Snapshots:   11 passed, 11 total
+Time:        89.897 s
+Ran all test suites.
+
+=== pnpm test (known sandbox process-inspection failures; Claude reruns outside) ===
+EXIT 1
+
+> gogo-mobile@0.1.0 test /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> vitest run
+
+
+ RUN  v4.1.11 /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts (26 tests | 3 failed) 14984ms
+     × refuses while the owner is alive 129ms
+     × refuses recovery while a recorded build process group is still alive 1535ms
+     × keeps the lock and run files when a recorded build group is still alive after the child exits 1608ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses while the owner is alive
+TypeError: Cannot read properties of undefined (reading 'trim')
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:208:103
+    206|   it('refuses while the owner is alive', () => {
+    207|     mkdirSync(lockDir(), { recursive: true })
+    208|     const start = spawnSync('ps', ['-o', 'lstart=', '-p', String(proce…
+       |                                                                                                       ^
+    209|     writeFileSync(path.join(lockDir(), 'owner'), `pid=${process.pid}\n…
+    210|     const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses recovery while a recorded build process group is still alive
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:234:33
+    232|       writeFileSync(path.join(lockDir(), 'run.json'), JSON.stringify({…
+    233|       const result = run(['dev', 'ios', '--groups', 'dev-testers'])
+    234|       expect(result.status).not.toBe(0)
+       |                                 ^
+    235|       expect(result.stderr).toMatch(new RegExp(`process groups: ${pgid…
+    236|       expect(existsSync(lockDir())).toBe(true)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > keeps the lock and run files when a recorded build group is still alive after the child exits
+AssertionError: expected +0 not to be +0 // Object.is equality
+ ❯ src/shared/config/__tests__/distribute-wrapper.test.ts:258:33
+    256|     try {
+    257|       const result = run(['dev', 'android', '--groups', 'dev-testers']…
+    258|       expect(result.status).not.toBe(0)
+       |                                 ^
+    259|       expect(result.stderr).toMatch(new RegExp(`build process groups s…
+    260|       expect(existsSync(path.join(lockDir('dev', 'android'), 'owner'))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 143 passed | 1 skipped (145)
+      Tests  3 failed | 1733 passed | 39 skipped (1775)
+   Start at  00:33:45
+   Duration  61.49s (transform 1.68s, setup 0ms, import 7.27s, tests 34.48s, environment 8ms)
+
+ ELIFECYCLE  Test failed. See above for more details.
+
+Initial full UI run before the selector correction: 230 suites passed, 1 failed;
+3339 tests passed, 1 failed. The old tier selector matched both the separate
+prefill amount and the tier amount. Scoped it to the tier button, reran the
+affected suites, then the final full UI run above passed all 231 suites.
+
+git diff --check
+EXIT 0
+
+Unchanged: roomStore, savedRoomDraft schema/storage, schedule.ts, schedule-day.ts,
+budget-tiers.ts, submit mapping, scripts/distribute.sh and its test.

@@ -110,7 +110,7 @@ export function CardCredits({ data, inline = false }: { data: CardData; inline?:
   </>
 }
 
-export function CardShell({ props, data, small = false, showCredits = true, children, style }: { props: PlaceCardProps; data: CardData; small?: boolean; showCredits?: boolean; children: ReactNode; style: StyleProp<ViewStyle> }) {
+export function CardShell({ props, data, small = false, showCredits = true, children, style, surfaceAction }: { props: PlaceCardProps; data: CardData; small?: boolean; showCredits?: boolean; children: ReactNode; style: StyleProp<ViewStyle>; surfaceAction?: ReactNode }) {
   const Target = props.onPress ? Pressable : View
   return <View testID="place-card-surface" style={[styles.discoveryCard, style, props.style]}>
     <View testID={data.candidate ? small ? 'place-preview-compact' : 'import-preview-card' : undefined}>
@@ -120,6 +120,7 @@ export function CardShell({ props, data, small = false, showCredits = true, chil
       {props.footer ? <View style={styles.savedFooter}>{props.footer}</View> : null}
       {props.children ? <View style={styles.importActions}>{props.children}</View> : null}
     </View>
+    {surfaceAction}
   </View>
 }
 

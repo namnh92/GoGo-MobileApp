@@ -29,9 +29,9 @@ jest.mock('@/shared/api', () => ({
 
 import CreateBudgetScreen from '@/features/create-date/create-budget.view'
 import { tierForAmount } from '@/features/create-date/budget-tiers'
-import { useRoomStore } from '@/shared/store/roomStore'
+import { toCreateRoomBody, useRoomStore } from '@/shared/store/roomStore'
 
-const CHIP = /Dùng ngân sách thường dùng: 300–500k/
+const CHIP = /Dùng ngân sách thường dùng: 300.000đ – 500.000đ \/người/
 
 beforeEach(() => {
   useRoomStore.getState().resetDraft()
@@ -47,13 +47,23 @@ beforeEach(() => {
 describe('usual budget prefill on the budget step', () => {
   it('offers the tier the usual amount falls into', async () => {
     const view = await renderScreen(<CreateBudgetScreen />)
-    expect(view.getByText(CHIP)).toBeTruthy()
+    expect(view.getByRole('button', { name: CHIP })).toBeTruthy()
+  })
+
+  it('renders the prefill amount and unit without ellipsis and includes both in its accessible label (#594 F-02)', async () => {
+    const view = await renderScreen(<CreateBudgetScreen />)
+    const action = view.getByRole('button', { name: CHIP })
+    expect(action.props.accessibilityLabel).toContain('300.000đ – 500.000đ /người')
+    for (const amount of view.getAllByText(/300.000đ – 500.000đ \/người/)) {
+      expect(amount.props.numberOfLines ?? 0).toBe(0)
+      expect(amount.props.ellipsizeMode).not.toBe('tail')
+    }
   })
 
   it('keeps a tapped tier in the resumable draft before continuing', async () => {
     const view = await renderScreen(<CreateBudgetScreen />)
     await act(async () => {
-      await fireEvent.press(view.getByText(CHIP))
+      await fireEvent.press(view.getByRole('button', { name: CHIP }))
     })
     expect(useRoomStore.getState().budgetAmount).toBe(500_000)
     await act(async () => {
@@ -110,4 +120,21 @@ it('keeps the last tier inside the step scroll view (#333)', async () => {
   const scroll = view.getByTestId('create-budget-scroll')
   expect(scroll.type).toBe('RCTScrollView')
   expect(within(scroll).getByText('Không quan trọng')).toBeTruthy()
+})
+
+// #594: the same stored tier keeps its scope on every rendered amount.
+it.each([
+  ['couple', 'per_person', '/ cả phòng (2 người)', 'total'],
+  ['group-host', 'per_person', '/người', 'per_person'],
+  ['group-host', 'total', ' · tổng nhóm', 'total'],
+] as const)('shows units for %s / %s without changing the submitted amount', async (audience, mode, unit, expectedMode) => {
+  useRoomStore.getState().setAudience(audience)
+  useRoomStore.getState().setBudgetMode(mode)
+  const view = await renderScreen(<CreateBudgetScreen />)
+  const tier = view.getByRole('button', { name: /^300.000đ – 500.000đ / })
+  expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
+  await fireEvent.press(tier)
+  await fireEvent.press(view.getByText('Tiếp tục'))
+  expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({ budgetMode: expectedMode, budgetAmount: 500_000 })
+  if (audience === 'group-host') expect(view.queryByText(/cả hai|hai người/)).toBeNull()
 })

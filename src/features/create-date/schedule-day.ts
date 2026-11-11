@@ -1,4 +1,4 @@
-import { endSlotToIso, slotToIso } from './schedule'
+import { endSlotToIso, slotOnDateToIso, slotToIso } from './schedule'
 
 /** How many days the day row offers, today first (the draft shows four). */
 export const DAY_CHOICES = 4
@@ -50,6 +50,17 @@ export function scheduleToIso(
   dayKey: string | null,
   now = new Date(),
 ): { startAt: string | null; endAt: string | null } {
+  const explicitDay = dayKey ? dayStart(dayKey) : null
+  if (explicitDay) {
+    const startAt = startSlot ? slotOnDateToIso(startSlot, explicitDay) : null
+    let endAt = endSlot ? slotOnDateToIso(endSlot, explicitDay) : null
+    if (startAt && endAt && endAt <= startAt) {
+      const end = new Date(endAt)
+      end.setDate(end.getDate() + 1)
+      endAt = end.toISOString()
+    }
+    return { startAt, endAt }
+  }
   const base = dayBase(dayKey, now)
   const startAt = startSlot ? slotToIso(startSlot, base) : null
   return { startAt, endAt: endSlot ? endSlotToIso(endSlot, startAt, base) : null }

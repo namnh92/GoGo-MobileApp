@@ -55,7 +55,6 @@ jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: mockSessionStatus, session: null }),
 }))
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
-jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/location/use-current-location', () => ({
   useCurrentLocation: () => ({ state: { status: 'idle' }, request: jest.fn() }),
 }))
@@ -402,7 +401,7 @@ describe('#515 Stitch search row and empty recovery', () => {
     expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
     expect(known.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
     expect(known.queryByText(/65k/)).toBeNull()
-    expect(unknown.getByText('GoGo · Chưa đủ đánh giá')).toBeTruthy()
+    expect(unknown.queryByTestId('place-gogo-rating')).toBeNull()
     expect(unknown.queryByText(/Xác minh|Google|65k|người/)).toBeNull()
   })
 })

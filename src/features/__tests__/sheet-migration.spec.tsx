@@ -234,7 +234,7 @@ describe('time picker sheet', () => {
     await withReducedMotion(true)
     const view = await renderScreen(<CreateTimeScreen />)
     await press(view.getByTestId('create-time-end-row'))
-    const slot = view.getByText('19:00')
+    const slot = view.getByTestId('end-time-sheet-wheel-hours')
     // The wizard has its own "Đóng"; the backdrop is the one inside the sheet.
     expect(within(modalOf(slot)).getByRole('button', { name: 'Đóng' })).toBeTruthy()
     expect(modalOf(slot).props.animationType).not.toBe('slide')

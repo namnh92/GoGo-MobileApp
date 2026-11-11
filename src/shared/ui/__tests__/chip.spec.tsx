@@ -161,6 +161,7 @@ it('dispatches press and the separate remove action with their accessible labels
 
 // Audit inventory: row geometry is shared even where the row has screen-specific padding.
 const chipRows = [
+  ['features/create-date/create-location-fields.grid', () => jest.requireActual('@/features/create-date/create-location-fields.style').styles.grid],
   ['features/assistant/follow-ups.chips', () => jest.requireActual('@/features/assistant/follow-ups.style').styles.chips],
   ['features/assistant/proposal-edit.chips', () => jest.requireActual('@/features/assistant/proposal-edit.style').styles.chips],
   ['features/assistant/assistant-place-card.questions', () => jest.requireActual('@/features/assistant/assistant-place-card.style').styles.questions],
@@ -171,10 +172,6 @@ const chipRows = [
   ['features/tabs/profile.interests', () => jest.requireActual('@/features/tabs/profile.style').styles.interests],
   ['features/contributions/my-contributions.filters', () => jest.requireActual('@/features/contributions/my-contributions.style').styles.filters],
   ['features/review/my-reviews.filterRow', () => jest.requireActual('@/features/review/my-reviews.style').styles.filterRow],
-  ['features/create-date/create-mood.grid', () => jest.requireActual('@/features/create-date/create-mood.style').styles.grid],
-  ['features/create-date/create-mood.seedRow', () => jest.requireActual('@/features/create-date/create-mood.style').styles.seedRow],
-  ['features/create-date/date-time-sheet.shortcutRow', () => jest.requireActual('@/features/create-date/date-time-sheet.style').styles.shortcutRow],
-  ['features/create-date/date-time-sheet.timeRow', () => jest.requireActual('@/features/create-date/date-time-sheet.style').styles.timeRow],
   ['features/matching/preference.grid', () => jest.requireActual('@/features/matching/preference.style').styles.grid],
   ['features/matching/match-result.reasonChips', () => jest.requireActual('@/features/matching/match-result.style').styles.reasonChips],
   ['features/matching/suggestion-run-notice.constraintRow', () => jest.requireActual('@/features/matching/suggestion-run-notice.style').styles.constraintRow],

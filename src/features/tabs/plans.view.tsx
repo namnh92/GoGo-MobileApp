@@ -2,7 +2,8 @@ import { AppHeader } from '@/shared/ui/app-header.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
-import { DraftResume } from '@/features/create-date/draft-resume.view'
+import { DraftPlanCard } from '@/features/create-date/draft-plan-card.view'
+import { useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
 import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMemo, useState } from 'react'
@@ -34,7 +35,9 @@ export default function PlansScreen() {
   const router = useRouter()
   // The float button (#379) collapses on scroll; the list's end clears it.
   const fab = useAssistantFabScroll('plans')
-  const { status } = useSession()
+  const { status, session } = useSession()
+  const savedDraft = useSavedRoomDraft(state => state.draft)
+  const draft = status === 'user' && session?.userId && savedDraft?.ownerId === session.userId ? savedDraft : null
   const now = useFocusedNow()
 
   const canRead = status === 'user' || status === 'guest'
@@ -118,7 +121,8 @@ export default function PlansScreen() {
     return 'default'
   }
 
-  const isEmpty = !rooms.isPending && visible.length === 0 && !rooms.hasNextPage
+  const showDraft = tab === 'upcoming' && draft != null
+  const isEmpty = !showDraft && !rooms.isPending && visible.length === 0 && !rooms.hasNextPage
 
   return (
     <Atmosphere>
@@ -133,10 +137,6 @@ export default function PlansScreen() {
             <GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} />
           </View>
         ) : null}
-      </View>
-
-      <View style={styles.createAction}>
-        <DraftResume />
       </View>
 
       <SegmentedTabs value={tab} onChange={setTab} options={[
@@ -157,6 +157,7 @@ export default function PlansScreen() {
         scrollEventThrottle={fab.scrollEventThrottle}
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: fab.bottomInset }}
       >
+        {showDraft ? <DraftPlanCard key={draft.ownerId} draft={draft} style={styles.card} /> : null}
         {!canRead ? (
           <EmptyState
             title={t('plans.emptyTitle')}

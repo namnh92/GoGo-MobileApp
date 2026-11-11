@@ -10,7 +10,6 @@ import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen } from './ha
  * what a person presses. They render the shared in-app `Dialog` now.
  */
 
-const mockClearDraft = jest.fn(async () => undefined)
 const mockTransition = jest.fn()
 const mockRemoveMember = jest.fn()
 const mockReplace = jest.fn()
@@ -22,15 +21,6 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'alice' } }),
 }))
-jest.mock('@/shared/store/savedRoomDraft', () => {
-  const draft = { draft: { ownerId: 'alice', step: 'budget' } }
-  return {
-    useSavedRoomDraft: (select: (state: typeof draft) => unknown) => select(draft),
-    clearSavedRoomDraft: () => mockClearDraft(),
-    restoreRoomDraft: () => null,
-    draftStepPath: () => [],
-  }
-})
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockLoaded(mockRoomFor('group-host')),
@@ -44,7 +34,6 @@ jest.mock('@/shared/api', () => ({
 jest.mock('@/features/gogo-room/room-schedule-editor.view', () => ({ RoomScheduleEditor: () => null }))
 jest.mock('@/features/gogo-room/room-title-editor.view', () => ({ RoomTitleEditor: () => null }))
 
-import { DraftResume } from '@/features/create-date/draft-resume.view'
 import RoomManageScreen from '@/features/gogo-room/room-manage.view'
 
 let alert: jest.SpyInstance
@@ -59,28 +48,6 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
     await fireEvent.press(element)
   })
 }
-
-describe('delete a saved draft', () => {
-  it('asks in an in-app dialog and deletes only on the destructive button', async () => {
-    const view = await renderScreen(<DraftResume />)
-    await press(view.getByRole('button', { name: 'Xóa nháp' }))
-    expect(alert).not.toHaveBeenCalled()
-    expect(view.getByRole('header', { name: 'Xóa nháp' })).toBeTruthy()
-    expect(mockClearDraft).not.toHaveBeenCalled()
-
-    await press(view.getAllByRole('button', { name: 'Xóa nháp' }).at(-1)!)
-    expect(mockClearDraft).toHaveBeenCalledTimes(1)
-    expect(view.queryByRole('header', { name: 'Xóa nháp' })).toBeNull()
-  })
-
-  it('keeps the draft when cancelled', async () => {
-    const view = await renderScreen(<DraftResume />)
-    await press(view.getByRole('button', { name: 'Xóa nháp' }))
-    await press(view.getByRole('button', { name: 'Huỷ' }))
-    expect(mockClearDraft).not.toHaveBeenCalled()
-    expect(view.queryByRole('header', { name: 'Xóa nháp' })).toBeNull()
-  })
-})
 
 describe('room management', () => {
   it('confirms cancelling the room in an in-app dialog', async () => {

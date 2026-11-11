@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native-unistyles'
 
 export const styles = StyleSheet.create(theme => ({
   card: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[3] },
+  content: { flex: 1, minWidth: 0, minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[3] },
   /**
    * Past plans sit behind the live ones by surface, not by fading (#382): an
    * opacity multiplied into every label and took `text.secondary` under AA.
