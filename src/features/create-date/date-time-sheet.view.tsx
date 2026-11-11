@@ -85,8 +85,11 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
   }
 
   const weeks = monthGrid(view.year, view.month)
-  const selectedWeek = weeks.find(week => week.some(date => date && localDayKey(date) === day))
-  const visibleWeeks = expanded ? weeks : [selectedWeek ?? weeks.find(week => week.some(date => date && localDayKey(date) >= todayKey)) ?? weeks[0]]
+  const weekAnchor = view.year === pickedDay.getFullYear() && view.month === pickedDay.getMonth()
+    ? pickedDay : new Date(view.year, view.month, onCurrentMonth ? now.getDate() : 1)
+  const monday = weekAnchor.getDate() - (weekAnchor.getDay() + 6) % 7
+  const collapsedWeek = Array.from({ length: 7 }, (_, i) => new Date(view.year, view.month, monday + i))
+  const visibleWeeks = expanded ? weeks : [collapsedWeek]
   const wheelDefault = time ?? TIME_SLOTS.find(slot => !isPastSlot(slot, dayArg, now)) ?? '23:59'
   function openWheel() { setWheelTime(wheelDefault); setSlots(true) }
 

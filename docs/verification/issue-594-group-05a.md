@@ -191,3 +191,32 @@ Các khoảng dòng dưới đây thuộc snapshot round 1 tại `8f68365`, tín
 | [src/shared/i18n/vi.ts](../../src/shared/i18n/vi.ts) | 667–668, 683, 685, 687–688, 700, 708–710, 738–739, 752, 754, 1922–1950 |
 | [src/features/create-date/wizard-exit-prompt.view.tsx](../../src/features/create-date/wizard-exit-prompt.view.tsx) | 1–29 (mới) |
 | [src/features/create-date/wizard-exit-prompt.style.tsx](../../src/features/create-date/wizard-exit-prompt.style.tsx) | 1–8 (mới) |
+
+## Astra F-04/F-05 — 2026-11-11
+
+Basis: PR #598, branch `feature/GOGO-594-redesign-g05a-create`, production HEAD `54e4b5124f162a5abc6072eb5e19f9a59f91cbb1`. Worktree sạch trước khi thêm regression. Lượt FAIL-before chỉ thêm test, production vẫn nguyên HEAD; sau đó sửa đúng hai finding. Không stage/commit/push. Kết quả PASS dưới đây thuộc working-tree patch trên HEAD này.
+
+| Finding | Thay đổi | FAIL trên `54e4b51` → PASS sau sửa |
+| --- | --- | --- |
+| F-04 P1 | `schedule.ts` tách `slotOnDateToIso`: đặt giờ trên đúng ngày local; `slotToIso` time-only vẫn giữ next-occurrence. `schedule-day.ts` dùng chuyển đổi chính xác khi có day key hợp lệ, chỉ đẩy **end** sang hôm sau nếu end ≤ start. Giữ validation UI hiện hữu. | Regression UI chọn 12/11 qua lịch → wheel `00:00` → preset 2h → Continue → `toCreateRoomBody`. Trước sửa, draft vẫn `scheduleDay=2026-11-12`, nhưng payload start/end là **13/11 00:00/02:00**; expected **12/11 00:00/02:00**. Sau sửa khớp đúng ngày. Case kiểm soát wheel `23:00` + preset 2h cho end **13/11 01:00** PASS cả trước/sau. Unit explicit midnight hôm nay/ngày mai và explicit past slot: 3 FAIL trước → PASS sau; UI vẫn chặn past slot. Unit end `00:00`/`01:00`/bằng start: 3 PASS cả trước/sau. |
+| F-05 P2 | `date-time-sheet.view.tsx` dựng tuần thu gọn từ thứ Hai + 6 ngày liên tiếp, không dùng các ô null của `monthGrid`. Khi chuyển tháng bằng mũi tên vẫn chọn tuần đầu/current week như trước; expanded month giữ nguyên. `chooseDay` hiện hữu cập nhật header theo ngày chọn. | Regression expand → chọn **30/11/2026** → collapse: trước sửa thiếu `date-inline-day-2026-12-01` (1–6/12 trống). Sau sửa đủ **30/11–6/12**, chọn **1/12** ghi draft, selected và header **Tháng 12, 2026**, vẫn đủ cùng tuần. Regression current week ngày **1/12**: trước sửa thiếu **30/11**; sau sửa hiện và disabled, nhấn không đổi draft. |
+
+Lệnh FAIL/PASS giống nhau, chạy local UTC+07:00:
+
+| Lệnh regression | FAIL-before | PASS-after |
+| --- | --- | --- |
+| `pnpm test:ui create-date --runInBand -t '#594 F-'` | exit 1: **3 failed / 1 passed / 12 skipped**; F-04 payload lệch một ngày, hai F-05 thiếu ngày adjacent-month | exit 0: **4 passed / 12 skipped** |
+| `pnpm exec vitest run src/features/create-date/__tests__/schedule-day.test.ts -t '#594 F-04'` | exit 1: **3 failed / 3 passed / 6 skipped**; explicit slots bị roll sang hôm sau | exit 0: **6 passed / 6 skipped** |
+
+Ví dụ assertion F-04 trước sửa (UTC): expected start `2026-11-11T17:00:00.000Z`, received `2026-11-12T17:00:00.000Z`; expected end `2026-11-11T19:00:00.000Z`, received `2026-11-12T19:00:00.000Z`. Sau sửa payload đúng expected. Chọn end qua preset là đường crossing-midnight hiện được hỗ trợ; end wheel vẫn từ chối end ≤ start theo validation có sẵn.
+
+| Check patch cuối | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm test:ui create-date --runInBand` | PASS, exit 0: **2 suites / 16 tests** |
+| `pnpm exec vitest run src/features/create-date/__tests__` | PASS, exit 0: **4 files / 27 tests**, gồm schedule, schedule-day, calendar, resume-day |
+| `pnpm test:ui --runInBand src/features/__tests__/create-time.spec.tsx src/features/__tests__/create-time-day.spec.tsx` | PASS, exit 0: **2 suites / 28 tests**, gồm legacy selection, past validation, staged sheet, save/resume |
+| `pnpm exec eslint src/features/create-date/schedule.ts src/features/create-date/schedule-day.ts src/features/create-date/date-time-sheet.view.tsx src/features/create-date/__tests__/owner-feedback.spec.tsx src/features/create-date/__tests__/schedule-day.test.ts` | PASS, exit 0 |
+| `git diff --check` | PASS, exit 0 |
+
+Sandbox cho phép toàn bộ checks trên. Đây là regression component/payload và unit; chưa xác nhận lại trên simulator/native build. API contract/store schema/submit mapping không đổi.

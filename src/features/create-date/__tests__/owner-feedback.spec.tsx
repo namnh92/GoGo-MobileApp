@@ -153,3 +153,54 @@ it('localizes new calendar, wheel, and checkbox controls in English', async () =
   expect(mood.getByRole('checkbox', { name: 'Value' })).toBeTruthy()
   await act(async () => { await i18n.changeLanguage('vi') })
 })
+
+it.each([
+  { start: '00:00', end: '02:00', endDay: 12 },
+  { start: '23:00', end: '01:00', endDay: 13 },
+])('keeps the explicit wheel date in the payload for $start → $end (#594 F-04)', async ({ start, end, endDay }) => {
+  jest.setSystemTime(new Date(2026, 10, 11, 10))
+  const view = await renderScreen(<CreateTimeScreen />)
+  await fireEvent.press(view.getByTestId('date-inline-day-2026-11-12'))
+  await fireEvent.press(view.getByTestId('date-inline-other-time'))
+  const [hours, minutes] = start.split(':')
+  await fireEvent.press(view.getByTestId(`start-time-sheet-wheel-hours-${hours}`))
+  await fireEvent.press(view.getByTestId(`start-time-sheet-wheel-minutes-${minutes}`))
+  await fireEvent.press(view.getByText('Xong'))
+  expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-12', startTime: start })
+  expect(view.getByTestId('create-time-start-row').props.accessibilityLabel).toContain(start)
+  // The supported duration preset can cross midnight even though the end wheel
+  // deliberately refuses a manually picked end at/before the start.
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createTime.preset.upTo2h') }))
+  expect(useRoomStore.getState().endTime).toBe(end)
+  await fireEvent.press(view.getByText('Tiếp tục'))
+  expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({
+    startAt: new Date(2026, 10, 12, Number(hours), Number(minutes)).toISOString(),
+    endAt: new Date(2026, 10, endDay, Number(end.slice(0, 2)), 0).toISOString(),
+  })
+})
+
+it('collapses to seven cross-month dates and selects December with its header (#594 F-05)', async () => {
+  jest.setSystemTime(new Date(2026, 10, 30, 10))
+  const view = await renderScreen(<CreateTimeScreen />)
+  await fireEvent.press(view.getByTestId('date-inline-expand'))
+  await fireEvent.press(view.getByTestId('date-inline-day-2026-11-30'))
+  await fireEvent.press(view.getByTestId('date-inline-expand'))
+  expect(view.getAllByTestId('date-inline-week')).toHaveLength(1)
+  const keys = ['2026-11-30', ...Array.from({ length: 6 }, (_, i) => `2026-12-0${i + 1}`)]
+  for (const key of keys) expect(view.getByTestId(`date-inline-day-${key}`).props.accessibilityState.disabled).toBe(false)
+  await fireEvent.press(view.getByTestId('date-inline-day-2026-12-01'))
+  expect(useRoomStore.getState().scheduleDay).toBe('2026-12-01')
+  expect(view.getByTestId('date-inline-day-2026-12-01').props.accessibilityState.selected).toBe(true)
+  expect(view.getByText('Tháng 12, 2026')).toBeTruthy()
+  for (const key of keys) expect(view.getByTestId(`date-inline-day-${key}`)).toBeTruthy()
+})
+
+it('keeps past adjacent-month dates visible and disabled in the current week (#594 F-05)', async () => {
+  jest.setSystemTime(new Date(2026, 11, 1, 10))
+  const view = await renderScreen(<CreateTimeScreen />)
+  const past = view.getByTestId('date-inline-day-2026-11-30')
+  expect(past.props.accessibilityState.disabled).toBe(true)
+  await fireEvent.press(past)
+  expect(useRoomStore.getState().scheduleDay).toBeNull()
+  expect(view.getByTestId('date-inline-day-2026-12-01').props.accessibilityState.selected).toBe(true)
+})
