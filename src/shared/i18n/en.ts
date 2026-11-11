@@ -858,7 +858,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createMood.settingTitle': 'Setting',
   'createMood.spendingTitle': 'Spending style',
   'createMood.seedTitle': 'Places you want to suggest',
-  'createMood.seedRadiusUnsupported': 'Place search does not support an unlimited distance yet. Choose a radius in step 1 to add places.',
   'createMood.seedScopeUnavailable': 'Choose a valid area or position and radius in step 1 to add places.',
   'createMood.seedHint': 'Optional — GoGo will prioritize them in the plan.',
   'createMood.addPlace': '＋ Add place',

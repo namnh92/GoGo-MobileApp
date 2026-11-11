@@ -229,14 +229,68 @@ it('round 4: malformed explicit picker scope never falls back to global search',
   expect(mockQueries.every(call => call.query.provinceCode === undefined)).toBe(true)
 })
 
-it('round 4: unlimited GPS picker is blocked by the actual search contract', async () => {
+it.each([mockArea, { ...mockArea, communeCode: null, communeName: null }])('GPS anywhere: resolved administrative area becomes the opaque picker scope (%j)', async area => {
+  useRoomStore.getState().patchDraft({ originLat: 10.77123, originLng: 106.71234, radiusM: null })
+  useAppAreaStore.setState({ area, scope: { status: 'ready', source: 'gps', position: { lat: 10.77123, lng: 106.71234 } } })
+  const wizard = await renderScreen(<CreateMoodScreen />)
+  const add = wizard.getByRole('button', { name: i18n.t('createMood.addPlace') })
+  expect(add).toBeEnabled()
+  await fireEvent.press(add)
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: {
+    picker: '1', pickerScope: expect.stringMatching(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i),
+  } })
+  mockParams = mockPush.mock.calls[0][0].params
+  expect(readPickerScope(mockParams.pickerScope)).toEqual({ status: 'ready', source: 'selected_area', area })
+  expect(JSON.stringify(mockParams)).not.toMatch(/10\.77123|106\.71234|"lat"|"lng"|ds-wizard/)
+  await renderScreen(<SearchScreen />)
+  const enabled = mockQueries.filter(call => call.enabled)
+  expect(enabled.length).toBeGreaterThan(0)
+  for (const { query } of enabled) {
+    expect(query).toMatchObject({ datasetVersion: area.datasetVersion, provinceCode: area.provinceCode })
+    expect(query.communeCode ?? null).toBe(area.communeCode)
+    expect(query.lat).toBeUndefined(); expect(query.lng).toBeUndefined(); expect(query.radiusM).toBeUndefined()
+  }
+  // The picker freezes its area even if the app selection changes afterwards.
+  await act(async () => useAppAreaStore.setState({ area: mockGlobal, scope: { status: 'ready', source: 'selected_area', area: mockGlobal } }))
+  expect(readPickerScope(mockParams.pickerScope)).toEqual({ status: 'ready', source: 'selected_area', area })
+})
+
+it.each(['pending', 'failed', 'different-position', 'manual'] as const)('GPS anywhere: %s resolution keeps Add disabled with a reason', async resolution => {
   useRoomStore.getState().patchDraft({ originLat: 10, originLng: 106, radiusM: null })
+  useAppAreaStore.setState(resolution === 'pending'
+    ? { area: mockArea, scope: { status: 'resolving' } }
+    : resolution === 'failed'
+      ? { area: null, scope: { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } } }
+      : resolution === 'different-position'
+        ? { area: mockArea, scope: { status: 'ready', source: 'gps', position: { lat: 11, lng: 106 } } }
+        : { area: mockGlobal, scope: { status: 'ready', source: 'selected_area', area: mockGlobal } })
   const view = await renderScreen(<CreateMoodScreen />)
   const add = view.getByRole('button', { name: i18n.t('createMood.addPlace') })
-  expect(add.props.accessibilityState.disabled).toBe(true)
-  expect(view.getByText(i18n.t('createMood.seedRadiusUnsupported'))).toBeTruthy()
+  expect(add).toBeDisabled()
+  expect(view.getByText(i18n.t('createMood.seedScopeUnavailable'))).toBeTruthy()
   await fireEvent.press(add)
   expect(mockPush).not.toHaveBeenCalled()
+})
+
+it('GPS anywhere: pending resolution enables Add when the matching area arrives', async () => {
+  useRoomStore.getState().patchDraft({ originLat: 10, originLng: 106, radiusM: null })
+  useAppAreaStore.setState({ area: null, scope: { status: 'resolving' } })
+  const view = await renderScreen(<CreateMoodScreen />)
+  expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeDisabled()
+  await act(async () => useAppAreaStore.setState({ area: mockArea, scope: { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } } }))
+  const add = view.getByRole('button', { name: i18n.t('createMood.addPlace') })
+  expect(add).toBeEnabled()
+  expect(view.queryByText(i18n.t('createMood.seedScopeUnavailable'))).toBeNull()
+  await fireEvent.press(add)
+  expect(readPickerScope(mockPush.mock.calls[0][0].params.pickerScope)).toEqual({ status: 'ready', source: 'selected_area', area: mockArea })
+})
+
+it('GPS finite radius: resolved administrative area does not replace coordinates and radius', async () => {
+  useRoomStore.getState().patchDraft({ originLat: 10, originLng: 106, radiusM: 5000 })
+  useAppAreaStore.setState({ area: mockArea, scope: { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } } })
+  const view = await renderScreen(<CreateMoodScreen />)
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+  expect(readPickerScope(mockPush.mock.calls[0][0].params.pickerScope)).toEqual({ status: 'ready', source: 'gps', position: { lat: 10, lng: 106 }, radiusM: 5000 })
 })
 
 it('round 5: seed remove is inside each full-width small card and only removes that seed', async () => {

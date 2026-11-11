@@ -20,6 +20,7 @@ import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
+import { useAppAreaStore } from '@/shared/location/app-area'
 import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/location/picker-scope'
 import { ExpandToggle } from '@/shared/ui/expand-toggle.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
@@ -104,7 +105,17 @@ export default function CreateMoodScreen() {
   const originLat = useRoomStore(state => state.originLat)
   const originLng = useRoomStore(state => state.originLng)
   const radiusM = useRoomStore(state => state.radiusM)
-  const pickerScope = draftPickerScope({ administrativeArea, originLat, originLng, radiusM })
+  const resolvedArea = useAppAreaStore(state => state.area)
+  const resolvedScope = useAppAreaStore(state => state.scope)
+  // The area lookup can lag behind a new native fix. Only use the area that
+  // resolves this draft's position, as the location field does in step 1.
+  const gpsArea = resolvedScope.status === 'ready' && resolvedScope.source === 'gps'
+    && resolvedScope.position.lat === originLat && resolvedScope.position.lng === originLng
+    ? resolvedArea : null
+  const pickerScope = draftPickerScope({
+    administrativeArea: administrativeArea ?? (radiusM === null ? gpsArea : null),
+    originLat, originLng, radiusM,
+  })
   const pickerScopeId = useRef<string | null>(null)
   const pickerOpening = useRef(false)
   const [isPickerOpening, setIsPickerOpening] = useState(false)
@@ -257,8 +268,7 @@ export default function CreateMoodScreen() {
             }} />
           </View>
           {!pickerScope ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">
-            {t(!administrativeArea && originLat != null && originLng != null && radiusM === null
-              ? 'createMood.seedRadiusUnsupported' : 'createMood.seedScopeUnavailable')}
+            {t('createMood.seedScopeUnavailable')}
           </Text> : null}
 
           {error ? (

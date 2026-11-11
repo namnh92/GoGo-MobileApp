@@ -878,3 +878,32 @@ F-17 is a DEV requirement disposition only, with no runtime or test changes. Sho
 | `git diff --check` | — | **PASS**, exit 0 |
 
 Logs: `/tmp/594-f16-before-800184a.log`, `/tmp/594-f16-after.log`, `/tmp/594-f16-create-date.log`. Both requested test commands ran in the sandbox. No staging or commit; no native simulator or DEV acceptance claim.
+
+## Owner decision — GPS + “Bất kỳ đâu” administrative-area picker (2026-11-11)
+
+Basis: PR #598, `feature/GOGO-594-redesign-g05a-create`, baseline HEAD `547f6b8` in `mobile-594`. Owner decision in workspace `dev/policy/decisions-log.md`: GPS + unlimited searches within the administrative area resolved for that position. This supersedes the round-4 B1 unlimited-GPS BLOCKED status and its later references above; the search API contract is unchanged.
+
+- Mood subscribes to the existing area controller used by step 1 / `administrativeAreaLabel`. When draft GPS has `radiusM=null`, it uses the resolved province/city + optional ward/commune only if the controller's ready GPS coordinates match the draft. Pending/failed resolution, a stale position, or an unrelated manual app area leaves Add disabled with the existing `seedScopeUnavailable` reason. The control reacts when resolution completes.
+- The existing `draftPickerScope` validates an area snapshot, and the existing opaque `pickerScope` UUID store carries it to Search. URLs contain only `picker=1` and the UUID; no coordinates or area data. Search receives canonical dataset/province/commune codes without lat/lng/radius, and the snapshot survives a subsequent app-area change.
+- GPS + finite radius still uses exact draft coordinates + radius even with a resolved area. Manual draft area keeps precedence. Room creation payload and search contract are unchanged. Removed unused `seedRadiusUnsupported` copy in vi/en.
+
+### FAIL before / PASS after
+
+New focused regressions were installed first, with production source still at `547f6b8`:
+
+| Command / evidence | Baseline `547f6b8` | Working-tree patch |
+| --- | --- | --- |
+| `pnpm test:ui --runInBand src/features/create-date/__tests__/round-four.spec.tsx -t 'GPS anywhere\|GPS finite radius'` | **7 FAIL, 1 PASS**, 19 skipped | **8 PASS**, 19 skipped |
+
+Baseline failures: two resolved-area cases and the pending-to-resolved transition remain disabled; four unavailable-area cases still show obsolete radius-specific copy instead of the retained scope-unavailable reason. Finite-radius preservation already passes. After the patch all eight pass, including area-scoped Search queries, UUID-only navigation, province-only resolution, and frozen picker scope. Existing manual-area tests also pass in the full UI gate.
+
+Logs: `/tmp/594-gps-anywhere-before.log`, `/tmp/594-gps-anywhere-after.log`.
+
+### Checks
+
+- `pnpm typecheck` — **PASS** (`/tmp/594-gps-anywhere-typecheck.log`).
+- `pnpm test:ui create-date search --runInBand` — **PASS**, 14 suites / 289 tests (`/tmp/594-gps-anywhere-ui.log`).
+- `pnpm exec eslint src/features/create-date/create-mood.view.tsx src/features/create-date/__tests__/round-four.spec.tsx src/shared/i18n/vi.ts src/shared/i18n/en.ts` — **PASS**, no diagnostics (`/tmp/594-gps-anywhere-lint.log`).
+- `git diff --check` — **PASS**.
+
+Component regression evidence only; no simulator/native build or live API acceptance in this patch. No changes to `mobile-647`; no git add/commit/push. Index remains empty.
