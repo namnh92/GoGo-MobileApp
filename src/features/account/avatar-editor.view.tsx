@@ -4,7 +4,8 @@ import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigation } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { BackHandler, Image, Pressable, View, useWindowDimensions } from 'react-native'
+import { Image } from 'expo-image'
+import { BackHandler, Pressable, View, useWindowDimensions } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Svg, { Circle, Defs, G, Line, Mask, Rect } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -81,7 +82,7 @@ export function AvatarEditor({ asset, busy, error, onClose, onChooseAnother, onC
                 const action = e.nativeEvent.actionName
                 update({ ...value, x: value.x + (action === 'left' ? -10 : action === 'right' ? 10 : 0), y: value.y + (action === 'up' ? -10 : action === 'down' ? 10 : 0) })
               } }} style={[styles.viewport, { width: viewport, height: viewport }]}>
-              <Image source={{ uri: asset.uri }} accessibilityLabel={t('account.avatarPreview')} style={{ position: 'absolute', width: asset.width * geometry.scale, height: asset.height * geometry.scale,
+              <Image cachePolicy="memory-disk" source={{ uri: asset.uri, cacheKey: asset.uri }} accessibilityLabel={t('account.avatarPreview')} style={{ position: 'absolute', width: asset.width * geometry.scale, height: asset.height * geometry.scale,
                 left: (viewport - asset.width * geometry.scale) / 2 + geometry.x, top: (viewport - asset.height * geometry.scale) / 2 + geometry.y,
                 transform: [{ scaleX: value.flipped ? -1 : 1 }, { rotate: `${value.rotation}deg` }] }} />
               <Svg width={viewport} height={viewport} viewBox="0 0 350 350" style={styles.mask} pointerEvents="none" accessibilityElementsHidden>

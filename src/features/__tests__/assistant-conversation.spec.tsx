@@ -11,7 +11,7 @@ import { AccessibilityInfo } from 'react-native'
  */
 
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn(), canGoBack: () => true }
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(),
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
   Redirect: () => null,
@@ -28,6 +28,8 @@ import AssistantRoute from '@/app/assistant'
 
 import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
 
+// The harness installs scriptedTime: list batches and stream timers stay on
+// the controlled clock through awaited cleanup and the final act drain (#606).
 syncTanstackNotifications()
 
 beforeEach(() => {
@@ -81,7 +83,7 @@ it('a sourced answer: the question in an accent bubble, the list, cites, sources
 })
 
 it('while generating: the step, Send turns into Stop, and Stop keeps what was written', async () => {
-  // Real time for this one: the long reply streams for seconds.
+  // Keep the long reply's delays; waitFor advances the scripted clock in act.
   const backend = installBackend({ seed: false, speed: 1 })
   const view = await renderAssistant(<AssistantRoute />)
   await ask(view, 'Giải thích trả lời dài về ngân sách')
@@ -105,12 +107,13 @@ it('place results as cards with verified facts, and the place-data source', asyn
   await replyEnded(view)
   const card = within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000001'))
   expect(card.getByText('Nhà Lá Café')).toBeTruthy()
-  expect(card.getByText('45k–90k/người')).toBeTruthy()
-  expect(card.getByText('Đang mở')).toBeTruthy()
-  expect(within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000002')).getByText('Đã đóng')).toBeTruthy()
+  expect(card.getByTestId('place-card-small')).toBeTruthy()
+  expect(card.queryByTestId('place-card-price')).toBeNull()
+  expect(card.queryByText('Đang mở')).toBeNull()
+  expect(within(view.getByTestId('assistant-card-1b2c3d4e-0000-4000-8000-000000000002')).queryByText('Đã đóng')).toBeNull()
   expect(view.getByText(/Từ dữ liệu địa điểm GoGo · Kiểm tra lần cuối/)).toBeTruthy()
   await act(async () => {
-    await fireEvent.press(card.getByRole('button', { name: 'Xem địa điểm' }))
+    await fireEvent.press(card.getByRole('button', { name: 'Nhà Lá Café' }))
   })
   expect(mockRouter.push).toHaveBeenCalledWith('/places/1b2c3d4e-0000-4000-8000-000000000001')
 })

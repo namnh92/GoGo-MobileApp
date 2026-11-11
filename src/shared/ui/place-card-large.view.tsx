@@ -20,7 +20,7 @@ export function PlaceCardLarge(props: PlaceCardProps) {
         <View testID="place-card-body" style={styles.body}>
           {props.bodyLeading}
           <View testID="place-card-title-row" style={styles.titleRow}>
-            <Text testID="place-card-name" variant="discoveryHeading" color="redesign.ink" style={[styles.name, props.unavailableLabel && styles.unavailableName]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
+            <Text testID="place-card-name" variant="discoveryHeading" color="text.primary" style={[styles.name, props.unavailableLabel && styles.unavailableName]} numberOfLines={1} ellipsizeMode="tail">{place.name}</Text>
             <CardPrice place={place} />{props.headingAction}
           </View>
           <PlaceCardAddress place={place} />

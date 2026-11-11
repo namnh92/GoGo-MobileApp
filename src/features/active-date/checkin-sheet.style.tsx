@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { chipRowGap, overlay, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[5] },
@@ -17,7 +17,7 @@ export const styles = StyleSheet.create(theme => ({
   star: { minWidth: touchTarget.min, minHeight: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
   section: { gap: spacing[3], marginBottom: spacing[5] },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], alignItems: 'center' },
   photoThumb: { width: 72, height: 72, borderRadius: radius.compact },
   /** Sits over the thumbnail while the presign → PUT round trip is in flight. */

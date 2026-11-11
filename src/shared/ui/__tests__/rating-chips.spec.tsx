@@ -31,8 +31,8 @@ it.each(['orange', 'orangeDark'] as const)('uses finite badge geometry and seman
   } finally { create.mockRestore() }
   const theme = themes[themeName]
   const styles = factory!(theme)
-  expect(styles.google.backgroundColor).toBe(theme.redesign.container)
-  expect(styles.gogo.backgroundColor).toBe(theme.redesign.violetSoft)
+  expect(styles.google.backgroundColor).toBe(theme.surface.container)
+  expect(styles.gogo.backgroundColor).toBe(theme.status.infoSoft)
   for (const badge of [styles.google, styles.gogo]) expect(Number.isFinite(badge.borderRadius)).toBe(true)
 })
 
@@ -45,7 +45,7 @@ it.each(['orange', 'orangeDark'] as const)('detail keeps the Stitch badge geomet
   } finally { create.mockRestore() }
   const styles = factory!(themes[themeName])
   expect(styles.detailBadge).toMatchObject({ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 })
-  expect(styles.detailGoogle).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderWidth: 1, borderColor: themes[themeName].redesign.highest })
+  expect(styles.detailGoogle).toMatchObject({ backgroundColor: themes[themeName].surface.card, borderWidth: 1, borderColor: themes[themeName].surface.highest })
   const view = await renderScreen(<RatingChips detail place={{ rating: 4.7, ratingCount: 1280, ratingSource: 'google', gogoRating: 4.9, gogoRatingCount: 20 }} />)
   expect(view.getByTestId('place-card-ratings').children.map(child => typeof child === 'string' ? child : child.props.testID)).toEqual(['place-google-rating', 'place-gogo-rating'])
 })

@@ -1,5 +1,9 @@
 import type { ExpoConfig } from 'expo/config'
 
+// Node 22 (also CI) strips this pure TypeScript module. An explicit extension
+// is required here: Expo config runs before Metro/path-alias resolution.
+const { brandLogo, darkSurface, surface } = require('./src/shared/ui/tokens.ts') as typeof import('./src/shared/ui/tokens')
+
 /**
  * Which app a build *is*, decided before any React code runs.
  *
@@ -9,9 +13,9 @@ import type { ExpoConfig } from 'expo/config'
  * normal case, two apps cannot share an identifier at all, and two apps
  * sharing a scheme make `gogo://` open whichever the OS picked last.
  *
- * Everything here is inline on purpose: Expo evaluates this file in Node
- * before the TypeScript path aliases or the app's runtime modules exist, so it
- * cannot import them. The mapping is covered by
+ * App identity stays inline: Expo evaluates this file in Node before the
+ * TypeScript path aliases or runtime modules exist. Only the pure colour token
+ * module is shared, using Node's explicit TypeScript path. The mapping is covered by
  * `src/shared/config/__tests__/app-config.test.ts`, which loads this very file.
  */
 export const FLAVORS = ['dev', 'stag', 'prod'] as const
@@ -226,9 +230,10 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
-  backgroundColor: '#F6F3EE',
+  backgroundColor: surface.canvas,
   icon: './assets/icon.png',
   ios: {
+    icon: './assets/icon.png',
     bundleIdentifier: identity.bundleId,
     ...(appleTeamId ? { appleTeamId } : {}),
     buildNumber: iosBuildNumber,
@@ -260,7 +265,9 @@ const config: ExpoConfig = {
       : {}),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#D84F4A',
+      backgroundImage: './assets/adaptive-icon-background.png',
+      // Fixed official brand canvas; the user's accent never recolours the icon.
+      backgroundColor: brandLogo.background,
     },
   },
   plugins: [
@@ -311,9 +318,10 @@ const config: ExpoConfig = {
         image: './assets/splash-icon.png',
         imageWidth: 180,
         resizeMode: 'contain',
-        backgroundColor: '#FFF8F3',
+        backgroundColor: surface.canvas,
         dark: {
-          backgroundColor: '#181715',
+          image: './assets/splash-icon-dark.png',
+          backgroundColor: darkSurface.canvas,
         },
       },
     ],

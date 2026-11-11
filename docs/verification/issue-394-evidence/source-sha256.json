@@ -1,0 +1,9 @@
+{
+  "src/features/assistant/proposal-rows.ts": "01390d66167d968ff03c13eece0aa7cfcd6276bad679aee473e6b0c83c22ee76",
+  "src/features/assistant/use-proposal-rows.ts": "bd7784bb8bb2a9bb29c1d39387c962c6a3fb16acbdd3248e12624a4ddbc44427",
+  "src/features/assistant/confirmation-card.view.tsx": "771e4313a7ad312ce43c2a7690ce018ab719e459399d0d5bd78abffc74c8dd00",
+  "src/features/assistant/task-summary.view.tsx": "35fa4d86f535b680de2c3e73b834fab3be91e90cfef151587cb0cbf8910c61b5",
+  "src/shared/i18n/vi.ts": "4825c532d3a9d249634a0252af4dd3054404148296b706ad911e43f99fd37fb7",
+  "src/shared/i18n/en.ts": "53836054dd47d590d65c6aec59f63c2c9f714a88fdaddfee6a8747cf2e082515",
+  "src/features/__tests__/assistant-proposal-area.spec.tsx": "5d3bdc715a6c16bae44ede02cedd542d1463089f4f17d4d22195cd4ecb1289ab"
+}

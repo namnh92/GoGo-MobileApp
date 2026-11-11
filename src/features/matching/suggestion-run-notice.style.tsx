@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   container: {
@@ -46,5 +46,5 @@ export const styles = StyleSheet.create(theme => ({
   body: { textAlign: 'center' },
   actions: { alignSelf: 'stretch', gap: spacing[2] },
   error: { textAlign: 'center' },
-  constraintRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing[2], marginTop: spacing[2] },
+  constraintRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: chipRowGap, marginTop: spacing[2] },
 }))

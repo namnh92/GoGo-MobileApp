@@ -35,12 +35,12 @@ it('renders both auth modes and nested inputs in dark', async () => {
   const expectHeader = (title: string) => {
     const back = screen.getByRole('button', { name: 'Quay lại' })
     const label = within(back.parent!).getByText(title)
-    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: themes.orangeDark.redesign.ink })
+    expect(StyleSheet.flatten(label.props.style)).toMatchObject({ textAlign: 'left', color: themes.orangeDark.text.primary })
     expect(StyleSheet.flatten(label.parent!.parent!.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
     expect(StyleSheet.flatten(back.parent!.props.style)).toMatchObject({ minHeight: 56, gap: 8 })
     // S-04: both auth modes need an opaque canvas below the header material.
     const header = flat(back.parent!.parent!.props.style)
-    expect(header.backgroundColor).toBe(themes.orangeDark.redesign.canvas)
+    expect(header.backgroundColor).toBe(themes.orangeDark.surface.canvas)
     expect(header.opacity ?? 1).toBe(1)
   }
   expectHeader('Đăng nhập')

@@ -19,12 +19,12 @@ export function LabelledInput({ label, icon, trailing, accessory, error, childre
   const helpers = <>{children}{error && <Text variant="introCaption" color="status.dangerText">{error}</Text>}</>
   return <View ref={groupRef} testID={groupTestID} onLayout={onGroupLayout} style={styles.field}>
     <View ref={controlRef} style={styles.field}>
-      <View style={styles.labelRow}><Text variant="introLabel" color="redesign.ink">{label}</Text>{accessory}</View>
+      <View style={styles.labelRow}><Text variant="introLabel" color="text.primary">{label}</Text>{accessory}</View>
       <View style={[styles.shell, focused && styles.focus, !!error && styles.invalid, input.editable === false && styles.disabled]}>
         <View style={styles.row}>
-          <MaterialIcon name={icon} size={20} color="redesign.outline" />
+          <MaterialIcon name={icon} size={20} color="border.outline" />
           <TextInput {...input} allowFontScaling={false} ref={ref} accessibilityLabel={input.accessibilityLabel ?? label}
-            multiline={false} placeholderTextColor={theme.redesign.outline} style={styles.input}
+            multiline={false} placeholderTextColor={theme.border.outline} style={styles.input}
             onFocus={event => { setFocused(true); input.onFocus?.(event) }}
             onBlur={event => { setFocused(false); input.onBlur?.(event) }} />
           {trailing}

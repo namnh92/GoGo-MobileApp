@@ -1,27 +1,27 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget, shadows } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, tabRootSpacing, touchTarget, shadows } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  interests: { flexDirection: 'row', gap: spacing[2] },
-  groupTitle: { marginHorizontal: spacing[5], marginBottom: spacing[2], textTransform: 'uppercase' },
-  settingsCard: { marginHorizontal: spacing[4], marginBottom: spacing[6], borderRadius: 12, overflow: 'hidden', ...shadows.stitch },
+  interests: { flexDirection: 'row', gap: chipRowGap },
+  groupTitle: { marginHorizontal: spacing[5], marginBottom: tabRootSpacing.headingContent, textTransform: 'uppercase' },
+  settingsCard: { marginHorizontal: spacing[4], marginBottom: tabRootSpacing.section, borderRadius: 12, overflow: 'hidden', ...shadows.subtle },
   rowValue: { maxWidth: '28%' },
-  banner: { marginHorizontal: spacing[4], marginBottom: spacing[5], padding: spacing[3], borderRadius: 12, backgroundColor: theme.redesign.violetSoft, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  banner: { marginHorizontal: spacing[4], marginBottom: spacing[5], padding: spacing[3], borderRadius: 12, backgroundColor: theme.status.infoSoft, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   shortcutPress: { flex: 1, minWidth: 0, borderRadius: 12 },
   headerCard: {
     marginHorizontal: spacing[4],
-    marginBottom: spacing[6],
+    marginBottom: tabRootSpacing.section,
     padding: spacing[4],
     borderRadius: 12,
-    ...shadows.stitch,
+    ...shadows.subtle,
     gap: spacing[3],
   },
   identityText: { flex: 1, minWidth: 0 },
   email: { marginTop: 2 },
 
-  card: { marginHorizontal: spacing[4], padding: spacing[4], marginBottom: spacing[6], gap: spacing[3], borderRadius: 12, ...shadows.stitch },
+  card: { marginHorizontal: spacing[4], padding: spacing[4], marginBottom: tabRootSpacing.section, gap: spacing[3], borderRadius: 12, ...shadows.subtle },
   caption: {
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -33,12 +33,12 @@ export const styles = StyleSheet.create(theme => ({
     flexDirection: 'row',
     gap: spacing[2],
     marginHorizontal: spacing[4],
-    marginBottom: spacing[6],
+    marginBottom: tabRootSpacing.section,
   },
   shortcut: {
     flex: 1,
     borderRadius: 12,
-    ...shadows.stitch,
+    ...shadows.subtle,
     padding: spacing[2],
     alignItems: 'center',
     gap: 2,
@@ -52,7 +52,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.redesign.primarySoft,
+    backgroundColor: theme.accent.container,
     marginBottom: spacing[1],
   },
 
@@ -74,15 +74,15 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.redesign.container,
+    backgroundColor: theme.surface.container,
   },
   inboxBadge: { marginLeft: 'auto', marginRight: spacing[2] },
   settingLead: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flexShrink: 1 },
   settingLabel: { flexShrink: 1 },
   edit: { borderWidth: 0, backgroundColor: 'transparent' },
-  plansIcon: { backgroundColor: theme.redesign.violetSoft },
-  reviewsIcon: { backgroundColor: theme.redesign.container },
-  bannerIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.redesign.violet, alignItems: 'center', justifyContent: 'center' },
+  plansIcon: { backgroundColor: theme.status.infoSoft },
+  reviewsIcon: { backgroundColor: theme.surface.container },
+  bannerIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.status.info, alignItems: 'center', justifyContent: 'center' },
   rowTail: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], maxWidth: '40%' },
   accentDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: theme.accent.primary },
 

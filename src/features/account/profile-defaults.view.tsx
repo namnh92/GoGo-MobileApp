@@ -128,19 +128,19 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
           <Icon name="sliders" size={20} color="accent.onSoft" />
         </View>
         <View style={styles.titleText}>
-          <Text variant="introHeading" color="redesign.ink">{t('g11.personalise')}</Text>
-          <Text variant="introRelaxed" color="redesign.secondary">{t('g11.personaliseBody')}</Text>
+          <Text variant="introHeading" color="text.primary">{t('g11.personalise')}</Text>
+          <Text variant="introRelaxed" color="text.secondary">{t('g11.personaliseBody')}</Text>
         </View>
       </View>
     </Card>
 
     <View style={styles.section}>
-      <View style={styles.heading}><MaterialIcon name="nearMe" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('account.homeArea')}</Text><Text variant="introCaption" color="redesign.secondary">{t('g11.homeAreaHint')}</Text></View>
+      <View style={styles.heading}><MaterialIcon name="nearMe" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('account.homeArea')}</Text><Text variant="introCaption" color="text.secondary">{t('g11.homeAreaHint')}</Text></View>
       <Card appearance="stitch" padded={false} style={styles.field}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('account.areaLabel')} disabled={update.isPending}
           accessibilityState={{ disabled: update.isPending }} onPress={() => setAreaOpen(true)}
           style={({ pressed }) => [styles.areaRow, pressed && styles.pressed]}>
-          <View style={styles.areaIcon}><MaterialIcon name="location" color="redesign.primaryText" /></View>
+          <View style={styles.areaIcon}><MaterialIcon name="location" color="accent.text" /></View>
           <View style={styles.titleText}>
             <Text variant="introCaption" color="text.secondary">{t('account.areaLabel')}</Text>
             <Text variant="introBody">{currentArea
@@ -157,12 +157,12 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
     </View>
 
     <View style={styles.section}>
-      <View style={styles.heading}><MaterialIcon name="payments" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('g11.budgetHeading')}</Text><Text variant="introCaption" color="redesign.secondary">{t('g11.perPerson')}</Text></View>
+      <View style={styles.heading}><MaterialIcon name="payments" color="accent.primary" /><Text variant="introHeading" style={styles.titleText}>{t('g11.budgetHeading')}</Text><Text variant="introCaption" color="text.secondary">{t('g11.perPerson')}</Text></View>
       <Card appearance="stitch" padded={false} style={styles.field}><View style={styles.budgetGroup} accessibilityRole="radiogroup" accessibilityLabel={t('account.usualBudget')}>
         {[{ key: 'none', amount: null }, ...BUDGET_TIERS].map(tier => (
           <Pressable key={tier.key} accessibilityRole="radio" accessibilityState={{ checked: currentBudget === tier.amount }}
             onPress={() => { if (!saving.current) setBudget(tier.amount) }} style={({ pressed }) => [styles.budgetRow, currentBudget === tier.amount && styles.budgetSelected, pressed && styles.pressed]}>
-            <MaterialIcon name={BUDGET_ICON[tier.key] ?? 'payments'} color={currentBudget === tier.amount ? 'accent.onSoft' : 'redesign.secondary'} /><Text variant="introBody" color={currentBudget === tier.amount ? 'accent.onSoft' : 'redesign.ink'} style={styles.titleText}>{tier.key === 'none' ? t('account.usualBudgetNone') : t(`createBudget.tier.${tier.key}`)}</Text>
+            <MaterialIcon name={BUDGET_ICON[tier.key] ?? 'payments'} color={currentBudget === tier.amount ? 'accent.onSoft' : 'text.secondary'} /><Text variant="introBody" color={currentBudget === tier.amount ? 'accent.onSoft' : 'text.primary'} style={styles.titleText}>{tier.key === 'none' ? t('account.usualBudgetNone') : t(`createBudget.tier.${tier.key}`)}</Text>
             <View style={[styles.radio, currentBudget === tier.amount && styles.radioSelected]}>{currentBudget === tier.amount ? <Icon name="check" size={16} color="accent.onSoft" /> : null}</View>
           </Pressable>
         ))}
@@ -198,7 +198,7 @@ export function ProfileDefaultsCard({ profile, page = false }: { profile: Me; pa
       </Card>
     </View>
 
-      <View style={styles.note}><MaterialIcon name="sparkle" size={24} color="redesign.violetText" /><Text variant="introCaption" color="redesign.secondary" style={styles.titleText}>{t('g11.defaultsNote')}</Text></View>
+      <View style={styles.note}><MaterialIcon name="sparkle" size={24} color="status.infoText" /><Text variant="introCaption" color="text.secondary" style={styles.titleText}>{t('g11.defaultsNote')}</Text></View>
       {page ? null : saveButton}
       {notice ? (
         <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>

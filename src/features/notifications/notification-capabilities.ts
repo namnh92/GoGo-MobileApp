@@ -19,7 +19,7 @@ export const generatedNotificationCapabilities = {
   categoryPatch: true as const satisfies HasMethod<'/me/notification-settings', 'patch'>,
   categoryFields: true as const satisfies ('categories' extends keyof Settings ? true : false),
   categoryFilter: true as const satisfies ('kinds' extends keyof InboxQuery ? true : false),
-  quietHours: false as const satisfies ('quietHours' extends keyof Settings ? true : false),
+  quietHours: true as const satisfies ('quietHours' extends keyof Settings ? true : false),
 }
 
 export function notificationCapabilities(settings?: Settings & { etag?: string }) {
@@ -28,6 +28,9 @@ export function notificationCapabilities(settings?: Settings & { etag?: string }
     && typeof settings?.etag === 'string' && /^"[^"\r\n]+"$/.test(settings.etag)
   return {
     ...generatedNotificationCapabilities,
+    quietHours: generatedNotificationCapabilities.quietHours && categories
+      && typeof settings?.quietHours?.enabled === 'boolean'
+      && (settings.quietHours.timezone === null || typeof settings.quietHours.timezone === 'string'),
     categories,
     // Missing settings never has a meaningful off/on value.
     master: typeof settings?.pushEnabled === 'boolean' && (!('categories' in settings) || categories),

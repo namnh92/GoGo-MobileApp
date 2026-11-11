@@ -13,12 +13,12 @@ import {
   confirmLabel,
   doneLabel,
   effectiveValues,
-  proposalRows,
   proposalTitle,
   type ProposalRow,
   type RowContext,
 } from './proposal-rows'
 import { styles } from './confirmation-card.style'
+import { useProposalRows } from './use-proposal-rows'
 
 /**
  * Design system `ConfirmationCard` (GoGo-MobileApp#378): the assistant
@@ -50,7 +50,7 @@ export function ConfirmationCard({
   const [edits, setEdits] = useState<Record<string, unknown>>({})
   const [editing, setEditing] = useState<ProposalRow | null>(null)
   const values = effectiveValues(proposal.values, edits)
-  const rows = proposalRows(values, { ...context, t })
+  const rows = useProposalRows(values, { ...context, t })
   const action = confirmLabel(proposal.kind, t)
   const pending = proposal.status === 'pending'
   const busy = confirming || dismissing

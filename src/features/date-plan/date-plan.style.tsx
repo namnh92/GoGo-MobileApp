@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { fill, overlay, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, fill, overlay, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   /** Total, time and the over-budget note lead the screen as one card. */
@@ -49,7 +49,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingVertical: 6,
     borderRadius: theme.radius.pill,
   },
-  stopBadges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stopBadges: { flexDirection: 'row', alignItems: 'center', gap: chipRowGap },
   // Scrim only behind the name and address, so the rest of the picture keeps its colour; 0.6 holds AA for white text over any photo.
   stopScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 88, backgroundColor: overlay.scrimText },
   stopHeroBottom: { position: 'absolute', left: theme.spacing[4], right: theme.spacing[4], bottom: theme.spacing[3], gap: 2 },

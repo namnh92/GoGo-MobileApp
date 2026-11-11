@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, touchTarget } from '@/shared/ui/tokens'
 
 /**
  * Design system `AssistantEntry variant="card"`: a solid card under the key
@@ -12,7 +12,7 @@ export const styles = StyleSheet.create(theme => ({
   head: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], minHeight: touchTarget.min },
   headPressed: { backgroundColor: theme.surface.subtle, borderRadius: theme.radius.compact },
   headText: { flex: 1, minWidth: 0 },
-  questions: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
+  questions: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   question: {
     minHeight: touchTarget.min,
     justifyContent: 'center',

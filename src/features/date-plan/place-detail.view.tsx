@@ -15,7 +15,6 @@ import {
   parseApiDate,
   placePriceParts,
   usePlaceDetail,
-  usePlaceProviderPhotos,
   usePlaceReviews,
   useSaved,
   useTaxonomyLabel,
@@ -74,7 +73,6 @@ export default function PlaceDetailScreen() {
   const place = usePlaceDetail(placeId)
   const [reviewOrder, setReviewOrder] = useState<ReviewOrder>('latest')
   const reviews = usePlaceReviews(place.data ? place.data.id ?? placeId : undefined, reviewOrder)
-  const providerPhotos = usePlaceProviderPhotos(place.data?.id ?? (place.data ? placeId : undefined))
   const waitingForNetwork = useWaitingForNetwork(place)
   const { resolve: taxonomyLabel } = useTaxonomyLabel()
   const canSave = status === 'user'
@@ -132,16 +130,11 @@ export default function PlaceDetailScreen() {
   const name = detail.name ?? ''
   const open = openStateFromHours(detail.hours, now)
   const photos = [
-    ...(detail.photos ?? []).map(photo => ({ ...photo, transient: false, googleMapsUri: photo.googleMapsUri ?? null, authorAttributions: photo.authorAttributions ?? [] })),
-    ...(providerPhotos.data?.status === 'ok' ? providerPhotos.data.photos.map((photo, index) => ({
-      id: `provider-${index}`,
-      url: `data:${photo.contentType};base64,${photo.dataBase64}`,
-      attribution: providerPhotos.data?.attribution,
-      googleMapsUri: photo.googleMapsUri,
-      authorAttributions: photo.authorAttributions,
-      transient: true,
-    })) : []),
-  ]
+    ...(detail.photos ?? []),
+    ...(detail.userPhotos ?? []).map(photo => ({ ...photo,
+      attribution: t('placeDetail.communityPhotoCredit', { author: photo.contributor?.displayName ?? t('placeImport.community') }),
+    })),
+  ].map(photo => ({ ...photo, googleMapsUri: photo.googleMapsUri ?? null, authorAttributions: photo.authorAttributions ?? [] }))
   const checkedAt = parseApiDate(detail.freshnessCheckedAt)
   const price = placePriceParts(card)
   const today = vietnamClock(now).day
@@ -370,13 +363,12 @@ export default function PlaceDetailScreen() {
                   placeId={id}
                   name={name}
                   uri={photo.url}
-                  cachePolicy={photo.transient ? 'none' : undefined}
                   style={[styles.galleryPage, { width: galleryWidth }]}
                 />
               ))}
             </ScrollView>
           ) : (
-            <PlacePhoto placeId={id} name={name} uri={photos[0].url} cachePolicy={photos[0].transient ? 'none' : undefined} style={StyleSheet.absoluteFill} />
+            <PlacePhoto placeId={id} name={name} uri={photos[0].url} style={StyleSheet.absoluteFill} />
           )}
           {photos.length > 0 ? <View pointerEvents="none" style={styles.imageScrim} /> : null}
 

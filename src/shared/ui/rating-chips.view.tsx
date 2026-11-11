@@ -27,7 +27,7 @@ export function GoGoRatingBadge({ place, compact = false, detail = false }: { pl
   const { gogo } = ratingParts(place)
   if (!compact && !gogo && place.gogoRatingCount == null) return null
   return <View testID="place-gogo-rating" style={[styles.gogo, compact && styles.compactBadge, detail && styles.detailBadge]}>
-    <Text numberOfLines={compact ? undefined : 1} ellipsizeMode={compact ? undefined : 'tail'} variant="introCaptionMedium" color="redesign.violetText">{gogo
+    <Text numberOfLines={compact ? undefined : 1} ellipsizeMode={compact ? undefined : 'tail'} variant="introCaptionMedium" color="status.infoText">{gogo
       ? t('discovery.gogoRating', { score: formatRating(gogo.value, i18n.language), count: formatCount(gogo.count!, i18n.language) })
       : `${t('discovery.gogoFewReviews')}${place.gogoRatingCount == null ? '' : ` (${formatCount(place.gogoRatingCount, i18n.language)})`}`}</Text>
   </View>
@@ -40,6 +40,6 @@ export function GoogleRatingBadge({ value, count, compact = false, detail = fals
     count: count == null ? '' : `(${formatCount(count, i18n.language)})`,
   }).replace(/\s+/g, ' ')
   return <View testID="place-google-rating" style={[styles.google, compact && styles.compactBadge, detail && styles.detailBadge, detail && styles.detailGoogle]}>
-    <Text numberOfLines={compact ? undefined : 1} ellipsizeMode={compact ? undefined : 'tail'} variant="introCaptionMedium" color="redesign.ink" accessibilityLabel={label}><Text variant="introCaptionMedium" color="status.warningText">★</Text>{label.slice(1)}</Text>
+    <Text numberOfLines={compact ? undefined : 1} ellipsizeMode={compact ? undefined : 'tail'} variant="introCaptionMedium" color="text.primary" accessibilityLabel={label}><Text variant="introCaptionMedium" color="status.warningText">★</Text>{label.slice(1)}</Text>
   </View>
 }

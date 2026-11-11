@@ -16,7 +16,7 @@ export type SystemNotification = z.infer<typeof systemNotificationSchema>
 /** A 404 is the capability check on older deployments; other failures stay errors. */
 export async function listSystemNotifications(cursor?: string, signal?: AbortSignal) {
   try {
-    const response = await api.get<unknown>('/system-notifications', { anonymous: true, query: { cursor }, signal })
+    const response = await api.get<unknown>('/system-notifications', { anonymous: true, query: { cursor, limit: 10 }, signal })
     return { status: 'supported', ...systemNotificationsPageSchema.parse(response) } as const
   } catch (error) {
     if (isApiError(error) && error.status === 404) return { status: 'unsupported', items: [], nextCursor: null } as const

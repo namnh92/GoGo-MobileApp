@@ -1,0 +1,82 @@
+{
+  "command": [
+    "pnpm",
+    "exec",
+    "jest",
+    "src/features/__tests__/notifications-g10.spec.tsx",
+    "src/shared/ui/__tests__/loading-indicator.spec.tsx",
+    "src/features/__tests__/home-location-scope.spec.tsx",
+    "src/shared/ui/__tests__/sheet.spec.tsx",
+    "--maxWorkers=4"
+  ],
+  "concurrent_processes": 4,
+  "results": [
+    {
+      "id": "before-heavy-01",
+      "suites": "4 passed, 4 total",
+      "tests": "249 passed, 249 total",
+      "warnings": 0,
+      "failed_tests": []
+    },
+    {
+      "id": "before-heavy-02",
+      "suites": "1 failed, 3 passed, 4 total",
+      "tests": "2 failed, 247 passed, 249 total",
+      "warnings": 2,
+      "failed_tests": [
+        "opening marks unread once and preserves the existing resolver",
+        "orange inbox error regression \u203a shows one stale notice for cached list + summary failures (0 rows)"
+      ]
+    },
+    {
+      "id": "before-heavy-03",
+      "suites": "4 passed, 4 total",
+      "tests": "249 passed, 249 total",
+      "warnings": 0,
+      "failed_tests": []
+    },
+    {
+      "id": "before-heavy-04",
+      "suites": "4 passed, 4 total",
+      "tests": "249 passed, 249 total",
+      "warnings": 0,
+      "failed_tests": []
+    },
+    {
+      "id": "before-heavy-05",
+      "suites": "1 failed, 3 passed, 4 total",
+      "tests": "1 failed, 248 passed, 249 total",
+      "warnings": 1,
+      "failed_tests": [
+        "opening marks unread once and preserves the existing resolver"
+      ]
+    },
+    {
+      "id": "before-heavy-06",
+      "suites": "1 failed, 3 passed, 4 total",
+      "tests": "1 failed, 248 passed, 249 total",
+      "warnings": 1,
+      "failed_tests": [
+        "opening marks unread once and preserves the existing resolver"
+      ]
+    },
+    {
+      "id": "before-heavy-07",
+      "suites": "4 passed, 4 total",
+      "tests": "249 passed, 249 total",
+      "warnings": 0,
+      "failed_tests": []
+    },
+    {
+      "id": "before-heavy-08",
+      "suites": "4 passed, 4 total",
+      "tests": "249 passed, 249 total",
+      "warnings": 0,
+      "failed_tests": []
+    }
+  ],
+  "original_spec_sha256": "1d19fc2af6a662770146e038a6300d91c1e316864defb8ed3030833c20e9a4a1",
+  "original_guard_sha256": "7dde8de94fe6ee2bde8026202572e04be5b22d350aa0a328423b2e6af07f2611",
+  "node": "v22.22.2",
+  "pnpm": "10.34.3"
+}

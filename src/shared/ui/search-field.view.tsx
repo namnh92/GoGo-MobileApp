@@ -25,9 +25,9 @@ export function SearchField({ accessibilityLabel, style, ref, appearance = 'defa
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   if (appearance === 'discovery') return <View style={[styles.discoveryShell, style]}>
-    <MaterialIcon name="search" size={22} color="redesign.secondary" />
-    <TextInput ref={ref} accessibilityLabel={accessibilityLabel} placeholderTextColor={theme.redesign.secondary} autoCorrect={false} autoCapitalize="none" returnKeyType="search" {...props} clearButtonMode="never" style={styles.discoveryInput} />
-    {props.value ? <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.clearQuery')} style={styles.clear} onPress={() => props.onChangeText?.('')}><MaterialIcon name="close" size={18} color="redesign.secondary" /></Pressable> : null}
+    <MaterialIcon name="search" size={22} color="text.secondary" />
+    <TextInput ref={ref} accessibilityLabel={accessibilityLabel} placeholderTextColor={theme.text.secondary} autoCorrect={false} autoCapitalize="none" returnKeyType="search" {...props} clearButtonMode="never" style={styles.discoveryInput} />
+    {props.value ? <Pressable accessibilityRole="button" accessibilityLabel={t('discovery.clearQuery')} style={styles.clear} onPress={() => props.onChangeText?.('')}><MaterialIcon name="close" size={18} color="text.secondary" /></Pressable> : null}
   </View>
   return (
     <TextInput

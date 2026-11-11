@@ -118,8 +118,8 @@ describe('tab icons (#296)', () => {
     expect(svgProps(`icon-${name}`).stroke).toBe(text.secondary)
   })
 
-  it('the active tint is the theme accent', async () => {
+  it('the active tint is the theme accent text role', async () => {
     await render(<IconUser active />)
-    expect(svgProps('icon-user-filled')).toMatchObject({ fill: accents.orange.primary, stroke: accents.orange.primary })
+    expect(svgProps('icon-user-filled')).toMatchObject({ fill: accents.orange.text, stroke: accents.orange.text })
   })
 })

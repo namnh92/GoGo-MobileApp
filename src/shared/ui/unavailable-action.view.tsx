@@ -6,8 +6,8 @@ import { styles } from './unavailable-action.style'
 export function UnavailableAction({ label, reason }: { label: string; reason: string }) {
   return <View style={styles.root}>
     <Pressable accessibilityRole="button" disabled accessibilityState={{ disabled: true }} accessibilityLabel={label} accessibilityHint={reason} style={styles.action}>
-      <Text variant="introCaption" color="redesign.outline">{label}</Text>
+      <Text variant="introCaption" color="border.outline">{label}</Text>
     </Pressable>
-    <Text variant="introCaption" color="redesign.outline" style={styles.reason}>{reason}</Text>
+    <Text variant="introCaption" color="border.outline" style={styles.reason}>{reason}</Text>
   </View>
 }

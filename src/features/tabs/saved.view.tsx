@@ -17,7 +17,6 @@ import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, Card, GhostBtn } from '@/shared/ui/primitives'
 import { PlaceCardSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { TAB_BAR_HEIGHT } from '@/shared/ui/bottom-bar-inset'
 import { styles as cityStyles } from './saved-city.style'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -28,10 +27,9 @@ import { savedDistance, savedUnavailable } from './saved-facts'
 import { SavedLink } from './saved-link.view'
 
 /** One Saved renderer for the city overview and the pushed ward list. */
-export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
+export function SavedPlacesScreen({ city, renderHeader }: {
   city?: { provinceCode: string; name: string }
   renderHeader?: (title: string, count: number | undefined) => ReactNode
-  renderBottomBar?: () => ReactNode
 }) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -138,9 +136,9 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           ))}
         </View>
       ) : saved.isError ? (
-        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView><ErrorState error={saved.error} onRetry={() => void saved.refetch()} /></ScrollView></PullToRefresh>
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView testID="saved-list"><ErrorState error={saved.error} onRetry={() => void saved.refetch()} /></ScrollView></PullToRefresh>
       ) : visibleGroups.length === 0 ? (
-        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView><EmptyState
+        <PullToRefresh onRefresh={() => saved.refetch()}><ScrollView testID="saved-list"><EmptyState
           title={t(city ? 'saved.cityEmptyTitle' : 'saved.emptyTitle')}
           body={city ? t('saved.cityEmptyBody', { city: cityTitle }) : t('saved.emptyBody')}
           action={<GhostBtn label={t('saved.browse')} onPress={() => router.push('/places/search')} />}
@@ -150,7 +148,7 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           testID="saved-list"
           onScroll={city ? undefined : fab.onScroll}
           scrollEventThrottle={fab.scrollEventThrottle}
-          contentContainerStyle={[styles.list, city && cityStyles.list, { paddingBottom: city ? insets.bottom + TAB_BAR_HEIGHT + spacing[6] : fab.bottomInset }]}
+          contentContainerStyle={[styles.list, city && cityStyles.list, { paddingBottom: city ? insets.bottom + spacing[6] : fab.bottomInset }]}
         >
           {visibleGroups.map(group => (
             <View key={group.key} style={styles.group}>
@@ -164,10 +162,10 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
                 {group.kind === 'province' ? <GhostBtn label={t('saved.viewGroup')} accessibilityHint={t('saved.cityListHint', { city: group.provinceName })} size="small" style={styles.cityAction} onPress={() => router.push({ pathname: '/saved/city/[provinceCode]', params: { provinceCode: group.provinceCode, cityName: group.provinceName } })} /> : null}
               </View> : null}
               {group.kind === 'province' ? (
-                group.communes.map(commune => (
-                  <View key={commune.key} style={city ? cityStyles.subgroup : styles.subgroup}>
-                    <View style={city ? cityStyles.wardHeader : styles.groupHeader}>
-                      <Text variant={city ? "savedWardTitle" : "bodySmall"} color={city ? "redesign.ink" : "text.secondary"} accessibilityRole="header" style={styles.groupTitle}>
+                group.communes.map((commune, index) => (
+                  <View key={commune.key} style={city ? cityStyles.subgroup : [styles.subgroup, index === group.communes.length - 1 && styles.lastSubgroup]}>
+                    <View style={city ? cityStyles.wardHeader : [styles.groupHeader, styles.wardHeader]}>
+                      <Text variant={city ? "savedWardTitle" : "bodySmall"} color={city ? "text.primary" : "text.secondary"} accessibilityRole="header" style={styles.groupTitle}>
                         {commune.kind === 'commune' ? commune.communeName : t('saved.group.multipleCommunes')}
                       </Text>
                       <View style={city ? cityStyles.wardCount : styles.countBadge}><Text variant="caption" color="text.secondary">{commune.entries.length}</Text></View>
@@ -182,7 +180,6 @@ export function SavedPlacesScreen({ city, renderHeader, renderBottomBar }: {
           ))}
         </ScrollView></PullToRefresh>
       )}
-      {renderBottomBar?.()}
       <ResultSheet visible={resultError} variant="error" title={t('saved.actionFailed')} body={t('saved.retryBody')}
         primaryAction={{ label: t('common.close'), onPress: () => setResultError(false) }} onClose={() => setResultError(false)} />
     </Atmosphere>

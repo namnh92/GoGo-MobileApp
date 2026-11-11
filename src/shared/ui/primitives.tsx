@@ -94,14 +94,14 @@ export function AvatarCircle({ label, size = 40, background, emoji, imageUri, ic
       style={[
         styles.avatar,
         circle,
-        { backgroundColor: icon ? theme.redesign.primary : emoji ? theme.surface.subtle : background ?? theme.accent.primary },
+        { backgroundColor: icon ? theme.accent.primaryDeep : emoji ? theme.surface.subtle : background ?? theme.accent.primary },
       ]}
     >
       {icon ? <MaterialIcon name={icon} size={18} color="accent.onAccent" /> : <>
         {!uri || loadedUri !== uri ? (emoji ? <ScaledText box={size} kind="emoji">{emoji}</ScaledText> : <ScaledText box={size} kind="initials">{label}</ScaledText>) : null}
         {uri ? <Image
           testID="avatar-image"
-          source={{ uri }}
+          source={{ uri, cacheKey: uri }}
           style={[circle, styles.avatarImage]}
           contentFit="cover"
           transition={150}
@@ -121,16 +121,16 @@ type RemoteImageProps = (
 
 export function RemoteImage({ uri, source, style, illustration = false }: RemoteImageProps) {
   const { theme } = useUnistyles()
-  return <Image source={source !== undefined ? source : { uri }} style={[{ backgroundColor: illustration ? theme.redesign.low : theme.surface.subtle }, style as object]} contentFit={illustration ? 'contain' : 'cover'} transition={illustration ? 0 : 150} />
+  return <Image cachePolicy="memory-disk" source={source !== undefined ? source : { uri, cacheKey: uri }} style={[{ backgroundColor: illustration ? theme.surface.low : theme.surface.subtle }, style as object]} contentFit={illustration ? 'contain' : 'cover'} transition={illustration ? 0 : 150} />
 }
 
 const styles = StyleSheet.create(theme => ({
-  redesignCanvas: { backgroundColor: theme.redesign.canvas },
+  redesignCanvas: { backgroundColor: theme.surface.canvas },
   redesignDotsRow: { gap: 8 },
   debateDotsRow: { gap: 4 },
-  redesignDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.redesign.highest },
-  swipeDot: { backgroundColor: theme.redesign.line, opacity: 0.6 },
-  planDot: { backgroundColor: theme.redesign.dim },
+  redesignDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.surface.highest },
+  swipeDot: { backgroundColor: theme.border.hairline, opacity: 0.6 },
+  planDot: { backgroundColor: theme.surface.dim },
   redesignDotActive: { width: 24, backgroundColor: theme.accent.primary, opacity: 1 },
   canvas: { flex: 1, backgroundColor: theme.surface.canvas },
 

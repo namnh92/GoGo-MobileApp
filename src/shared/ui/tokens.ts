@@ -1,205 +1,271 @@
-// Warm Liquid Glass design tokens — single source of truth for the mobile app.
-// Values come from GOGO_FEATURE_IMPROVEMENT_SPEC.md §42–§49 and the Figma
-// "Foundations" page (GoGo-MobileApp#293 §1); keep in sync with the shared
-// design-tokens package once it is published (FND-003/FND-009).
-//
-// This file is plain TypeScript on purpose: vitest imports it, and so does
-// `theme.ts`, which turns these static roles plus an accent palette into the
-// four Unistyles themes. Nothing here may import `react-native-unistyles`.
+// AppToken colours: one shared set of roles for the whole app (#556).
+// Authority: Stitch re-design, S70 + Bảng màu Light/Dark. See
+// docs/verification/issue-556-color-tokens.md for provenance and the full map.
+// Pure TypeScript: consumed by theme.ts and arithmetic tests.
 
-export const colors = {
-  brand: {
-    // No coral here any more (#297): the accent is a theme role
-    // (`accents` below → `theme.accent.*`), so a screen cannot pin one colour
-    // that the "Màu chủ đề" setting is supposed to change.
-    lavender: '#7667E8',
-    lavenderSoft: '#E5E0FF',
-    /** Translucent lavender for CTAs sitting on photos. */
-    lavenderGlass: 'rgba(118,103,232,0.78)',
-    mint: '#4FAF86',
-    mintSoft: '#D9F3E7',
-    amber: '#D99028',
-    amberSoft: '#FCEBCB',
-    red: '#C84455',
-    redSoft: '#FADDE2',
-  },
-  neutral: {
-    0: '#FFFFFF',
-    25: '#FCFBF8',
-    50: '#F6F3EE',
-    100: '#ECE8E1',
-    /** Lines, borders and disabled fills. Never text: 1.78:1 on white. */
-    300: '#C8C1B8',
-    /**
-     * Secondary text. Was #817B74, which measured 4.18:1 on white and 3.78:1 on
-     * the ivory app background — under WCAG 2.2 AA for body text, on the colour
-     * carrying most of the metadata in the product. This one is 5.03 and 4.55.
-     * Figma Foundations still says #817B74; owner decision 2026-09-24 keeps this.
-     */
-    500: '#746E68',
-    700: '#4A4641',
-    900: '#211F1C',
-  },
+/** Official option A/B ribbon palette (Stitch ed67babc, owner 2026-11-09).
+ * Brand artwork stays fixed across user accents and light/dark modes. */
+export const brandLogo = {
+  background: '#20124A',
+  highlight: '#FFFFFF',
+  stars: ['#91ECD4', '#FFEAA7'],
+  dots: ['#FF5252', '#FF9E66', '#55D8C1'],
+  spectrum: [
+    [0, '#FF5252'], [16, '#FF6558'], [30, '#FF8264'],
+    [42, '#FFA872'], [50, '#FFCA7D'], [58, '#B2EAB8'],
+    [70, '#72E3C0'], [84, '#55D8C7'], [100, '#3DCBC8'],
+  ],
+  bridge: [
+    [0, '#FFA46E', 0], [26, '#FFB675', 0.92], [50, '#FFCA7D', 1],
+    [74, '#A6ECC8', 0.92], [100, '#60E2C2', 0],
+  ],
 } as const
 
-// ---------------------------------------------------------------------------
-// Semantic roles (#293 §1). Fixed — they do not change with the accent theme.
-// Components read these, never `colors.*` directly, so a palette change is one
-// edit here rather than a grep across screens.
-// ---------------------------------------------------------------------------
-
-/** Backgrounds, from the screen canvas up to a card. */
+/** Surface hierarchy. Keep real Stitch levels separate, including in Dark.
+ * inset = neutral canvas; muted = quiet neutral fill; disabled = count/disabled fill.
+ * subtle is the compatibility alias for container, not another palette. */
 export const surface = {
-  canvas: colors.neutral[50],
-  card: colors.neutral[0],
-  /** Tracks, skeletons, disabled fills, image placeholders. */
-  subtle: colors.neutral[100],
+  canvas: '#FFF8F3',
+  card: '#FFFFFF',
+  subtle: '#F3EDE8',
+  low: '#F9F2ED',
+  container: '#F3EDE8',
+  high: '#EDE7E2',
+  highest: '#E7E1DC',
+  dim: '#DFD9D4',
+  inset: '#FAF7F2',
+  muted: '#F3EEE7',
+  disabled: '#E5E5E5'
 } as const
-
-export const border = {
-  /** List-row dividers, the top edge of a glass bar. */
-  hairline: colors.neutral[100],
-} as const
-
-/**
- * Text colours. `primary`/`secondary`/`tertiary` sit on light surfaces;
- * `tertiary` is placeholder-only: 1.6:1. `inverse` is white for a label on a
- * filled surface — a status fill, a photo scrim, a dark badge. On an accent
- * fill use `accent.onAccent` instead, so a theme can change it.
- */
-export const text = {
-  primary: colors.neutral[900],
-  secondary: colors.neutral[500],
-  tertiary: colors.neutral[300],
-  inverse: colors.neutral[0],
-} as const
-
-/** Foreground on an opaque accent fill, independent of surface text/mode.
- * Every palette exposes this single semantic role as `accent.onAccent`.
- * Keep primary AND pressed fills at AA against it in both modes.
- */
-export const onAccent = colors.neutral[0]
-
-/**
- * Status colours. The base colour is a fill or a dot; `*Soft` is its pill
- * background; `*Text` is the only one of the three allowed to carry a label on
- * a light surface — the base values measure 2.4–2.7:1 on white for success and
- * warning, and no amount of weight makes that readable. `*Text` values are the
- * base hue darkened until white and ivory both clear 4.5:1
- * (`__tests__/contrast.test.ts` holds the numbers).
- *
- * #295 darkened all four once more: a chip or badge puts the label on its own
- * `*Soft` pill, and the #294 values measured 3.97–4.36 there. Same rule as A —
- * keep the hue, lower lightness until the label clears 4.5 on the pill too
- * (owner, 2026-09-24).
- */
-export const status = {
-  success: colors.brand.mint,
-  successSoft: colors.brand.mintSoft,
-  successText: '#35765B',
-  warning: colors.brand.amber,
-  warningSoft: colors.brand.amberSoft,
-  warningText: '#8F5F1A',
-  danger: colors.brand.red,
-  dangerSoft: colors.brand.redSoft,
-  dangerText: '#B43747',
-  info: colors.brand.lavender,
-  infoSoft: colors.brand.lavenderSoft,
-  infoText: '#5F4FD1',
-} as const
-
-/**
- * Accent palettes — the one thing the "Màu chủ đề" setting changes (#293 §6).
- * `theme.ts` builds a Unistyles theme per key; screens read `theme.accent.*`,
- * never this table.
- *
- * The spec's starting values put white text under AA on three of the four
- * (Cam 3.70 · Xanh lá 3.20 · Xanh dương 3.96 · Tím 4.56). Owner decision
- * 2026-09-24: keep each hue and saturation, lower lightness until white on
- * `primary` clears 4.5:1 on both white and ivory; `pressed` stays darker than
- * `primary`; `soft` is untouched. Measured (white / ivory):
- *   orange  #CA381F 5.13 / 4.63 · pressed #A72E19 (spec #C24633 was lighter than the new primary)
- *   green   #247D52 5.08 / 4.59 · pressed #1B5E3E (spec #248455, same reason)
- *   blue    #1A6CD5 5.06 / 4.57 · pressed #2565BF (spec value kept)
- *   purple  #7250F4 5.04 / 4.55 · pressed #6247CC (spec value kept)
- * Design confirms or re-tunes these against ADR-0009; the contrast test is the
- * gate either way.
- *
- * `onSoft` (#295) is the accent as *text* on `soft` — a selected tab, the host
- * badge. `primary` on `soft` measures 3.9–4.3: fine for an icon or an outline,
- * not for a 13pt label. `onSoft` is the `pressed` hex in all four palettes
- * (orange 5.66 · green 6.59 · blue 4.67 · purple 5.00 on `soft`).
- *
- * `text` is the accent as a label or link on a plain surface. In light it is
- * `primary`; in dark `primary` is a fill (3.1:1 on the card) and `text` is the
- * lighter tint that clears AA there.
- */
-export const accents = {
-  orange: { primary: '#CA381F', text: '#CA381F', pressed: '#A72E19', soft: '#FFE3DA', onSoft: '#A72E19', onAccent },
-  green: { primary: '#247D52', text: '#247D52', pressed: '#1B5E3E', soft: '#D9F3E5', onSoft: '#1B5E3E', onAccent },
-  blue: { primary: '#1A6CD5', text: '#1A6CD5', pressed: '#2565BF', soft: '#DCEAFF', onSoft: '#2565BF', onAccent },
-  purple: { primary: '#7250F4', text: '#7250F4', pressed: '#6247CC', soft: '#E6E0FF', onSoft: '#6247CC', onAccent },
-} as const
-
-// ---------------------------------------------------------------------------
-// Dark roles. Values are read from the approved Stitch Dark screens (project
-// 8730375380958217191): Home Dark 5e4ab03b837b4a8cb3278e30e7b8e916 and Splash
-// Dark bf51ca613c7d4632a72d135476095d3f, from their Tailwind config and
-// classes. A value Stitch does not carry is the previous value and is marked
-// NOT FROM STITCH. Same keys as the light roles above, so a screen reads
-// `theme.surface.card` and never branches on the mode.
-// ---------------------------------------------------------------------------
 
 export const darkSurface = {
-  // canvas / surface / background (Home, Splash)
   canvas: '#181715',
-  // card, surface-container-low
   card: '#222222',
-  // surface-muted (Home), surface-container (Splash)
   subtle: '#2A2A2A',
+  low: '#2A2A2A',
+  container: '#2A2A2A',
+  high: '#333333',
+  highest: '#333333',
+  dim: '#333333',
+  inset: '#181715',
+  muted: '#2A2A2A',
+  disabled: '#333333'
 } as const satisfies Record<keyof typeof surface, string>
 
-export const darkBorder = {
-  // border-[#333333] (Home), outline-variant (Splash)
-  hairline: '#333333',
-} as const satisfies Record<keyof typeof border, string>
+/** Primary, secondary, decorative tertiary, and AA supporting text.
+ * Neutral foregrounds are explicitly drawn by the Stitch Light palette. */
+export const text = {
+  primary: '#1D1B18',
+  secondary: '#5A413B',
+  tertiary: '#8E706A',
+  inverse: '#FFFFFF',
+  supporting: '#8A6C66',
+  neutralPrimary: '#211F1C',
+  neutralSecondary: '#746E68'
+} as const
 
 export const darkText = {
-  // ink, on-surface
   primary: '#E6E6E6',
-  // ink-secondary, on-surface-variant
   secondary: '#CCCCCC',
-  // outline (Splash). Placeholder-only, like the light `tertiary`.
   tertiary: '#999999',
-  // on-primary
   inverse: '#FFFFFF',
+  supporting: '#999999',
+  neutralPrimary: '#E6E6E6',
+  neutralSecondary: '#CCCCCC'
 } as const satisfies Record<keyof typeof text, string>
 
+export const border = {
+  hairline: '#E3BEB7',
+  outline: '#8E706A',
+  neutral: '#E5E5E5'
+} as const
+
+export const darkBorder = {
+  hairline: '#333333',
+  outline: '#999999',
+  neutral: '#333333'
+} as const satisfies Record<keyof typeof border, string>
+
+/** Status fills, text, and text-bearing containers are separate roles. */
+export const status = {
+  success: '#237C51',
+  successSoft: '#ECFFF3',
+  successText: '#00623C',
+  warning: '#D99028',
+  warningSoft: '#FBEBD3',
+  warningText: '#8F5F1A',
+  danger: '#CC4B46',
+  dangerSoft: '#FBE3E2',
+  dangerText: '#B43747',
+  info: '#7161E2',
+  infoSoft: '#E4DFFF',
+  infoText: '#5747C8',
+  successFill: '#237C51',
+  successStrongFill: '#247D52',
+  successContainer: '#9EF5C0',
+  onSuccessContainer: '#002111',
+  infoInk: '#170065',
+  infoGradient: '#EAE6FE'
+} as const
+
 export const darkStatus = {
-  // tertiary (Splash)
   success: '#4FAF86',
-  // tertiary-container
   successSoft: '#16402F',
-  // on-tertiary-container
   successText: '#A7E8CD',
-  // the rating star on Home
   warning: '#E59700',
-  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
   warningSoft: '#3D2E0B',
   warningText: '#FFD074',
-  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
   danger: '#FF6B6B',
-  // error-container (Splash)
   dangerSoft: '#4A1A20',
-  // error (Splash)
   dangerText: '#FF8A94',
-  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
-  info: '#7B8CFF',
-  // lavender-bg (Home), secondary-container (Splash)
+  info: '#7161E2',
   infoSoft: '#2F2A55',
-  // lavender (Home), secondary (Splash)
-  infoText: '#A99DF5',
+  infoText: '#C7BFFF',
+  successFill: '#3B8365',
+  successStrongFill: '#247D52',
+  successContainer: '#16402F',
+  onSuccessContainer: '#A7E8CD',
+  infoInk: '#C7BFFF',
+  infoGradient: '#2F2A55'
 } as const satisfies Record<keyof typeof status, string>
+
+export const onAccent = text.inverse
+
+/** User-selectable accents. Extra steps preserve Stitch emphasis/materials.
+ * All accent-like colour, including gradients and ambient glows, reads these. */
+export const accents = {
+  orange: {
+    primary: '#CA381F',
+    text: '#A71E07',
+    pressed: '#A72E19',
+    soft: '#FFE3DA',
+    onSoft: '#A71E07',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#A71E07',
+    primaryMuted: '#C2351D',
+    textMuted: '#B82F15',
+    container: '#FFDAD3',
+    selected: '#FFE3DA',
+    gradientStart: '#FFE8E2',
+    gradientMiddle: '#FFF3EE',
+    glow: '#FFDAD3'
+  },
+  green: {
+    primary: '#247D52',
+    text: '#247D52',
+    pressed: '#1B5E3E',
+    soft: '#D9F3E5',
+    onSoft: '#1B5E3E',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#1B5E3E',
+    primaryMuted: '#247D52',
+    textMuted: '#247D52',
+    container: '#D9F3E5',
+    selected: '#D9F3E5',
+    gradientStart: '#D9F3E5',
+    gradientMiddle: '#F9F2ED',
+    glow: '#D9F3E5'
+  },
+  blue: {
+    primary: '#1A6CD5',
+    text: '#1A6CD5',
+    pressed: '#2565BF',
+    soft: '#DCEAFF',
+    onSoft: '#2565BF',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#2565BF',
+    primaryMuted: '#1A6CD5',
+    textMuted: '#1A6CD5',
+    container: '#DCEAFF',
+    selected: '#DCEAFF',
+    gradientStart: '#DCEAFF',
+    gradientMiddle: '#F9F2ED',
+    glow: '#DCEAFF'
+  },
+  purple: {
+    primary: '#7250F4',
+    text: '#7250F4',
+    pressed: '#6247CC',
+    soft: '#E6E0FF',
+    onSoft: '#6247CC',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#6247CC',
+    primaryMuted: '#7250F4',
+    textMuted: '#7250F4',
+    container: '#E6E0FF',
+    selected: '#E6E0FF',
+    gradientStart: '#E6E0FF',
+    gradientMiddle: '#F9F2ED',
+    glow: '#E6E0FF'
+  }
+} as const
+
+export const darkAccents = {
+  orange: {
+    primary: '#CA381F',
+    text: '#FF746C',
+    pressed: '#A72E19',
+    soft: '#2A2A2A',
+    onSoft: '#FF746C',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#A72E19',
+    primaryMuted: '#CA381F',
+    textMuted: '#FF746C',
+    container: '#2A2A2A',
+    selected: '#472C25',
+    gradientStart: '#2A2A2A',
+    gradientMiddle: '#222222',
+    glow: '#FF746C'
+  },
+  green: {
+    primary: '#247D52',
+    text: '#79D9AD',
+    pressed: '#1A5E3D',
+    soft: '#16402F',
+    onSoft: '#79D9AD',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#1A5E3D',
+    primaryMuted: '#247D52',
+    textMuted: '#79D9AD',
+    container: '#16402F',
+    selected: '#16402F',
+    gradientStart: '#16402F',
+    gradientMiddle: '#222222',
+    glow: '#79D9AD'
+  },
+  blue: {
+    primary: '#1E68D7',
+    text: '#94BEF7',
+    pressed: '#164EB0',
+    soft: '#192B45',
+    onSoft: '#94BEF7',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#164EB0',
+    primaryMuted: '#1E68D7',
+    textMuted: '#94BEF7',
+    container: '#192B45',
+    selected: '#192B45',
+    gradientStart: '#192B45',
+    gradientMiddle: '#222222',
+    glow: '#94BEF7'
+  },
+  purple: {
+    primary: '#7161E2',
+    text: '#C7BFFF',
+    pressed: '#5747C8',
+    soft: '#2F2A55',
+    onSoft: '#C7BFFF',
+    onAccent: '#FFFFFF',
+    primaryDeep: '#5747C8',
+    primaryMuted: '#7161E2',
+    textMuted: '#C7BFFF',
+    container: '#2F2A55',
+    selected: '#2F2A55',
+    gradientStart: '#2F2A55',
+    gradientMiddle: '#222222',
+    glow: '#C7BFFF'
+  }
+} as const satisfies Record<keyof typeof accents, Record<keyof (typeof accents)['orange'], string>>
 
 /** Dark-theme surfaces (shared result / night screens, spec §46). */
 export const night = {
@@ -221,6 +287,9 @@ export const onDark = {
 
 /** Image scrims and modal backdrops. */
 export const overlay = {
+  gradientStrong: 'rgba(50,48,45,0.80)',
+  gradientLight: 'rgba(50,48,45,0.20)',
+  clear: 'rgba(50,48,45,0)',
   scrimLight: 'rgba(0,0,0,0.2)',
   scrimMedium: 'rgba(0,0,0,0.25)',
   scrim: 'rgba(0,0,0,0.35)',
@@ -228,9 +297,8 @@ export const overlay = {
   /** Under white text on a photo: 0.6 black keeps 4.5:1 even over a white picture. */
   scrimText: 'rgba(0,0,0,0.6)',
   backdrop: 'rgba(33,31,28,0.55)',
-  /** Theme canvas at 85%: keep the form faintly visible during submit. */
-  submitLight: 'rgba(246,243,238,0.85)',
-  submitDark: 'rgba(24,23,21,0.85)',
+  /** Dark canvas at 85% in both modes: keep the form faintly visible during submit. */
+  submit: 'rgba(24,23,21,0.85)',
 } as const
 
 /**
@@ -245,12 +313,12 @@ export const overlay = {
  * it in per theme.
  */
 export const shadows = {
-  stitch: { shadowColor: colors.neutral[900], shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 1, elevation: 1 },
+  subtle: { shadowColor: text.neutralPrimary, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 1, elevation: 1 },
   warm: '#362D26',
   black: '#000',
   /** Figma `0 4 16 rgba(33,31,28,0.06)`. */
   card: {
-    shadowColor: colors.neutral[900],
+    shadowColor: text.neutralPrimary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -265,7 +333,7 @@ export const shadows = {
   },
   /** Figma `0 8 24 rgba(33,31,28,0.12)`. */
   toast: {
-    shadowColor: colors.neutral[900],
+    shadowColor: text.neutralPrimary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -301,7 +369,7 @@ export const darkMapColors = {
 
 /** White-alpha washes for glass surfaces, borders and tints. */
 export const glassFx = {
-  sheet: '#FCFBF8',
+  sheet: surface.canvas,
   bar: 'rgba(252,251,248,0.97)',
   solid: 'rgba(255,255,255,0.95)',
   pill: 'rgba(255,255,255,0.92)',
@@ -322,6 +390,9 @@ export const glassFx = {
 // opaque fallback (spec §43.4/§48.3) is the default material on mobile until a
 // blur adapter lands behind an ADR. Keep semantics, not the effect.
 export const glass = {
+  opaque: 'rgba(255,255,255,0.95)',
+  translucent: 'rgba(255,255,255,0.90)',
+  header: 'rgba(255,248,243,0.85)',
   subtle: { background: 'rgba(255,255,255,0.38)', border: 'rgba(255,255,255,0.58)', blur: 16 },
   regular: { background: 'rgba(255,255,255,0.56)', border: 'rgba(255,255,255,0.72)', blur: 24 },
   strong: { background: 'rgba(255,255,255,0.76)', border: 'rgba(255,255,255,0.80)', blur: 28 },
@@ -354,8 +425,8 @@ export const glass = {
     intensity: 60,
     wash: 'rgba(255,255,255,0.78)',
     /** Opaque `surface.card`, for a path that cannot show translucency. */
-    solid: colors.neutral[0],
-    hairline: colors.neutral[100],
+    solid: surface.card,
+    hairline: border.hairline,
     /** `expo-blur` tint and `LiquidGlassView` colour scheme. */
     tint: 'light',
     /** Tint over the iOS 26 system glass. */
@@ -370,6 +441,9 @@ export const glass = {
  * `intensity`, `tint` and `nativeTint` are NOT FROM STITCH.
  */
 export const darkGlass = {
+  opaque: 'rgba(34,34,34,0.95)',
+  translucent: 'rgba(34,34,34,0.90)',
+  header: 'rgba(24,23,21,0.85)',
   bar: {
     // NOT FROM STITCH: blur, intensity
     blur: 24,
@@ -498,6 +572,16 @@ export const fill = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0
 
 export const spacing = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48] as const
 
+/** Owner 2026-11-10: horizontal and wrapped chip rows share a maximum 4pt gap. */
+export const chipRowGap = spacing[1]
+
+/** Outer rhythm shared by the four tab roots; card internals keep their own scale. */
+export const tabRootSpacing = {
+  headerContent: spacing[4],
+  section: spacing[5],
+  headingContent: spacing[3],
+} as const
+
 export const radius = {
   sheet: 28,
   hero: 24,
@@ -511,16 +595,28 @@ export const radius = {
 export const motion = {
   loadingBounce: 2000,
   loadingBeam: 2400,
-  mapReveal: 350,
-  pinDrop: 250,
-  pinFirstDelay: 350,
-  pinStep: 200,
-  brandDelay: 1000,
-  brandReveal: 450,
-  markerBounce: 400,
-  ripple: 600,
+  instant: 0,
+  logoBounce: 2000,
+  logoBeam: 2400,
+  logoStarFirst: 2400,
+  logoStarSecond: 2800,
+  logoStarDelay: 500,
+  logoDot: 1200,
+  logoDotDelay: 200,
+  logoBounceEasing: [0.28, 0.84, 0.42, 1],
+  logoPulseEasing: [0.42, 0, 0.58, 1],
+  // Owner's splash pacing: 1.5× the original entrance and hold.
+  mapReveal: 525,
+  pinDrop: 375,
+  pinFirstDelay: 525,
+  pinStep: 300,
+  brandDelay: 1500,
+  brandReveal: 675,
+  markerBounce: 600,
+  ripple: 900,
+
   ping: 1000,
-  splashHold: 1500,
+  splashHold: 2250,
   ambientWarm: 8000,
   ambientCool: 10000,
   pressScale: 0.98,
@@ -530,67 +626,15 @@ export const motion = {
   slow: 320,
 } as const
 
-/** Approved GoGo mark: fixed brand artwork, identical on light/dark/brand grounds.
- * Stitch “So sánh Logo GoGo”, option A; owner motion specification 2026-11-09 (#584).
- * These are artwork colours, independent of the user's action accent.
- */
-export const brandLogo = {
-  spectrum: ['#FF5252', '#FF6558', '#FF8264', '#FFA872', '#FFCA7D', '#B2EAB8', '#72E3C0', '#55D8C7', '#3DCBC8'],
-  offsets: ['0%', '18%', '32%', '44%', '50%', '58%', '70%', '84%', '100%'],
-  bridge: ['#FFA46E', '#FFB675', '#FFCA7D', '#A6ECC8', '#60E2C2'],
-  sheen: '#FFFFFF',
-  sparkleMint: '#7EE7CC',
-  sparkleAmber: '#FFEAA7',
+/** Loading geometry and shadow remain independent of the shared logo artwork. */
+export const loadingIndicator = {
+  size: 48,
+  overlaySize: 80,
+  compactSize: 24,
+  ...brandLogo,
   shadow: { shadowColor: '#363254', shadowOffset: { width: 0, height: 1.8 }, shadowOpacity: 0.28, shadowRadius: 1.8 },
 } as const
 
-export const loadingIndicator = { size: 48, compactSize: 24, ...brandLogo } as const
-
-/** Approved project 17315762413421369447. Screen-specific material roles. */
-export const redesignLight = {
-  savedCanvas: '#FAF7F2', savedLine: '#E5E5E5', savedMuted: '#737373',
-  savedChip: '#F5F5F5', savedCount: '#E5E5E5', savedAccentSoft: '#FDF4F2', savedAccent: '#B82F15',
-  savedGoogleFill: '#FFFBEB', savedGoogleText: '#92400E', savedGoogleLine: '#FDE68A',
-  savedPhotoScrim: 'rgba(0,0,0,0.6)', savedOpenDot: '#34D399',
-  importInputCanvas: '#FAF7F2', importInputLine: '#E5E5E5', importInputDim: '#F3EEE7', importInputPrimary: '#C2351D',
-  importSyncedFill: '#9EF5C0', importSyncedText: '#002111', importPhotoBadgeText: '#C0FFD6',
-  verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#A71E07', heroStart: '#FFE8E2', heroMiddle: '#FFF3EE', heroEnd: '#EAE6FE',
-  canvas: '#FFF8F3', card: '#FFFFFF', low: '#F9F2ED', container: '#F3EDE8',
-  high: '#EDE7E2', highest: '#E7E1DC', dim: '#DFD9D4',
-  ink: '#1D1B18', secondary: '#5A413B', outline: '#8E706A', line: '#E3BEB7',
-  checklistUnmet: '#8A6C66', recommendationFill: '#237C51',
-  mutedTitle: '#211F1C', mutedBody: '#746E68',
-  primary: '#A71E07', primarySoft: '#FFDAD3', moodSelected: '#FFE3DA',
-  violet: '#7161E2', violetText: '#5747C8', violetSoft: '#E4DFFF', violetInk: '#170065',
-  green: '#237C51', greenText: '#00623C', greenSoft: '#ECFFF3',
-  white: '#FFFFFF', bubble: 'rgba(255,255,255,0.95)', panel: 'rgba(255,255,255,0.90)', header: 'rgba(255,248,243,0.85)',
-  scrimStart: 'rgba(50,48,45,0.80)', scrimMiddle: 'rgba(50,48,45,0.20)',
-  clear: 'rgba(50,48,45,0)', glowWarm: '#FFDAD3', glowCool: '#7161E2', glowGreen: '#237C51',
-} as const
-
-/** Undrawn dark materials derived from S70's canvas/card/accent/status roles. */
-export const redesignDark = {
-  savedCanvas: darkSurface.canvas, savedLine: darkBorder.hairline, savedMuted: darkText.secondary,
-  savedChip: darkSurface.subtle, savedCount: '#333333', savedAccentSoft: '#2A2A2A', savedAccent: '#FF746C',
-  savedGoogleFill: '#392C18', savedGoogleText: '#FDE68A', savedGoogleLine: '#69502B',
-  savedPhotoScrim: redesignLight.savedPhotoScrim, savedOpenDot: redesignLight.savedOpenDot,
-  importInputCanvas: darkSurface.canvas, importInputLine: darkBorder.hairline, importInputDim: darkSurface.subtle, importInputPrimary: '#CA381F',
-  importSyncedFill: darkStatus.successSoft, importSyncedText: darkStatus.successText, importPhotoBadgeText: '#C0FFD6',
-  verifiedFill: '#247D52', primaryFill: '#CA381F', primaryText: '#FF746C', heroStart: '#2A2A2A', heroMiddle: '#222222', heroEnd: '#2F2A55',
-  canvas: darkSurface.canvas, card: darkSurface.card, low: darkSurface.subtle,
-  container: darkSurface.subtle, high: '#333333', highest: '#333333', dim: '#333333',
-  ink: darkText.primary, secondary: darkText.secondary, outline: darkText.tertiary, line: darkBorder.hairline,
-  checklistUnmet: darkText.tertiary, recommendationFill: '#3B8365',
-  mutedTitle: darkText.primary, mutedBody: darkText.secondary,
-  // Selected chips stay distinct from low/card and give primaryText >=4.5:1.
-  primary: '#A72E19', primarySoft: '#2A2A2A', moodSelected: '#472C25',
-  violet: '#7161E2', violetText: '#C7BFFF',
-  violetSoft: '#2F2A55', violetInk: '#C7BFFF',
-  green: darkStatus.success, greenText: darkStatus.successText, greenSoft: darkStatus.successSoft,
-  white: '#FFFFFF', bubble: 'rgba(34,34,34,0.95)', panel: 'rgba(34,34,34,0.90)', header: 'rgba(24,23,21,0.85)',
-  scrimStart: redesignLight.scrimStart, scrimMiddle: redesignLight.scrimMiddle, clear: redesignLight.clear,
-  glowWarm: '#FF746C', glowCool: '#7161E2', glowGreen: darkStatus.success,
-} as const
 
 /** Shared button geometry; minHeight allows wrapped action labels to grow. */
 export const buttonSizes = {
@@ -608,29 +652,18 @@ export const touchTarget = { min: 44 } as const
  */
 export const hitSlop = { top: 8, bottom: 8, left: 8, right: 8 } as const
 
-export type BrandColor = keyof typeof colors.brand
-export type NeutralColor = keyof typeof colors.neutral
 export type TypeStyle = keyof typeof type
 export type GlyphSize = keyof typeof glyph
 export type AccentName = keyof typeof accents
 
-/**
- * Dark accent palettes. Orange is from Stitch: `primary` #CA381F and `pressed`
- * (primary-hover) #A72E19 on Home, `text` and `onSoft` #FF746C on Home and
- * Splash, `soft` #2A2A2A (the "Tối nay" pill on Home). Green, blue and purple are from
- * Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120.
- */
-export const darkAccents = {
-  orange: { primary: '#CA381F', text: '#FF746C', pressed: '#A72E19', soft: '#2A2A2A', onSoft: '#FF746C', onAccent },
-  // Stitch screen Bảng màu Dark a58c41190f214a94adb2982434e34120
-  green: { primary: '#247D52', text: '#79D9AD', pressed: '#1A5E3D', soft: '#16402F', onSoft: '#79D9AD', onAccent },
-  blue: { primary: '#1E68D7', text: '#94BEF7', pressed: '#164EB0', soft: '#192B45', onSoft: '#94BEF7', onAccent },
-  purple: { primary: '#7161E2', text: '#C7BFFF', pressed: '#5747C8', soft: '#2F2A55', onSoft: '#C7BFFF', onAccent },
-} as const satisfies Record<AccentName, Record<keyof (typeof accents)['orange'], string>>
-
-/** Owner Stitch avatar editor: fixed dark photo workspace in both themes. */
-export const photoEditor = {
-  canvas: '#121212', dock: '#181818', black: '#000000',
-  line: '#333333', raised: '#262626', pressed: '#444444',
-  pill: '#000000BF', white: '#FFFFFF',
+/** Fixed dark workspace for editing photos, independent of appearance. */
+export const workspace = {
+  canvas: '#121212',
+  surface: '#181818',
+  void: '#000000',
+  border: '#333333',
+  raised: '#262626',
+  emphasis: '#444444',
+  scrim: '#000000BF',
+  foreground: '#FFFFFF'
 } as const

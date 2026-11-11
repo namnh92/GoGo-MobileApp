@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { touchTarget, type } from '@/shared/ui/tokens'
+import { chipRowGap, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   card: { padding: theme.spacing[5], marginTop: theme.spacing[4], gap: theme.spacing[3] },
-  filterRow: { flexDirection: 'row', gap: theme.spacing[2], paddingTop: theme.spacing[4] },
+  filterRow: { flexDirection: 'row', gap: chipRowGap, paddingTop: theme.spacing[4] },
   note: {
     flexDirection: 'row',
     alignItems: 'flex-start',

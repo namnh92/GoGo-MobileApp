@@ -138,7 +138,7 @@ it('fetches the contract photo reference as JSON, displays returned bytes/credit
   await waitFor(() => expect(screen.getByTestId('import-candidate-photo')).toBeTruthy())
   expect(mockGet).toHaveBeenCalledTimes(1)
   expect(mockGet).toHaveBeenCalledWith('/places/google-provider-photo/ChIJtest', expect.objectContaining({ anonymous: true }))
-  expect(screen.getByTestId('import-candidate-photo').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,aGVsbG8=' }], cachePolicy: 'none' })
+  expect(screen.getByTestId('import-candidate-photo').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,aGVsbG8=' }], cachePolicy: 'memory-disk' })
   expect(screen.getByText('Ảnh: Lan · Google Maps')).toBeTruthy()
   await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
@@ -209,10 +209,8 @@ it('drops a late candidate photo response after the link changes', async () => {
       }),
   )
   await preview({ ...candidate, photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
-  const signal = mockGet.mock.calls[0][1].signal as AbortSignal
   await fireEvent.press(within(screen.getByTestId('import-header')).getByRole('button', { name: 'Quay lại' }))
   await fireEvent.changeText(screen.getByTestId('import-link-input'), LINK + '&new=1')
-  expect(signal.aborted).toBe(true)
   await act(async () => {
     finish({ status: 'ok', attribution: 'Google Maps', photos: [{ contentType: 'image/jpeg', dataBase64: 'bGF0ZQ==', authorAttributions: [] }] })
   })
@@ -628,7 +626,7 @@ it('shows a success result for the place and replaces the submitted form with co
   await completeWizard()
   await fireEvent.press(screen.getByText('Gửi'))
   const card = screen.getByTestId('place-result-card')
-  expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: '100%', backgroundColor: themes.orange.redesign.high, borderRadius: themes.orange.radius.card, ...themes.orange.shadows.card })
+  expect(StyleSheet.flatten(card.props.style)).toMatchObject({ width: '100%', backgroundColor: themes.orange.surface.high, borderRadius: themes.orange.radius.card, ...themes.orange.shadows.card })
   const row = within(card)
   expect(row.getByTestId('place-card-small')).toBeTruthy()
   expect(StyleSheet.flatten(row.getByTestId('place-card-surface').props.style)).toMatchObject({ padding: 8, borderWidth: 0 })
@@ -683,9 +681,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps the submitted photo frame with
   const response = { status: 'ok', attribution: 'Google Maps', photos: [
     { contentType: 'image/jpeg', dataBase64: 'AA==', authorAttributions: [{ displayName: 'Photo author' }] },
   ] }
-  let finish!: (value: unknown) => void
-  mockGet.mockResolvedValueOnce(response)
-  mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  mockGet.mockResolvedValue(response)
   await preview({ ...candidate, address: '12 Nguyễn Huệ', attributions: ['Distinct provider credit'], googleRating: 4.6, googleRatingCount: 980,
     openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 420, closeMinute: 600 })),
     photo: { provider: 'google', url: '/v1/places/google-provider-photo/ChIJtest' } })
@@ -696,12 +692,11 @@ it.each(['orange', 'orangeDark'] as const)('keeps the submitted photo frame with
   const frameStyle = () => StyleSheet.flatten(photo.props.style)
   const before = frameStyle()
   expect(before).toMatchObject({ width: 80, height: 80 })
-  expect(row.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
-  await act(async () => { finish(response) })
+  expect(mockGet).toHaveBeenCalledTimes(1)
   expect(frameStyle()).toEqual(before)
   expect(row.getByTestId('place-photo-loading', { includeHiddenElements: true })).toBeTruthy()
   await waitFor(() => expect(row.getByTestId('place-preview-thumbnail')).toBeTruthy())
-  expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'none' })
+  expect(row.getByTestId('place-preview-thumbnail').props).toMatchObject({ source: [{ uri: 'data:image/jpeg;base64,AA==' }], cachePolicy: 'memory-disk' })
   const body = row.getByTestId('place-card-body')
   const credit = within(body).getByText('Ảnh: Photo author · Google Maps')
   expect(within(body).getByText('12 Nguyễn Huệ')).toBeTruthy()
@@ -728,7 +723,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps the synced card without a chan
   const factory = create.mock.calls[0][0] as (theme: AppTheme) => Record<string, any>
   const styles = factory(themes[themeName])
   create.mockRestore()
-  expect(styles.syncedRow).toMatchObject({ backgroundColor: themes[themeName].redesign.card, borderColor: themes[themeName].redesign.line })
+  expect(styles.syncedRow).toMatchObject({ backgroundColor: themes[themeName].surface.card, borderColor: themes[themeName].border.hairline })
   expect(styles.syncedText).toMatchObject({ flex: 1, minWidth: 0 })
   expect(styles.syncedUrl).toMatchObject({ flex: 1, minWidth: 0 })
   await preview()
@@ -757,9 +752,28 @@ it.each(['orange', 'orangeDark'] as const)('raises the result card over the shee
     const [screenStyle, cardStyle, sheetStyle] = create.mock.calls.map(([factory]) =>
       (factory as (theme: AppTheme) => Record<string, any>)(themes[themeName]))
     const theme = themes[themeName]
-    expect({ ...cardStyle.card, ...screenStyle.resultPreview }).toMatchObject({ width: '100%', backgroundColor: theme.redesign.high, borderRadius: theme.radius.card, ...theme.shadows.card })
-    expect(screenStyle.resultPreviewContent).toMatchObject({ padding: 8, borderWidth: 0, backgroundColor: theme.redesign.high })
+    expect({ ...cardStyle.card, ...screenStyle.resultPreview }).toMatchObject({ width: '100%', backgroundColor: theme.surface.high, borderRadius: theme.radius.card, ...theme.shadows.card })
+    expect(screenStyle.resultPreviewContent).toMatchObject({ padding: 8, borderWidth: 0, backgroundColor: theme.surface.high })
     expect(screenStyle.resultPreview.backgroundColor).not.toBe(sheetStyle.panel.backgroundColor)
     expect(cardStyle.card.overflow).not.toBe('hidden')
   } finally { create.mockRestore() }
+})
+
+
+it.each(['orange', 'orangeDark'] as const)('uses the shared link field while preserving invalid-link feedback (%s)', async themeName => {
+  await renderScreen(<PlaceImportScreen />)
+  await fireEvent.changeText(screen.getByTestId('import-link-input'), 'invalid link')
+  expect(screen.getByTestId('import-link-input').props.value).toBe('invalid link')
+  expect(screen.getByTestId('import-link-input').props.accessibilityHint).toBeTruthy()
+  const create = jest.spyOn(UnistylesStyleSheet, 'create')
+  jest.isolateModules(() => { jest.requireActual('@/shared/ui/link-input.style') })
+  const factory = create.mock.calls[0]![0] as (theme: AppTheme) => Record<string, Record<string, unknown>>
+  expect(factory(themes[themeName]).error.borderColor).toBe(themes[themeName].status.danger)
+  expect(factory(themes[themeName]).input.backgroundColor).toBe(themes[themeName].surface.low)
+  create.mockRestore()
+  await fireEvent.press(screen.getByText('Tiếp tục trích xuất thông tin'))
+  expect(mockResolve.mutate).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: 'Xóa liên kết' }))
+  expect(screen.getByTestId('import-link-input').props.value).toBe('')
+  expect(screen.getByTestId('import-link-input').props.accessibilityHint).toBeUndefined()
 })

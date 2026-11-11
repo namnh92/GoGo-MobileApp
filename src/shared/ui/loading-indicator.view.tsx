@@ -5,16 +5,17 @@ import Animated, { cancelAnimation, Easing, interpolate, useAnimatedProps, useAn
 import Svg, { Defs, G, LinearGradient, Path, Stop } from 'react-native-svg'
 
 import { useReducedMotionPreference } from './feedback'
+import { logoPaths } from './gogo-logo.asset'
 import { brandLogo, loadingIndicator as token, motion } from './tokens'
 import { styles } from './loading-indicator.style'
 
 const AnimatedPath = Animated.createAnimatedComponent(Path)
 const AnimatedG = Animated.createAnimatedComponent(G)
-const LOOP = 'M 200,160 C 164,96 92,80 56,124 C 22,168 32,220 120,278 C 152,250 178,208 200,160 C 222,208 248,250 280,278 C 368,220 378,168 344,124 C 308,80 236,96 200,160'
+const LOOP = logoPaths.ribbon.replace(/ Z$/, '')
 
 /** Each star has its own clock; reduced motion cancels both clocks. */
-function Twinkle({ delay = 0, duration, x, y, color, reduced }: {
-  delay?: number; duration: number; x: number; y: number; color: string; reduced: boolean
+function Twinkle({ delay = 0, duration, x, y, path, color, reduced }: {
+  delay?: number; duration: number; x: number; y: number; path: string; color: string; reduced: boolean
 }) {
   const pulse = useSharedValue(0)
   useEffect(() => {
@@ -30,7 +31,7 @@ function Twinkle({ delay = 0, duration, x, y, color, reduced }: {
       matrix: [scale, 0, 0, scale, 0, 0],
     }
   })
-  return <G x={x} y={y}><AnimatedG animatedProps={props}><Path d="M 0,-12 Q 0,0 -9,0 Q 0,0 0,12 Q 0,0 9,0 Q 0,0 0,-12 Z" fill={color} /></AnimatedG></G>
+  return <G x={x} y={y}><AnimatedG animatedProps={props}><G x={-x} y={-y}><Path d={path} fill={color} /></G></AnimatedG></G>
 }
 
 export interface LoadingIndicatorProps {
@@ -79,18 +80,23 @@ export function LoadingIndicator({ size = token.size, accessibilityLabel, decora
       importantForAccessibility={decorative ? 'no' : 'auto'} style={[styles.mark, { width: size, height: size }, animated, style]}>
       <Svg width={size} height={size} viewBox="0 0 400 320" fill="none" accessible={false}>
         <Defs>
-          <LinearGradient id={`${id}-spectrum`} x1="0%" x2="100%" y1="60%" y2="40%">
-            {brandLogo.spectrum.map((color, i) => <Stop key={color} offset={brandLogo.offsets[i]} stopColor={color} />)}
+          <LinearGradient id={`${id}-spectrum`} x1="0%" x2="100%" y1="58%" y2="42%">
+            {brandLogo.spectrum.map(([offset, color]) => <Stop key={offset} offset={`${offset}%`} stopColor={color} />)}
+          </LinearGradient>
+          <LinearGradient id={`${id}-bridge`} x1="0%" x2="100%" y1="100%" y2="0%">
+            {brandLogo.bridge.map(([offset, color, opacity]) => <Stop key={offset} offset={`${offset}%`} stopColor={color} stopOpacity={opacity} />)}
           </LinearGradient>
         </Defs>
-        <Twinkle x={200} y={65} duration={2400} color={brandLogo.sparkleMint} reduced={reduced} />
-        <Twinkle x={337} y={106} duration={2800} delay={500} color={brandLogo.sparkleAmber} reduced={reduced} />
+        <Twinkle x={200} y={54} path={logoPaths.stars[0]} duration={2400} color={brandLogo.stars[0]} reduced={reduced} />
+        <Twinkle x={324} y={64} path={logoPaths.stars[1]} duration={2800} delay={500} color={brandLogo.stars[1]} reduced={reduced} />
         <G strokeLinecap="round" strokeLinejoin="round" fill="none">
-          <Path d={`${LOOP} Z`} stroke={`url(#${id}-spectrum)`} strokeWidth={42} />
+          <Path d={logoPaths.ribbon} stroke={`url(#${id}-spectrum)`} strokeWidth={42} />
+          <Path d={logoPaths.bridge} stroke={`url(#${id}-bridge)`} strokeWidth={42} />
+          {logoPaths.highlights.map((d, i) => <Path key={d} d={d} stroke={brandLogo.highlight} strokeWidth={7} opacity={i === 0 ? 0.42 : 0.45} />)}
           {/* Wider translucent copies give the beam a native SVG glow. */}
-          <AnimatedPath d={LOOP} stroke={brandLogo.sheen} opacity={0.12} strokeWidth={19} strokeDasharray="85 255" animatedProps={beamProps} />
-          <AnimatedPath d={LOOP} stroke={brandLogo.sheen} opacity={0.25} strokeWidth={12} strokeDasharray="85 255" animatedProps={beamProps} />
-          <AnimatedPath testID={`${testID}-beam`} d={LOOP} stroke={brandLogo.sheen} strokeWidth={7} strokeDasharray="85 255" animatedProps={beamProps} />
+          <AnimatedPath d={LOOP} stroke={brandLogo.highlight} opacity={0.12} strokeWidth={19} strokeDasharray="85 255" animatedProps={beamProps} />
+          <AnimatedPath d={LOOP} stroke={brandLogo.highlight} opacity={0.25} strokeWidth={12} strokeDasharray="85 255" animatedProps={beamProps} />
+          <AnimatedPath testID={`${testID}-beam`} d={LOOP} stroke={brandLogo.highlight} strokeWidth={7} strokeDasharray="85 255" animatedProps={beamProps} />
         </G>
       </Svg>
     </Animated.View>

@@ -30,7 +30,7 @@ function PlanThumbnail({ stop, standalone = false }: { stop: Stop; standalone?: 
   let url: string | null = null
   try { if (photo?.url) url = new URL(photo.url, env.apiUrl).href } catch { /* Unusable media is omitted. */ }
   if (!url || url === failed || !/^https?:\/\//.test(url)) return null
-  const image = <Image testID="notification-plan-thumbnail" source={{ uri: url }}
+  const image = <Image cachePolicy="memory-disk" testID="notification-plan-thumbnail" source={{ uri: url, cacheKey: url }}
     style={styles.thumbnail} contentFit="cover" onError={() => setFailed(url)} accessible={false} />
   return standalone ? <View style={styles.preview}>{image}</View> : image
 }
@@ -51,7 +51,7 @@ function ReminderTime({ start }: { start: Date }) {
   const date = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}`
   return <>
     {countdown ? <Text variant="introBody" color="accent.primary">{t(countdown.key, { count: countdown.count })}</Text> : null}
-    <Text variant="introCaption" color="redesign.secondary" accessibilityLabel={t('g10.startsAt', { time: start.toLocaleString(i18n.language) })}>
+    <Text variant="introCaption" color="text.secondary" accessibilityLabel={t('g10.startsAt', { time: start.toLocaleString(i18n.language) })}>
       {sameDay ? t('g10.startsAt', { time }) : t('g10.startsAtDate', { time, date })}
     </Text>
   </>
@@ -77,16 +77,16 @@ export function NotificationFacts({ kind, payload }: { kind: Notification['kind'
     {showPreview ? <View testID="notification-plan-preview" style={styles.preview}>
       {thumbnail ? <PlanThumbnail stop={thumbnail} /> : null}
       <View style={styles.text}>
-        {names ? <Text variant="introCaption" color="redesign.ink" numberOfLines={2}>{names}</Text> : null}
-        {time ? <Text variant="introCaption" color="redesign.secondary" accessibilityLabel={t('g10.startsAt', { time: start!.toLocaleString(i18n.language) })}>{t('g10.startsAt', { time })}</Text> : null}
+        {names ? <Text variant="introCaption" color="text.primary" numberOfLines={2}>{names}</Text> : null}
+        {time ? <Text variant="introCaption" color="text.secondary" accessibilityLabel={t('g10.startsAt', { time: start!.toLocaleString(i18n.language) })}>{t('g10.startsAt', { time })}</Text> : null}
       </View>
     </View> : null}
     {planKind && !showPreview && thumbnail ? <PlanThumbnail stop={thumbnail} standalone /> : null}
     {kind === 'date_reminder' && (start || venue || address) ? <View testID="notification-appointment" style={styles.appointment}>
       {start ? <ReminderTime start={start} /> : null}
-      {venue ? <Text variant="introBody" color="redesign.ink">{venue}</Text> : null}
-      {address ? <View style={styles.venue}><Icon name="mapPin" size={14} color="redesign.secondary" />
-        <Text variant="introCaption" color="redesign.secondary" style={styles.venueText}>{address}</Text></View> : null}
+      {venue ? <Text variant="introBody" color="text.primary">{venue}</Text> : null}
+      {address ? <View style={styles.venue}><Icon name="mapPin" size={14} color="text.secondary" />
+        <Text variant="introCaption" color="text.secondary" style={styles.venueText}>{address}</Text></View> : null}
     </View> : null}
   </>
 }

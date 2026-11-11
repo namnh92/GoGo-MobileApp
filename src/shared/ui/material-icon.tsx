@@ -95,7 +95,7 @@ const paths = {
 } as const
 
 export type MaterialIconName = keyof typeof paths
-export function MaterialIcon({ name, size = 20, color = 'redesign.ink' }: {
+export function MaterialIcon({ name, size = 20, color = 'text.primary' }: {
   name: MaterialIconName; size?: number; color?: TextColor
 }) {
   const { theme } = useUnistyles()

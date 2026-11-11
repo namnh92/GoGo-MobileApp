@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const CELL = touchTarget.min
 
@@ -9,7 +9,7 @@ export const styles = StyleSheet.create(theme => ({
   headTitle: { flex: 1 },
   iconBtn: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
   iconBtnOff: { opacity: 0.35 },
-  shortcutRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[4] },
+  shortcutRow: { flexDirection: 'row', gap: chipRowGap, marginBottom: spacing[4] },
   monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
   monthTitle: { flex: 1, textAlign: 'center' },
   weekRow: { flexDirection: 'row' },
@@ -34,7 +34,7 @@ export const styles = StyleSheet.create(theme => ({
   },
   todayDotOnSelected: { backgroundColor: theme.accent.onAccent },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[2] },
-  timeRow: { gap: spacing[2], paddingRight: spacing[2] },
+  timeRow: { gap: chipRowGap, paddingRight: spacing[2] },
   summary: {
     flexDirection: 'row',
     alignItems: 'center',

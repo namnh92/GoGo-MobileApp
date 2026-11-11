@@ -1,4 +1,4 @@
-import type { ErrorEnvelope, FieldError } from './types'
+import type { ErrorEnvelope, FieldError, AssistantInsufficientCreditDetails } from './types'
 
 /**
  * Every non-2xx response becomes an ApiError carrying the BFF error envelope
@@ -12,6 +12,7 @@ export class ApiError extends Error {
   readonly requestId?: string
   readonly retryable: boolean
   readonly retryAt: number
+  readonly details?: AssistantInsufficientCreditDetails
 
   constructor(status: number, envelope: Partial<ErrorEnvelope> & { code: string; message: string }, retryAfter?: string | null) {
     super(envelope.message)
@@ -19,6 +20,7 @@ export class ApiError extends Error {
     const seconds = retryAfter?.trim() ? Number(retryAfter) : NaN
     const deadline = Number.isFinite(seconds) ? Date.now() + Math.max(0, seconds) * 1000 : Date.parse(retryAfter ?? "")
     this.retryAt = Number.isFinite(deadline) ? deadline : 0
+    this.details = envelope.code === 'ASSISTANT_INSUFFICIENT_CREDIT' ? creditDetails(envelope.details) : undefined
     this.status = status
     this.code = envelope.code
     this.fieldErrors = envelope.field_errors ?? []
@@ -104,4 +106,17 @@ export function isRoomNotMatching(error: unknown): boolean {
 
 export function isRoomNotActive(error: unknown): boolean {
   return isApiError(error) && error.status === 409 && error.code === 'ROOM_NOT_ACTIVE'
+}
+
+/** Only the contract's insufficient-credit facts may cross the error boundary. */
+function creditDetails(value: unknown): AssistantInsufficientCreditDetails | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const d = value as Record<string, unknown>
+  const keys = ['creditBalance', 'creditReserved', 'creditAvailable', 'requiredCredits', 'remainingToday'] as const
+  if (!keys.every(key => Number.isSafeInteger(d[key]) && (d[key] as number) >= 0)
+    || (d.requiredCredits as number) < 1 || d.remainingToday !== 0
+    || typeof d.resetsAt !== 'string' || !Number.isFinite(Date.parse(d.resetsAt))) return undefined
+  return { creditBalance: d.creditBalance as number, creditReserved: d.creditReserved as number,
+    creditAvailable: d.creditAvailable as number, requiredCredits: d.requiredCredits as number,
+    remainingToday: 0, resetsAt: d.resetsAt }
 }

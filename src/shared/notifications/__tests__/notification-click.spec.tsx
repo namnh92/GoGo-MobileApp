@@ -25,6 +25,13 @@ import { PUSH_UNAVAILABLE_NOTICE } from '../notification-target'
  * the API reads and analytics are faked.
  */
 
+// Expo Router installs Reanimated's lightweight mock. Its bezier factory is
+// only an identity stub; keep the real pure easing math for the splash logo.
+jest.mock('react-native-reanimated/mock', () => ({
+  ...jest.requireActual('react-native-reanimated/mock'),
+  Easing: jest.requireActual('react-native-reanimated').Easing,
+}))
+
 // expo-router's matcher module imports `expect/build/matchers`, which this jest
 // cannot load; the assertions below read the router store directly instead.
 jest.mock('expo-router/build/testing-library/expect', () => ({}))

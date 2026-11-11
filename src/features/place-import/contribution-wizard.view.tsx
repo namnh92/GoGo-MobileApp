@@ -402,10 +402,7 @@ function Wizard(props: WizardProps) {
             <>
               <View style={styles.section}>
                 <ContributionChoices options={vibes} selected={form.vibeKeys} max={3} disabled={disabled}
-                  checklist renderHeader={(action) => <>
-                    {sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'), action)}
-                    <Text variant="introCaption">{t('placeWizard.vibesHelp')}</Text>
-                  </>}
+                  checklist renderHeader={(action) => sectionTitle(t('placeWizard.vibes'), 'mood', t('placeWizard.vibeCount'), action)}
                   title={t('placeWizard.vibes')} onChange={(keys) => setValue('vibeKeys', keys)} />
               </View>
               <View style={[styles.section, styles.divider]}>

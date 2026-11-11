@@ -1,13 +1,12 @@
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
-import { AppTabDock } from '@/shared/ui/app-tab-dock.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, ScrollView, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useBottomBarInset } from '@/shared/ui/bottom-bar-inset'
 import { detailToPlaceCard, useMyReviews, usePlaceDetail } from '@/shared/api'
 import { useMyPlaceSubmission, useMyPlaceSubmissions } from '@/shared/api/queries/use-my-place-submissions'
 import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
@@ -18,6 +17,7 @@ import { EmptyState, ErrorState, LoadingState, OfflineState } from '@/shared/ui/
 import { Atmosphere, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { mapsUrlSchema } from '@/features/place-import/maps-url'
 import { Text } from '@/shared/ui/text'
+import { usePlaceClock } from '@/shared/ui/use-place-clock'
 import { Chip } from '@/shared/ui/chip.view'
 import { SegmentedTabs } from '@/shared/ui/segmented-tabs.view'
 import { ContributionPlaceCard } from '@/shared/ui/contribution-place-card.view'
@@ -42,6 +42,7 @@ function dateLabel(value?: string, locale?: string) {
 function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const { t } = useTranslation()
   const router = useRouter()
+  const now = usePlaceClock()
   const canonical = item.status === 'approved' || item.status === 'merged'
   const detail = usePlaceDetail(canonical ? item.placeId : undefined)
   const online = useOnlineStatus()
@@ -58,8 +59,17 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const address = display.addressShort?.trim() || item.addressShort?.trim() || provider?.addressShort?.trim() || item.providerDisplay?.addressShort?.trim()
   const canRetry = submission.isError && isSubmissionDetailRetryable(submission.error)
   const factsUnavailable = submission.data && (['budget_exhausted', 'deferred'].includes(display.providerStatus ?? '') || !realName || !address)
-  const card = detailToPlaceCard({ id: item.id, name, addressText: address, ...detail.data })
-  if (!card.photoUrl && item.photoUrl) card.photoUrl = item.photoUrl
+  const deadline = display.updateDeadline ? Date.parse(display.updateDeadline) : NaN
+  const canUpdate = item.status === 'rejected' && deadline > now.getTime()
+  const photo = item.status !== 'rejected' || canUpdate ? display.photo : undefined
+  const card = detailToPlaceCard({
+    id: item.id, name, addressText: address,
+    rating: provider?.googleRating ?? undefined, ratingCount: provider?.googleRatingCount ?? undefined,
+    ...detail.data,
+    // Submission photos are stored CDN covers, never provider preview references.
+    photos: photo ? [photo] : item.status === 'rejected' ? [] : detail.data?.photos,
+  })
+  if (!card.photoUrl && item.photoUrl && item.status !== 'rejected') card.photoUrl = item.photoUrl
   const progress = <>
     {needsHydration && submission.isFetching ? <LoadingState /> : null}
     {needsHydration && submission.isError ? <ErrorState error={submission.error} /> : null}
@@ -72,14 +82,14 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
     status: item.status,
     submittedDate: dateLabel(item.createdAt),
     rejectionReason: item.rejectionReason ? t(`myContributions.rejection.${item.rejectionReason}`, { defaultValue: t('myContributions.rejection.other') }) : undefined,
-    sourceUrl: url,
+    sourceUrl: photo?.googleMapsUri ?? url,
     onSupplement: url ? () => router.push({ pathname: '/places/import', params: { url } }) : undefined,
   }
-  if (!canonical) return <ContributionPlaceCard {...common} preview={{
-    name, address, googleRating: provider?.googleRating, googleRatingCount: provider?.googleRatingCount,
-    photo: provider?.photo, attributions: provider?.attributions,
-    googlePlaceId: provider?.photo?.url.match(/^\/v1\/places\/google-provider-photo\/([A-Za-z0-9_-]{5,255})$/)?.[1],
-  }}>{progress}</ContributionPlaceCard>
+  if (!canonical) return <ContributionPlaceCard {...common} place={card}>{progress}
+    {item.status === 'rejected' && Number.isFinite(deadline) ? <Text testID="contribution-update-deadline" variant="introCaption" color="text.secondary">
+      {canUpdate ? t('contributions.updateRemaining', { hours: Math.ceil((deadline - now.getTime()) / 3_600_000) }) : t('contributions.updateExpired')}
+    </Text> : null}
+  </ContributionPlaceCard>
   return <ContributionPlaceCard {...common} place={card}
     onPress={item.placeId ? () => router.push({ pathname: '/places/[placeId]', params: { placeId: item.placeId! } }) : undefined} />
 }
@@ -100,7 +110,8 @@ export default function MyContributionsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useLocalSearchParams<{ tab?: string }>()
-  const insets = useSafeAreaInsets()
+  const actionPadding = useBottomBarInset(12)
+  const listPadding = useBottomBarInset(24)
   const registered = useSession().status === 'user'
   const query = useMyPlaceSubmissions(registered)
   const reviews = useMyReviews({ enabled: registered })
@@ -140,14 +151,13 @@ export default function MyContributionsScreen() {
       })}</ScrollView></View>
       {!online && !active.isPending ? <OfflineState /> : null}
       <PullToRefresh key={tab} refreshing={refreshing} onRefresh={() => active.refetch()}>{tab === 'places' ? <FlatList testID="my-contributions-list" data={items.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
+        contentContainerStyle={[styles.list, { paddingBottom: 24 }]} onEndReached={() => { if (!query.isError) loadMore() }} onEndReachedThreshold={0.3}
         ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionPlace item={item} />} /> :
         <FlatList testID="my-contributions-reviews" data={reviewItems.filter(item => matches(item.status, filter))} keyExtractor={item => item.id}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}</PullToRefresh>
+          contentContainerStyle={[styles.list, { paddingBottom: listPadding }]} ListEmptyComponent={emptyList} ListFooterComponent={footer} renderItem={({ item }) => <ContributionReview review={item} />} />}</PullToRefresh>
     </>}
-    {registered && tab === 'places' ? <View style={styles.addAction}>
+    {registered && tab === 'places' ? <View testID="contributions-add-action" style={[styles.addAction, { paddingBottom: actionPadding }]}>
       <PrimaryBtn label={t('myContributions.add')} leadingIcon="plus" onPress={() => router.push('/places/import')} />
     </View> : null}
-    {registered ? <AppTabDock active="profile" /> : null}
   </Atmosphere>
 }

@@ -1,4 +1,4 @@
-import { act, fireEvent, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { AccessibilityInfo, Keyboard, TextInput } from 'react-native'
 import { StyleSheet } from 'react-native-unistyles'
 import { themes } from '@/shared/ui/theme'
@@ -132,6 +132,17 @@ async function openSignUp() {
   await press(view.getByRole('tab', { name: 'Đăng ký' }))
   return view
 }
+
+describe('auth header (#643)', () => {
+  it.each(['signIn', 'signUp'] as const)('%s shows only back and title', async mode => {
+    const view = mode === 'signIn' ? await renderScreen(<SignInScreen />) : await openSignUp()
+    const header = within(view.getByTestId('app-header'))
+    expect(header.getByRole('header', { name: mode === 'signIn' ? 'Đăng nhập' : 'Đăng ký' })).toBeTruthy()
+    expect(header.getAllByRole('button')).toHaveLength(1)
+    expect(header.getByRole('button', { name: 'Quay lại' })).toBeTruthy()
+    expect(view.queryByTestId('app-header-bell')).toBeNull()
+  })
+})
 
 describe('sign-up validation (#252)', () => {
   it('shows the password rule for a short password and sends no register request', async () => {

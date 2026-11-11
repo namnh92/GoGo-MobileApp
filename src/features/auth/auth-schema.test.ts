@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { signInSchema, signUpSchema } from './auth-schema'
+import { recoveryPasswordSchema, signInSchema, signUpSchema } from './auth-schema'
 import { passwordRequirements } from '@/shared/validation/password-policy'
 
 const register = (password: string) => signUpSchema.safeParse({ displayName: 'An', email: 'an@example.com', password }).success
@@ -24,5 +24,18 @@ describe('owner D3 password policy', () => {
   it('reports individual requirements for the checklist', () => {
     expect(passwordRequirements('abcdefgh')).toEqual({ length: true, upper: false, lower: true, digit: false, special: false })
     expect(Object.values(passwordRequirements('Abcdef1!')).every(Boolean)).toBe(true)
+  })
+})
+
+describe('recovery password confirmation', () => {
+  it('requires matching passwords and the full password policy', () => {
+    expect(recoveryPasswordSchema.safeParse({ password: 'Abcdef1!', confirmPassword: 'Abcdef1!' }).success).toBe(true)
+    for (const values of [
+      { password: 'Abcdef1!', confirmPassword: '' },
+      { password: 'Abcdef1!', confirmPassword: 'Abcdef2!' },
+      { password: 'weak', confirmPassword: 'weak' },
+    ]) expect(recoveryPasswordSchema.safeParse(values).success).toBe(false)
+    const result = recoveryPasswordSchema.safeParse({ password: 'Abcdef1!', confirmPassword: 'Abcdef2!' })
+    expect(result.success ? [] : result.error.issues).toContainEqual(expect.objectContaining({ path: ['confirmPassword'], code: 'custom' }))
   })
 })

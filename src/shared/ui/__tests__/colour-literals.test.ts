@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
  * `'#293'` in code is a colour.
  */
 const SRC = path.resolve(__dirname, '../../..')
-const EXEMPT = new Set(['shared/ui/tokens.ts', 'shared/ui/theme.ts'])
+const EXEMPT = new Set(['shared/ui/tokens.ts'])
 // Built from parts so the patterns do not match this file's own source.
 const HEX = new RegExp(`['"\`]${'#'}[0-9a-fA-F]{3,8}['"\`]`)
 const RGBA = new RegExp(`\\b${'rgb'}a?\\(`)
@@ -27,7 +27,7 @@ function walk(dir: string): string[] {
 }
 
 function offenders(pattern: RegExp): string[] {
-  return walk(SRC).flatMap(file => {
+  return [...walk(SRC), path.resolve(SRC, '../app.config.ts')].flatMap(file => {
     const rel = path.relative(SRC, file).split(path.sep).join('/')
     if (EXEMPT.has(rel)) return []
     return readFileSync(file, 'utf8')

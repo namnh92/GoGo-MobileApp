@@ -15,7 +15,6 @@ export function AssistantHeader({
   offline = false,
   avatar = false,
   onHistory,
-  onNewChat,
   trailing,
 }: {
   onClose?: () => void
@@ -26,18 +25,16 @@ export function AssistantHeader({
   offline?: boolean
   avatar?: boolean
   onHistory?: () => void
-  onNewChat?: () => void
   trailing?: ReactNode
 }) {
   const { t } = useTranslation()
   return (
     <AppHeader variant="sub-screen" showNotifications={false} safeArea={false} title={title ?? t('assistant.name')} subtitle={subtitle} subtitleTone={offline ? 'danger' : 'default'}
-      onBack={onBack ?? onClose} backLabel={t(onBack ? 'assistant.history.back' : 'assistant.close')} backTestID={onBack ? 'assistant-back' : 'assistant-close'}
+      onBack={onBack ?? onClose} backLabel={t(onBack ? 'assistant.history.back' : 'common.back')} backTestID={onBack ? 'assistant-back' : 'assistant-close'}
       leading={<>
         {avatar ? <AssistantAvatar size="md" /> : null}
       </>}
       rightAction={<>
-        {onNewChat ? <HeaderButton testID="assistant-new-chat" icon="newChat" label={t('assistant.newChat')} onPress={onNewChat} /> : null}
         {onHistory ? <HeaderButton testID="assistant-history" icon="history" label={t('assistant.history.open')} onPress={onHistory} /> : null}
         {trailing}
       </>} />
