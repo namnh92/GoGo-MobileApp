@@ -118,7 +118,6 @@ export default function ForgotPasswordScreen() {
             <PrimaryBtn label={flow
               ? remaining > 0 ? t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) }) : t('auth.recovery.resend')
               : t('auth.recovery.sendCode')} onPress={submit} loading={request.isPending} disabled={pending || !validEmail || remaining > 0} />
-            {!flow && remaining > 0 && <Text color="text.secondary" style={styles.centered}>{t('auth.recovery.resendCountdown', { time: formatRecoveryCountdown(remaining) })}</Text>}
           </View>
         </ScrollView>
       </View>
