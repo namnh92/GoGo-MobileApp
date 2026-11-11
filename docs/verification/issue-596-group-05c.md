@@ -186,3 +186,19 @@ Formatter pins: VI/EN × same day / different days / missing end; invalid/missin
 Logs: `/tmp/596-owner-sim-before-ui.log`, `/tmp/596-owner-sim-before-schedule.log`, `/tmp/596-owner-sim-after-ui.log`, `/tmp/596-owner-sim-ui.log`, `/tmp/596-owner-sim-registry.log`, `/tmp/596-owner-sim-tokens.log`, `/tmp/596-owner-sim-typecheck.log`, `/tmp/596-owner-sim-lint.log`.
 
 Không có simulator/build/native visual re-check trong lượt này; các PASS là regression/check source, không phải owner sim acceptance. Không đổi API, session flow, analytics hay persistence. `RTK.md` được AGENTS tham chiếu không có trong worktree và các ancestor đã kiểm tra; các rules workspace hiện hữu vẫn được đọc và áp dụng.
+
+## F-06 — clipped trailing touch targets (2026-11-12)
+
+PR #638, Astra changes-required @`c1ef5181`; scope chỉ F-06 P2. `JoinInput.trailing` trước đây co theo small button 40pt, chặn hitSlop ở chiều cao 40pt. Thêm `minHeight: touchTarget.min` (44pt) trên wrapper, giữ button 40pt căn giữa trong shell inner height 46pt. Không đổi handlers hoặc shared buttons.
+
+Regression `F-06: trailing hit areas remain at least 44×44 after parent clipping` chạy hai trạng thái: mã rỗng (Dán) và mã có nội dung (Xoá + Dán). Test lấy style và hitSlop từ các Pressable đã render, tìm native parent thực tế, tính row ở kích thước tối thiểu và giao hình chữ nhật hitSlop với bounds parent. Assert cả chiều rộng và chiều cao ≥44pt cho từng nút, đồng thời wrapper nằm trong inner shell; không chỉ assert button vừa field. Với patch, clipped height là 44pt; conservative clipped widths là 44pt (Dán khi rỗng), 48pt/52pt (Xoá/Dán khi có mã).
+
+| Evidence / check | Kết quả |
+| --- | --- |
+| Baseline source @`c1ef5181`, thêm regression trước khi sửa style: `pnpm test:ui invite-code-redesign --runInBand --watchman=false -t F-06` | **FAIL**, 2 failed / 24 skipped, Jest exit 1; cả hai nhận clipped height **40**, expected ≥44. Log `/tmp/596-f06-before.log`. |
+| Cùng regression sau sửa | **PASS**, 2 passed / 24 skipped, exit 0. Log `/tmp/596-f06-after.log`. |
+| `pnpm test:ui join invite --runInBand --watchman=false` | **PASS**, 10 suites / **261 tests**, exit 0. Log `/tmp/596-f06-ui.log`. |
+| `pnpm typecheck` | **PASS**, exit 0 trong sandbox. Log `/tmp/596-f06-typecheck.log`. |
+| `git diff --check` | **PASS**. |
+
+Đây là layout/style regression, không phải native layout measurement hay simulator acceptance. Chỉ sửa style, regression và tài liệu này; không git add/commit/push.

@@ -13,6 +13,42 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ replace: jest.fn(), back: 
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockStatus, joinAsGuest: mockGuest }) }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useJoinRoom: () => ({ mutateAsync: mockJoin }) }))
 beforeEach(async () => { jest.clearAllMocks(); mockStatus = 'user'; await i18n.changeLanguage('vi') })
+it.each(['', 'valid-code'])('F-06: trailing hit areas remain at least 44×44 after parent clipping (code=%s)', async code => {
+  await render(<JoinByCodeScreen />)
+  if (code) await fireEvent.changeText(screen.getByLabelText('Mã mời'), code)
+  const field = screen.getByTestId('join-code-field')
+  const shell = StyleSheet.flatten(field.props.style)
+  const paste = within(field).getByRole('button', { name: 'Dán' })
+  // Find the native parent that clips hitSlop, skipping composite Button nodes.
+  let parent = paste.parent
+  while (parent && typeof parent.type !== 'string') parent = parent.parent
+  expect(parent).not.toBeNull()
+  const trailing = StyleSheet.flatten(parent!.props.style)
+  expect(trailing.flexDirection).toBe('row')
+  expect(trailing.alignItems).toBe('center')
+  const buttons = within(parent!).getAllByRole('button')
+  expect(buttons).toHaveLength(code ? 2 : 1)
+  // Conservative layout at each button's minimum size: text can only widen it.
+  const boxes = buttons.map(button => {
+    const style = StyleSheet.flatten(button.props.style)
+    return { button, width: style.width ?? style.minWidth, height: style.height ?? style.minHeight }
+  })
+  const innerHeight = shell.minHeight - 2 * shell.borderWidth
+  const parentHeight = Math.max(trailing.minHeight ?? 0, ...boxes.map(box => box.height))
+  const parentWidth = boxes.reduce((sum, box) => sum + box.width, 0) + (trailing.paddingRight ?? 0)
+  expect(parentHeight).toBeLessThanOrEqual(innerHeight)
+  let x = 0
+  for (const { button, width, height } of boxes) {
+    const y = (parentHeight - height) / 2
+    const slop = button.props.hitSlop
+    // Intersection of expanded Pressable rect and its parent's bounds.
+    const hitWidth = Math.min(parentWidth, x + width + slop.right) - Math.max(0, x - slop.left)
+    const hitHeight = Math.min(parentHeight, y + height + slop.bottom) - Math.max(0, y - slop.top)
+    expect(hitWidth).toBeGreaterThanOrEqual(44)
+    expect(hitHeight).toBeGreaterThanOrEqual(44)
+    x += width
+  }
+})
 it('Owner sim feedback 2026-11-12: code and name share wizard input tokens and contain paste', async () => {
   mockStatus = 'anonymous'
   await render(<JoinByCodeScreen />)

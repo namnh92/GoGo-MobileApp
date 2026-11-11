@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing, type } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 const FIELD_HEIGHT = 48
 const BORDER_WIDTH = 1
@@ -23,5 +23,6 @@ export const styles = StyleSheet.create(theme => ({
     padding: spacing[3],
     color: theme.text.primary,
   },
-  trailing: { flexDirection: 'row', alignItems: 'center', paddingRight: spacing[1] },
+  // Leave room for the small buttons' hitSlop within their native parent.
+  trailing: { minHeight: touchTarget.min, flexDirection: 'row', alignItems: 'center', paddingRight: spacing[1] },
 }))
