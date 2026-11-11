@@ -126,15 +126,16 @@ it('guest sees sign-in without rendering cached personal facts', async () => {
   expect(screen.getByText(i18n.t('auth.signInCta'))).toBeTruthy()
 })
 
-it.each(['orange', 'orangeDark'] as const)('renders compact assistant credit in %s without changing available balance', async theme => {
+it.each(['orange', 'orangeDark'] as const)('renders posted conversation use and balance with separate holds in %s', async theme => {
   StyleSheet.configure({ themes: { [theme]: themes[theme] } as unknown as typeof themes })
   mockSummary = loaded({ ...facts, reserved: 45, availableBalance: 12300 })
-  await render(<CreditBalanceRow assistant />)
-  expect(screen.getByText('Credit GoGo')).toHaveStyle(type.bodySmall)
-  expect(screen.getByText('12.300')).toHaveStyle(type.caption)
-  expect(screen.getByText('Credit GoGo').props.numberOfLines).toBe(1)
-  expect(screen.getByText('12.300').props.numberOfLines).toBe(1)
+  await render(<CreditBalanceRow assistant conversationCredits={{ creditsUsed: 12, creditsReserved: 45, pendingTurns: 0, state: 'settled', asOf: facts.asOf }} />)
+  expect(screen.getByText('Credit GoGo:')).toHaveStyle(type.bodySmall)
+  expect(screen.getByText('12/12.345')).toHaveStyle(type.caption)
+  expect(screen.getByText('Credit GoGo:').props.numberOfLines).toBe(1)
+  expect(screen.getByText('12/12.345').props.numberOfLines).toBe(1)
   expect(screen.queryByText('12.345')).toBeNull()
+  expect(screen.getByText('Đang giữ: 45 · Có thể dùng: 12.300')).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Xem lịch sử credit' })).toHaveStyle({
     flexDirection: 'row', justifyContent: 'space-between', minHeight: touchTarget.min,
   })
@@ -157,6 +158,30 @@ it('preserves assistant loading, retry, offline and stale states', async () => {
   expect(screen.queryByText('Thử lại')).toBeNull()
   mockSummary = loaded(facts)
   await view.rerender(<CreditBalanceRow assistant />)
-  expect(screen.getByText('12.345')).toBeTruthy()
+  expect(screen.getByText('Chưa xác định/12.345')).toBeTruthy()
   expect(screen.getByText(i18n.t('common.staleOffline'))).toBeTruthy()
+})
+
+it.each(['orange', 'orangeDark'] as const)('groups loaded pages by local day and conversation, with labels and totals in %s', async theme => {
+  StyleSheet.configure({ themes: { [theme]: themes[theme] } as unknown as typeof themes })
+  const at = (day: number, hour: number) => new Date(2026, 10, day, hour).toISOString()
+  const usage = (id: string, day: number, delta: number, conversation: any) => ({ ...entry, id, createdAt: at(day, 9), delta, conversation })
+  const c = { id: 'c1', title: 'Cà phê cuối tuần' }
+  mockLedger = { ...mockLedger, ...loaded({ pages: [
+    { items: [usage('1', 11, -12, c), usage('2', 11, -2, { id: 'c2', title: null })], nextCursor: 'next' },
+    { items: [usage('3', 11, 4, c), usage('4', 10, -3, c), usage('5', 10, -1, null),
+      { ...entry, id: '6', delta: 50, createdAt: at(10, 8), source: { type: 'event' }, eventLabels: { vi: 'Quà sự kiện', en: 'Event reward' } }], nextCursor: null },
+  ] }), hasNextPage: false }
+  const view = await render(<CreditsScreen />)
+  expect(screen.getAllByTestId('credit-history-group')).toHaveLength(5)
+  expect(screen.getByText('Tổng: -8')).toBeTruthy()
+  expect(screen.getByText('Cuộc trò chuyện chưa có tên')).toBeTruthy()
+  expect(screen.getByText('Cuộc trò chuyện đã xoá')).toBeTruthy()
+  expect(screen.getByText('Quà sự kiện')).toBeTruthy()
+  expect(screen.getByText(new Date(at(11, 9)).toLocaleDateString('vi-VN'))).toBeTruthy()
+  await act(async () => { await i18n.changeLanguage('en') })
+  expect(screen.getByText('Event reward')).toBeTruthy()
+  expect(screen.getByText('Deleted conversation')).toBeTruthy()
+  expect(screen.getByText('Total: -8')).toBeTruthy()
+  await view.unmount()
 })

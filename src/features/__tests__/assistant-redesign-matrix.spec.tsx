@@ -58,7 +58,7 @@ function query(state: State, items: unknown[] = []) {
 }
 const noop = () => {}
 const message: AssistantMessage = { id: 'm1', conversationId: 'c1', role: 'user', text: 'A real saved question', status: 'complete', createdAt: '2026-11-08T10:00:00Z' }
-const conversation: AssistantConversation = { id: 'c1', title: 'A real chat', preview: 'A saved answer', messageCount: 2, expiresAt: '2027-02-08T10:00:00Z', createdAt: '2026-11-08T10:00:00Z', lastMessageAt: '2026-11-08T10:00:00Z' }
+const conversation: AssistantConversation = { credits: { creditsUsed: 0, creditsReserved: 0, pendingTurns: 0, state: 'settled', asOf: '2026-11-11T00:00:00Z' }, id: 'c1', title: 'A real chat', preview: 'A saved answer', messageCount: 2, expiresAt: '2027-02-08T10:00:00Z', createdAt: '2026-11-08T10:00:00Z', lastMessageAt: '2026-11-08T10:00:00Z' }
 const proposal: AssistantProposal = { id: 'p1', kind: 'create_room', status: 'pending', createdAt: '2026-11-08T10:00:00Z', values: [{ field: 'title', value: 'A real room', origin: 'explicit', editable: true }], expiresAt: '2026-11-09T10:00:00Z' }
 async function mount(element: React.ReactElement) { await render(<ToastProvider>{element}</ToastProvider>) }
 

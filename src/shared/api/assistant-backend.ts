@@ -31,6 +31,7 @@ import type {
  */
 export interface AssistantBackend {
   getStatus(): Promise<AssistantStatus>
+  getConversation(id: string): Promise<AssistantConversation>
   listConversations(query: { q?: string; cursor?: string; limit?: number }): Promise<AssistantConversationPage>
   createConversation(body: OpBody<'createAssistantConversation'>, idempotencyKey: string): Promise<AssistantConversation>
   renameConversation(id: string, title: string): Promise<AssistantConversation>
@@ -48,6 +49,7 @@ export interface AssistantBackend {
 
 export const httpAssistantBackend: AssistantBackend = {
   getStatus: () => http.getAssistantStatus(),
+  getConversation: id => http.getAssistantConversation(id),
   listConversations: query => http.listAssistantConversations(query),
   createConversation: (body, key) => http.createAssistantConversation(body, key),
   renameConversation: (id, title) => http.renameAssistantConversation(id, { title }),

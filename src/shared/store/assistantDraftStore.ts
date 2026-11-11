@@ -24,6 +24,8 @@ export interface OutgoingMessage {
   /** `null` until the conversation exists (a first message from Welcome). */
   conversationId: string | null
   text: string
+  /** Frozen with the outgoing payload so an uncertain retry keeps the same body. */
+  locale?: 'vi' | 'en'
   context?: AssistantContext
   images: OutgoingImage[]
   /** Kept for every retry of this message: the server returns the same turns. */

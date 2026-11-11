@@ -169,6 +169,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     field_errors: envelope.field_errors,
     request_id: envelope.request_id,
     retryable: envelope.retryable,
+    details: envelope.details,
   }, response.headers.get('retry-after'))
 }
 

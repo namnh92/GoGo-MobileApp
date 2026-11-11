@@ -19,7 +19,7 @@ export interface SendErrorCopy {
    * notice the screen draws for `limit_reached` / `disabled`, so the thread
    * shows only one of them (acceptance BUG4).
    */
-  reason: 'network' | 'limit' | 'busy' | 'disabled' | 'inProgress' | 'generic'
+  reason: 'insufficient' | 'network' | 'limit' | 'busy' | 'disabled' | 'inProgress' | 'generic'
   /** The notice's glyph when it is not the default error one (wifi-off). */
   icon?: IconName
 }
@@ -48,6 +48,11 @@ export function sendErrorCopy(
     return { title: t('assistant.error.network.title'), body: t('assistant.error.network.body'), retry: true, reason: 'network' }
   }
   if (isApiError(error)) {
+    if (error.code === 'ASSISTANT_INSUFFICIENT_CREDIT') {
+      return { title: t('assistant.credit.insufficient'),
+        body: error.details ? t('assistant.credit.requiredAvailable', { required: error.details.requiredCredits, available: error.details.creditAvailable }) : t('credits.unknown'),
+        retry: false, reason: 'insufficient', icon: 'info' }
+    }
     if (error.code === 'ASSISTANT_DAILY_LIMIT') {
       const resetsAt = status?.resetsAt ?? (error.retryAt > 0 ? new Date(error.retryAt).toISOString() : null)
       return {

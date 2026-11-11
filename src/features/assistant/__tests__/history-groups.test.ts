@@ -11,7 +11,7 @@ import { groupConversations, historyGroupOf } from '../history-groups'
 const at = (y: number, m: number, d: number, h: number, min = 0) => new Date(y, m - 1, d, h, min).toISOString()
 
 function row(id: string, lastMessageAt: string): AssistantConversation {
-  return { id, title: id, createdAt: lastMessageAt, lastMessageAt, expiresAt: lastMessageAt, messageCount: 2 }
+  return { credits: { creditsUsed: 0, creditsReserved: 0, pendingTurns: 0, state: 'settled', asOf: '2026-11-11T00:00:00Z' }, id, title: id, createdAt: lastMessageAt, lastMessageAt, expiresAt: lastMessageAt, messageCount: 2 }
 }
 
 describe('assistant history groups', () => {

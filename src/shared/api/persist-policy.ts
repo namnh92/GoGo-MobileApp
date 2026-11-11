@@ -39,6 +39,8 @@ export function isPublicAppQuery(queryKey: readonly unknown[]): boolean {
 
 export function shouldPersistQuery(queryKey: readonly unknown[]): boolean {
   const [root] = queryKey
+  // Financial facts include posted amounts and holds; never serialize any of them.
+  if (root === 'credits' || root === 'assistant') return false
   if (typeof root !== 'string' || !PERSISTED_PREFIXES.includes(root)) return false
   return !queryKey.some(
     segment => typeof segment === 'string' && EXCLUDED_SEGMENTS.includes(segment),

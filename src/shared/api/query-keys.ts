@@ -52,6 +52,7 @@ export const queryKeys = {
    * history lives on the server, not on the device.
    */
   assistant: () => ['assistant'] as const,
+  assistantConversation: (id: string) => ['assistant', 'conversation', id] as const,
   assistantStatus: () => ['assistant', 'status'] as const,
   assistantConversations: () => ['assistant', 'conversations'] as const,
   assistantConversationList: (q: string) => ['assistant', 'conversations', 'list', q] as const,

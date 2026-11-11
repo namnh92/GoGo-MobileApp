@@ -24,6 +24,7 @@ it('pushes place, plan and confirmed room onto the root stack and returns to the
   useAssistantDraftStore.getState().reset()
   const backend = createMockAssistantBackend({ speed: 0, actor: () => 'user' })
   backend.listMessages = async conversationId => ({
+    conversationCredits: { creditsUsed: 0, creditsReserved: 0, pendingTurns: 0, state: 'settled', asOf: '2026-11-11T00:00:00Z' },
     nextCursor: null,
     items: [{
       id: 'reply', conversationId, role: 'assistant', status: 'completed',
