@@ -911,8 +911,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'gogoRoom.status.completed': 'Done',
   'gogoRoom.invite': 'Invite people',
   'gogoRoom.linkCopied': '✓ Invite link copied',
-  'gogoRoom.noApp': "The other person doesn't need the app.",
-  'gogoRoom.noApp_group': "Nobody needs the app.",
   'gogoRoom.previewGuest': "Preview the guest's screen",
   'gogoRoom.joined': '{{joined}}/{{total}} joined',
   'gogoRoom.myPreferences': 'Pick your preferences',

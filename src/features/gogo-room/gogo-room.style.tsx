@@ -28,11 +28,7 @@ export const styles = StyleSheet.create(theme => ({
   infoIcon_warning: { backgroundColor: theme.status.warningSoft },
   infoValue: { flex: 1 },
   stackedBtn: { marginTop: theme.spacing[2] },
-  body: {
-    textAlign: 'center',
-    marginTop: theme.spacing[2],
-    marginBottom: theme.spacing[6],
-  },
+  actionHint: { textAlign: 'center' },
   error: { textAlign: 'center', marginTop: theme.spacing[3] },
   notice: {
     textAlign: 'center',
@@ -54,23 +50,8 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: theme.radius.compact,
     backgroundColor: theme.surface.subtle,
   },
-  codeSkeleton: { flex: 1, height: theme.spacing[6] },
-  /**
-   * The server issues an opaque token, not a five-character code people read
-   * aloud — 22 characters is normal. One line that shrinks to fit keeps the
-   * copy button inside the card at 375pt; the text stays selectable.
-   */
   code: { flex: 1, letterSpacing: 0.5, color: theme.accent.primary },
   copyBtn: { flexShrink: 0 },
-  noApp: {
-    marginTop: theme.spacing[2],
-    paddingVertical: theme.spacing[3],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing[2],
-  },
-
   /** Per-member status (spec §16) — the lobby's actual information. */
   memberList: { gap: theme.spacing[2] },
   memberRow: {

@@ -196,3 +196,78 @@ simulator check and visual Light/Dark acceptance were NOT RUN in this task.
 | `pnpm exec eslint` with all seven touched TS/TSX files | PASS, exit 0, no diagnostics | `/tmp/595-owner-sim/lint.log` |
 | `pnpm test src/shared/ui/__tests__/type-scale.test.ts src/shared/ui/__tests__/submit-overlay.test.ts` | PASS, 2 files / 48 tests | `/tmp/595-owner-sim/guards.log` |
 | `git diff --check` | PASS | No whitespace errors |
+
+## Owner sim feedback 2026-11-12 (2)
+
+Scope: PR #600, screens 5.10 / 5.11 / 5.12, worktree `mobile-595`, base
+`67945034`. Owner decision: `dev/policy/decisions-log.md:5` in the workspace.
+This dated instruction supersedes the older inline-couple/guest layout note above.
+Uncommitted source review basis: **`rs-e3143bf5adf4`**, scope `src`, manifest and
+retrievable patch at
+`/tmp/595-owner-sim-2/snapshots/mobile-595-owner-sim-2-rs-e3143bf5adf4/MANIFEST.txt`.
+Documentation is outside that source snapshot. No staging, commit, push or Stitch write.
+
+### Changes
+
+- Removed the standalone `Quản lý phòng` ghost button for couple and group hosts.
+  Host access through `Sửa` on `Điều kiện phòng` remains; guest/member permissions
+  and matching capabilities remain unchanged.
+- All loaded lobbies now use the same floating `GlassBar` outside the ScrollView,
+  with a measured bottom content inset. The existing quorum notice sits directly
+  after the preferences CTA as `caption` / `text.secondary`, with the shared
+  token gap and no paragraph margins. Start/partial-match/error states remain.
+- Removed both no-app claims and their vi/en catalog keys. Removed the header
+  invite action; the invite section retains one `Mời người tham gia` button using
+  the existing verified native link-share flow, routing hold, clipboard fallback
+  and `gogo_invite_shared` event (`native_share`, actual room type).
+- Opaque invite tokens stay in secure invite state and canonical `/r/<token>`
+  links, never in the room-code display. The label, row and Copy button are hidden
+  by default, including checking/offline/closed-room states. No API field or fake
+  code was added. Exported `GoGoRoomScreenProps.roomCode?: string | null` is the
+  integration point for #649 / BE#861; only exactly six ASCII digits render.
+  Leading zeroes survive. That future Copy control copies the six digits after
+  invite verification; the invite button always shares the opaque-token LINK.
+- Styles stay in `gogo-room.style.tsx`; shared Light/Dark semantic tokens and
+  existing vi/en keys provide all remaining copy. Added exact view/style color
+  binding pins to `stitch-color-pins.json`. The i18n computed-key registry and
+  header ownership inventory retain their existing entries and pass their guards;
+  no type-scale/token values or ownership entries needed changing.
+
+### FAIL on 6794503 / PASS after
+
+Identical regression specs and command on both runs:
+
+`pnpm test:ui --runInBand room-state-matrix room-invite-reopen --testNamePattern='595 owner sim'`
+
+The four changed production files (view, style, vi and en) were temporarily loaded
+verbatim from `git show 6794503:<path>` and restored byte-for-byte in `finally`.
+HEAD/index were not changed. SHA-256 restoration evidence and exit codes:
+`/tmp/595-owner-sim-2/regression.json`.
+
+| Regression | Production @6794503 | Working tree |
+| --- | --- | --- |
+| Shared fixed couple/guest action section | FAIL: CTA remains inside scroll content | PASS: CTA inside the fixed bar |
+| Host controls / header / no-app claims, couple and group including guest, Light/Dark | FAIL: manage controls or no-app claim remain | PASS: removed; host `Sửa` still navigates; guest has no edit |
+| Couple/group quorum hint, Light/Dark | FAIL: couple CTA inline; group hint uses body typography | PASS: caption with theme secondary color, same action parent, measured inset and preference route |
+| Couple/group invite, Light/Dark | FAIL: 22-character token displayed | PASS: no token/code label/Copy, exactly one invite button, canonical LINK shared with analytics |
+
+Baseline: **16 failed / 81 skipped**, exit 1, `/tmp/595-owner-sim-2/fail-before.log`.
+After: **16 passed / 81 skipped**, exit 0, `/tmp/595-owner-sim-2/pass-after.log`.
+The room gate also covers invalid/absent code props, leading-zero six-digit copy,
+revocation verification, cold start, offline, reissue and private storage. These
+replace old assertions that required the opaque token to be visible.
+
+### Checks
+
+| Command | Result | Evidence |
+| --- | --- | --- |
+| `pnpm typecheck` | PASS, exit 0 | `/tmp/595-owner-sim-2/typecheck.log` |
+| `pnpm test:ui room gogo-room --runInBand` | PASS, 17 suites / 274 tests | `/tmp/595-owner-sim-2/ui-room.log` |
+| `pnpm exec eslint` for all six touched TS/TSX files | PASS, exit 0, no diagnostics | `/tmp/595-owner-sim-2/lint.log` |
+| `pnpm test` with type-scale, color-roles, app-header-ownership and submit-overlay files | PASS, 4 files / 112 tests | `/tmp/595-owner-sim-2/guards.log` |
+| `pnpm test:ui --runInBand i18n-keys button-parent-geometry` | PASS, 2 suites / 50 tests | `/tmp/595-owner-sim-2/registry.log` |
+| `git diff --check` | PASS | No whitespace errors |
+
+Native simulator recheck / pixel acceptance: NOT RUN. Jest verifies rendered
+structure, typography/color props and navigation/share behavior; native Share is
+mocked. This report does not claim new simulator or 100% Stitch acceptance.

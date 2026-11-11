@@ -1,5 +1,5 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
+import { AppHeader } from '@/shared/ui/app-header.view'
 import { onlineManager } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import * as Clipboard from 'expo-clipboard'
@@ -41,7 +41,7 @@ import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.vi
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
@@ -113,7 +113,13 @@ const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'de
   completed: { key: 'gogoRoom.status.completed', variant: 'positive' },
 }
 
-export default function GoGoRoomScreen() {
+export interface GoGoRoomScreenProps {
+  /** #649: wire the dedicated BE#861 code field here when available. Never pass the invite token. */
+  roomCode?: string | null
+}
+
+export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
+  const displayRoomCode = roomCode && /^[0-9]{6}$/.test(roomCode) ? roomCode : null
   const [actionHeight, setActionHeight] = useState(0)
   const actionInset = useBottomBarInset(actionHeight)
   const { theme } = useUnistyles()
@@ -458,10 +464,9 @@ export default function GoGoRoomScreen() {
   }
 
   async function copyCode() {
-    const code = await verifiedInviteCode()
-    if (!code) return
+    if (!displayRoomCode || !await verifiedInviteCode()) return
     track('gogo_invite_copied', { channel: 'code' })
-    void Clipboard.setStringAsync(code).catch(() => {})
+    void Clipboard.setStringAsync(displayRoomCode).catch(() => {})
     flash(setCodeCopied)
   }
 
@@ -514,8 +519,7 @@ export default function GoGoRoomScreen() {
     ])
   }
 
-  // Stitch 5.11 fixes the host group's action deck; 5.10/5.12 keep it inline.
-  const fixedActions = roomType === 'group' && capabilities.isHost
+  // Owner sim 2026-11-12: one measured bottom action bar for every lobby.
   const actions = <View style={styles.actions}>
     {/* Back must not auto-open a run again, but a person can explicitly
         return to its current decision screen without saving preferences. */}
@@ -553,6 +557,9 @@ export default function GoGoRoomScreen() {
       />
     )}
 
+    {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
+      <Text variant="caption" color="text.secondary" style={styles.actionHint}>{t('gogoRoom.quorumRequired')}</Text>
+    ) : null}
 
     {startVisible ? (
       continueVoting ? (
@@ -573,9 +580,6 @@ export default function GoGoRoomScreen() {
     {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
       <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
     ) : null}
-    {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
-      <Text color="text.secondary" style={styles.body}>{t('gogoRoom.quorumRequired')}</Text>
-    ) : null}
 
     {startMatching.isError ? (
       <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
@@ -589,7 +593,7 @@ export default function GoGoRoomScreen() {
     <Atmosphere>
       <BlockingLoadingOverlay visible={startMatching.isPending || createInvite.isPending || revokeInvite.isPending} />
       <View>
-        <AppHeader title={t(roomType === 'couple' ? 'roomLobby.coupleTitle' : capabilities.isHost ? 'gogoRoom.title_group' : 'roomLobby.group')} onBack={() => goBackOrHome(router)} rightAction={capabilities.canInvite ? <AppHeaderAction accessibilityLabel={t('gogoRoom.invite')} onPress={() => { void invite() }} disabled={!inviteUrl || !joinable}><Icon name="share" size={22} /></AppHeaderAction> : undefined} />
+        <AppHeader title={t(roomType === 'couple' ? 'roomLobby.coupleTitle' : capabilities.isHost ? 'gogoRoom.title_group' : 'roomLobby.group')} onBack={() => goBackOrHome(router)} />
       </View>
       <RoomConnectionNotice
         roomId={validRoomId}
@@ -604,7 +608,7 @@ export default function GoGoRoomScreen() {
         </Text>
       ) : null}
       <PullToRefresh onRefresh={async () => { await room.refetch() }}>
-      <ScrollView contentContainerStyle={[styles.content, fixedActions && { paddingBottom: actionInset + spacing[4] }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: actionInset + spacing[4] }]}>
         {roomType === 'couple' || !capabilities.isHost ? (
           <Card style={styles.hero}>
             <View style={styles.badgeRow}><Chip label={t(roomType === 'couple' ? 'roomLobby.couple' : 'roomLobby.group')} variant="info" /></View>
@@ -615,7 +619,6 @@ export default function GoGoRoomScreen() {
 
         {capabilities.canInvite ? (
           <Card style={styles.codeCard}>
-            <Text variant="label" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
             {/* A room past collecting refuses new invites (409) and joins (410):
                 say so rather than show controls that cannot work (RULE-CORE-016). */}
             {!joinable ? <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
@@ -648,41 +651,24 @@ export default function GoGoRoomScreen() {
             {createInvite.isError ? (
               <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</Text>
             ) : null}
-            {inviteDisplay.kind === 'checking' || inviteCode ? <View style={styles.codeRow}>
-              {/* `selectable` so the code can still be lifted by hand if the
-                  clipboard write is refused. */}
-              {inviteDisplay.kind === 'checking' ? (
-                <Skeleton style={styles.codeSkeleton} />
-              ) : (
-                <Text
-                  testID="invite-code"
-                  variant="title1"
-                  selectable
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.6}
-                  style={styles.code}
-                >
-                  {inviteCode}
-                </Text>
-              )}
-              <SecondaryBtn size="small"
-                onPress={() => { void copyCode() }}
-                disabled={!inviteCode || !joinable}
-                label={t(codeCopied ? 'common.copied' : 'common.copy')}
-                icon={codeCopied ? 'check' : 'copy'}
-                style={styles.copyBtn}
-              />
-            </View> : null}
+            {displayRoomCode ? <>
+              <Text variant="label" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
+              <View style={styles.codeRow}>
+                <Text testID="invite-code" variant="title1" selectable numberOfLines={1} style={styles.code}>{displayRoomCode}</Text>
+                <SecondaryBtn size="small"
+                  onPress={() => { void copyCode() }}
+                  disabled={!inviteUrl || !joinable}
+                  label={t(codeCopied ? 'common.copied' : 'common.copy')}
+                  icon={codeCopied ? 'check' : 'copy'}
+                  style={styles.copyBtn}
+                />
+              </View>
+            </> : null}
             <SecondaryBtn
               label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
               onPress={invite}
               disabled={!inviteUrl || !joinable}
             />
-            <View style={styles.noApp}>
-              <Icon name="checkCircle" size={16} color="status.successText" />
-              <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
-            </View>
           </Card>
         ) : null}
 
@@ -754,22 +740,9 @@ export default function GoGoRoomScreen() {
             </View>
           </Card>
         ) : null}
-
-        {!fixedActions ? actions : null}
-
-        {capabilities.isHost ? (
-          <GhostBtn label={t('roomManage.title')} onPress={() => router.push(`/room/${roomId}/manage`)} />
-        ) : null}
-
-        {!capabilities.canInvite ? (
-          <View style={styles.noApp}>
-            <Icon name="checkCircle" size={16} color="status.successText" />
-            <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
-          </View>
-        ) : null}
       </ScrollView>
       </PullToRefresh>
-      {fixedActions ? <GlassBar testID="room-lobby-actions" placement="floating" onHeightChange={setActionHeight}>{actions}</GlassBar> : null}
+      <GlassBar testID="room-lobby-actions" placement="floating" onHeightChange={setActionHeight}>{actions}</GlassBar>
     </Atmosphere>
   )
 }

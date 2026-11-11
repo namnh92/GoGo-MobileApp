@@ -1,3 +1,4 @@
+import { themes } from '@/shared/ui/theme'
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { Alert, StyleSheet } from 'react-native'
 import { surface, text, type } from '@/shared/ui/tokens'
@@ -351,10 +352,45 @@ describe('595 F-02 fixed group lobby actions', () => {
 })
 
 
-it.each(['couple', 'group-guest'] as const)('595 retains Stitch inline action section for %s', async audience => {
+it.each(['couple', 'group-guest'] as const)('595 owner sim shared fixed action section for %s', async audience => {
   mockRoom.query = loaded(roomFor(audience))
   const view = await renderScreen(<GoGoRoomScreen />)
   const scroll = view.root!.queryAll(node => node.props.contentContainerStyle !== undefined)[0]
-  expect(within(scroll).getByText('Chọn sở thích của bạn')).toBeTruthy()
-  expect(view.queryByTestId('room-lobby-actions')).toBeNull()
+  expect(within(scroll).queryByText('Chọn sở thích của bạn')).toBeNull()
+  expect(within(view.getByTestId('room-lobby-actions')).getByText('Chọn sở thích của bạn')).toBeTruthy()
+})
+
+
+describe.each(['orange', 'orangeDark'] as const)('595 owner sim lobby / %s', theme => {
+  it.each(AUDIENCES)('removes manage, header share and no-app copy; preserves host edit / %s', async audience => {
+    mockRoom.query = loaded(roomFor(audience))
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
+    expect(view.queryByRole('button', { name: 'Quản lý phòng' })).toBeNull()
+    expect(within(view.getByTestId('app-header')).queryByRole('button', { name: 'Mời người tham gia' })).toBeNull()
+    expect(view.queryByText(/không cần cài app/)).toBeNull()
+    if (audience === 'group-guest') expect(view.queryByText('Sửa')).toBeNull()
+    else {
+      await fireEvent.press(view.getByText('Sửa'))
+      expect(mockPush).toHaveBeenCalledWith(`/room/${mockParams.roomId}/manage`)
+    }
+  })
+
+  it.each(['couple', 'group-host'] as const)('places a compact quorum caption beside preferences in the fixed bar / %s', async audience => {
+    mockRoom.query = loaded(roomFor(audience, {
+      matching: { completedCount: 1, pendingCount: 3, canStart: false, canStartWithIncomplete: false, blockedReason: 'MATCHING_QUORUM_REQUIRED' },
+    }))
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
+    const scroll = view.root!.queryAll(node => node.props.contentContainerStyle !== undefined)[0]
+    expect(within(scroll).queryByText('Chọn sở thích của bạn')).toBeNull()
+    const bar = view.getByTestId('room-lobby-actions')
+    const hint = within(bar).getByText('Cần ít nhất 2 người hoàn tất sở thích để bắt đầu ghép.')
+    const caption = StyleSheet.flatten(hint.props.style)
+    expect(caption).toMatchObject({ ...type.caption, color: themes[theme].text.secondary })
+    expect(caption.marginBottom ?? 0).toBe(0)
+    expect(hint.parent).toBe(within(bar).getByText('Chọn sở thích của bạn').parent!.parent)
+    await fireEvent(bar, 'layout', { nativeEvent: { layout: { height: 180 } } })
+    expect(StyleSheet.flatten(view.root!.queryAll(node => node.props.contentContainerStyle !== undefined)[0].props.contentContainerStyle).paddingBottom).toBeGreaterThanOrEqual(180)
+    await fireEvent.press(within(bar).getByText('Chọn sở thích của bạn'))
+    expect(mockPush).toHaveBeenCalledWith(`/room/${mockParams.roomId}/preference`)
+  })
 })

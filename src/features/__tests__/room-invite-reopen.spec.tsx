@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { QueryClient, QueryClientProvider, dehydrate, onlineManager } from '@tanstack/react-query'
 import * as Clipboard from 'expo-clipboard'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { Alert, Share, StyleSheet, type AlertButton } from 'react-native'
+import { Alert, Share, type AlertButton } from 'react-native'
 
 import { loaded, roomFor, type QueryLike } from './harness'
 
@@ -54,11 +54,16 @@ import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import { shouldPersistQuery } from '@/shared/api/persist-policy'
 import { loadInviteCode, purgeInviteCodes, saveInviteCode } from '@/shared/storage/invite-codes'
-import { type } from '@/shared/ui/tokens'
+import { track } from '@/shared/analytics'
+import { env } from '@/shared/config/env'
+import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
+
+jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
+jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles'), 'ScopedTheme').mockImplementation(({ children }) => <>{children}</>)
 
 const ROOM_ID = '311f5bd8-f853-4ced-af68-e04398d1451a'
 const USER = 'user-1'
-const CODE = 'Qm9vZ2llLWNvZGUtMTk5'
+const CODE = 'Qm9vZ2llLWNvZGUtMTk5ab'
 const EXPIRES = '2099-01-01T00:00:00.000Z'
 const INVITES_KEY = ['rooms', ROOM_ID, 'invites']
 const SHARE = 'Mời người tham gia'
@@ -137,15 +142,15 @@ afterEach(() => {
 })
 
 describe('host invite after reopen (#199)', () => {
-  it('shows the code this device created after the room is reopened, creating it once', async () => {
+  it('keeps the invite link this device created after the room is reopened, creating it once', async () => {
     const first = await open()
     const create = await screen.findByText('Tạo mã mời')
     await act(async () => { await fireEvent.press(create) })
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
     await first.unmount()
 
     await open()
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
     expect(screen.queryByText('Tạo mã mời')).toBeNull()
     expect(mockCreate).toHaveBeenCalledTimes(1)
     await finish()
@@ -155,17 +160,17 @@ describe('host invite after reopen (#199)', () => {
     await saveInviteCode(storedInvite())
     serve([row()])
     await open()
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
     expect(screen.queryByText('Tạo mã mời')).toBeNull()
     expect(mockCreate).not.toHaveBeenCalled()
     await finish()
   })
 
-  it('shows the stored code on an offline cold start, with the list paused', async () => {
+  it('enables sharing the stored link on an offline cold start, with the list paused', async () => {
     await saveInviteCode(storedInvite())
     onlineManager.setOnline(false)
     await open()
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
     expect(mockList).not.toHaveBeenCalled()
     await finish()
   })
@@ -175,17 +180,6 @@ describe('host invite after reopen (#199)', () => {
     await open()
     expect(await screen.findByText('Chưa kiểm tra được mã mời của phòng.')).toBeTruthy()
     expect(screen.queryByText('Tạo mã mời')).toBeNull()
-    await finish()
-  })
-
-  it('keeps a 22-character code on one line that shrinks to fit, so the copy button stays in the card (#295)', async () => {
-    await saveInviteCode(storedInvite())
-    serve([row()])
-    await open()
-    const code = await screen.findByTestId('invite-code')
-    expect(code).toHaveTextContent(CODE, { exact: true })
-    expect(code.props).toMatchObject({ numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.6, selectable: true })
-    expect(StyleSheet.flatten(code.props.style)).toMatchObject({ ...type.title1, letterSpacing: 0.5 })
     await finish()
   })
 
@@ -209,7 +203,7 @@ describe('host invite after reopen (#199)', () => {
     // Query results reach the screen on a later tick; flush it, or the checks
     // below would pass before the card had a chance to render anything.
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)) })
-    expect(screen.getByText('Mã GoGo Room')).toBeTruthy()
+    expect(screen.queryByText('Mã GoGo Room')).toBeNull()
     expect(screen.queryByText('Tạo mã mới')).toBeNull()
     expect(screen.queryByText(ACTIVE_NOTE)).toBeNull()
     expect(screen.queryByText('Tạo mã mời')).toBeNull()
@@ -221,7 +215,7 @@ describe('host invite after reopen (#199)', () => {
         <GoGoRoomScreen />
       </QueryClientProvider>,
     )
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
     expect(mockRevoke).not.toHaveBeenCalled()
     expect(mockCreate).not.toHaveBeenCalled()
     expect((await loadInviteCode(ROOM_ID, USER))?.code).toBe(CODE)
@@ -251,7 +245,7 @@ describe('host invite after reopen (#199)', () => {
       expect(alert.mock.calls[0][1]).toBe('Mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.')
       await answer(alert, 'destructive')
 
-      expect(await screen.findByText(CODE)).toBeTruthy()
+      await expectLinkReady()
       expect(mockRevoke).toHaveBeenCalledTimes(1)
       expect(mockRevoke).toHaveBeenCalledWith(ROOM_ID, 'invite-other')
       expect(mockCreate).toHaveBeenCalledTimes(1)
@@ -277,7 +271,7 @@ describe('host invite after reopen (#199)', () => {
       expect(alert.mock.calls[0][1]).toBe('Cả 2 mã đang dùng sẽ ngừng hoạt động. Người đã vào phòng không bị ảnh hưởng; ai chưa vào cần mã mới.')
       await answer(alert, 'destructive')
 
-      expect(await screen.findByText(CODE)).toBeTruthy()
+      await expectLinkReady()
       expect(mockRevoke.mock.calls.map(call => call[1]).sort()).toEqual(['invite-a', 'invite-b'])
       expect(mockCreate).toHaveBeenCalledTimes(1)
       expect(Math.max(...mockRevoke.mock.invocationCallOrder)).toBeLessThan(mockCreate.mock.invocationCallOrder[0])
@@ -299,7 +293,7 @@ describe('host invite after reopen (#199)', () => {
       server = [...server, row({ inviteId: 'invite-b' })]
       await answer(alert, 'destructive')
 
-      expect(await screen.findByText(CODE)).toBeTruthy()
+      await expectLinkReady()
       expect(mockRevoke.mock.calls.map(call => call[1]).sort()).toEqual(['invite-a', 'invite-b'])
       expect(mockCreate).toHaveBeenCalledTimes(1)
       await finish()
@@ -341,7 +335,7 @@ describe('host invite after reopen (#199)', () => {
       expect(screen.queryByText(ACTIVE_NOTE)).toBeNull()
       await act(async () => { await fireEvent.press(screen.getByText('Tạo mã mời')) })
 
-      expect(await screen.findByText(CODE)).toBeTruthy()
+      await expectLinkReady()
       expect(mockRevoke).toHaveBeenCalledTimes(1)
       expect(mockCreate).toHaveBeenCalledTimes(2)
       expect(mockCreate.mock.calls[1][2]).toBe(mockCreate.mock.calls[0][2])
@@ -393,18 +387,19 @@ describe('host invite after reopen (#199)', () => {
     await finish()
   })
 
-  it('keeps a stored code visible but unusable once the room no longer takes members', async () => {
+  it('hides the token and disables sharing once the room no longer takes members', async () => {
     mockRoom.query = loaded(roomFor('group-host', { status: 'ready' }))
     await saveInviteCode(storedInvite())
     serve([row()])
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never)
     try {
       await open()
-      expect(await screen.findByText(CODE)).toBeTruthy()
+      await waitFor(() => expect(client.isFetching()).toBe(0))
+      expect(screen.queryByText(CODE)).toBeNull()
       expect(screen.getByText(CLOSED)).toBeTruthy()
-      expect(screen.getByLabelText('Copy').props.accessibilityState?.disabled).toBe(true)
+      expect(screen.queryByLabelText('Copy')).toBeNull()
+      expect(screen.getByRole('button', { name: SHARE })).toBeDisabled()
       await act(async () => { await fireEvent.press(screen.getByText(SHARE)) })
-      await act(async () => { await fireEvent.press(screen.getByLabelText('Copy')) })
       expect(share).not.toHaveBeenCalled()
       expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
       await finish()
@@ -419,7 +414,7 @@ describe('host invite after reopen (#199)', () => {
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never)
     try {
       await open()
-      expect(await screen.findByText(CODE)).toBeTruthy()
+      await expectLinkReady()
       await act(async () => { await fireEvent.press(screen.getByText(SHARE)) })
       await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
       expect(JSON.stringify(share.mock.calls[0][0])).toContain(CODE)
@@ -435,18 +430,6 @@ describe('host invite after reopen (#199)', () => {
     } finally {
       share.mockRestore()
     }
-  })
-
-  it('rechecks the list before copying the code', async () => {
-    await saveInviteCode(storedInvite())
-    serve([row()])
-    await open()
-    expect(await screen.findByText(CODE)).toBeTruthy()
-    server = [row({ revoked: true })]
-    await act(async () => { await fireEvent.press(screen.getByLabelText('Copy')) })
-    expect(await screen.findByText('Tạo mã mời')).toBeTruthy()
-    expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
-    await finish()
   })
 
   it.each([
@@ -484,10 +467,10 @@ describe('host invite after reopen (#199)', () => {
     const first = await open()
     const create = await screen.findByText('Tạo mã mời')
     await act(async () => { await fireEvent.press(create) })
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
     await first.unmount()
     await open()
-    expect(await screen.findByText(CODE)).toBeTruthy()
+    await expectLinkReady()
 
     const asyncStorage = AsyncStorage as unknown as { setItem: jest.Mock; multiSet: jest.Mock; mergeItem: jest.Mock }
     const written = JSON.stringify([asyncStorage.setItem.mock.calls, asyncStorage.multiSet.mock.calls, asyncStorage.mergeItem.mock.calls])
@@ -501,6 +484,80 @@ describe('host invite after reopen (#199)', () => {
     }))
     expect(persisted).toContain('invite-1')
     expect(persisted).not.toContain(CODE)
+    await finish()
+  })
+})
+
+
+/** The token remains private while its verified invite link can be shared. */
+async function expectLinkReady() {
+  await waitFor(() => {
+    expect(screen.queryByText(CODE)).toBeNull()
+    expect(screen.getByRole('button', { name: SHARE })).toBeEnabled()
+  })
+  expect(screen.queryByTestId('invite-code')).toBeNull()
+  expect(screen.queryByText('Mã GoGo Room')).toBeNull()
+  expect(screen.queryByLabelText('Copy')).toBeNull()
+}
+
+describe.each(['orange', 'orangeDark'] as const)('595 owner sim invite / %s', theme => {
+  it.each(['couple', 'group-host'] as const)('hides the opaque token and shares the verified LINK from one invite button / %s', async audience => {
+    mockRoom.query = loaded(roomFor(audience))
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never)
+    try {
+      await render(<QueryClientProvider client={client}><ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider></QueryClientProvider>)
+      await expectLinkReady()
+      expect(screen.getAllByRole('button', { name: SHARE })).toHaveLength(1)
+      await fireEvent.press(screen.getByRole('button', { name: SHARE }))
+      await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+      const url = `${env.webBaseUrl}/r/${CODE}`
+      expect(share.mock.calls[0][0]).toMatchObject({ url, message: expect.stringContaining(url) })
+      expect(track).toHaveBeenCalledWith('gogo_invite_shared', { channel: 'native_share', roomType: audience === 'couple' ? 'couple' : 'group' })
+      await finish()
+    } finally { share.mockRestore() }
+  })
+})
+
+
+describe('595 future six-digit room code prop', () => {
+  it.each([undefined, null, '', '12345', '1234567', 'ABC123', '１２３４５６', CODE])('hides the code row for %s', async roomCode => {
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    await render(<QueryClientProvider client={client}><GoGoRoomScreen roomCode={roomCode} /></QueryClientProvider>)
+    await expectLinkReady()
+    await finish()
+  })
+
+  it('renders and copies only the dedicated six digits, retaining leading zeroes', async () => {
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    await render(<QueryClientProvider client={client}><GoGoRoomScreen roomCode="012345" /></QueryClientProvider>)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled())
+    expect(screen.getByTestId('invite-code')).toHaveTextContent('012345', { exact: true })
+    expect(screen.queryByText(CODE)).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith('012345'))
+    expect(track).toHaveBeenCalledWith('gogo_invite_copied', { channel: 'code' })
+    // The prop only affects the display; link sharing still uses the opaque token.
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never)
+    try {
+      await fireEvent.press(screen.getByRole('button', { name: SHARE }))
+      await waitFor(() => expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `${env.webBaseUrl}/r/${CODE}` })))
+      await finish()
+    } finally { share.mockRestore() }
+  })
+
+  it('keeps the six-digit copy behind invite revocation verification', async () => {
+    await saveInviteCode(storedInvite())
+    serve([row()])
+    await render(<QueryClientProvider client={client}><GoGoRoomScreen roomCode="012345" /></QueryClientProvider>)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled())
+    server = [row({ revoked: true })]
+    await fireEvent.press(screen.getByRole('button', { name: 'Copy' }))
+    expect(await screen.findByText('Tạo mã mời')).toBeTruthy()
+    expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
     await finish()
   })
 })

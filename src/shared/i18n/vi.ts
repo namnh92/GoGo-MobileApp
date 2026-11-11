@@ -892,8 +892,6 @@ export const viMessages = {
   'gogoRoom.status.completed': 'Xong',
   'gogoRoom.invite': 'Mời người tham gia',
   'gogoRoom.linkCopied': '✓ Đã copy link mời',
-  'gogoRoom.noApp': 'Người kia không cần cài app.',
-  'gogoRoom.noApp_group': 'Mọi người không cần cài app.',
   'gogoRoom.previewGuest': 'Xem màn hình người được mời',
   'gogoRoom.joined': '{{joined}}/{{total}} người đã tham gia',
   'gogoRoom.myPreferences': 'Chọn sở thích của bạn',
