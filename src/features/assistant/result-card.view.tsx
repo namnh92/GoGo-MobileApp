@@ -51,13 +51,15 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
   const place = {
     id: card.placeId,
     name: facts.name,
+    // Preserve supplied community facts, including a known zero count, even
+    // when the place is unavailable. Missing counts stay unknown.
+    gogoRating: facts.gogoRating,
+    gogoRatingCount: facts.gogoRatingCount,
     ...(card.available ? {
       areaKey: facts.areaKey,
       addressText: facts.addressText,
       rating: facts.providerRating,
       ratingCount: facts.providerRatingCount,
-      gogoRating: facts.gogoRating,
-      gogoRatingCount: facts.gogoRatingCount,
       openNow: facts.openNow ?? undefined,
       freshnessCheckedAt: facts.checkedAt,
     } : {}),

@@ -18,7 +18,6 @@ jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-na
 
 const mockRoomState: { query: QueryLike } = { query: mockLoaded(mockRoomFor('group-host')) }
 
-const mockClearDraft = jest.fn(async () => undefined)
 let mockConstraintsPending = false
 let mockRenamePending = false
 const mockUpdateConstraints = jest.fn(async () => mockRoomFor('group-host'))
@@ -34,15 +33,6 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'alice' } }),
 }))
-jest.mock('@/shared/store/savedRoomDraft', () => {
-  const draft = { draft: { ownerId: 'alice', step: 'budget' } }
-  return {
-    useSavedRoomDraft: (select: (state: typeof draft) => unknown) => select(draft),
-    clearSavedRoomDraft: () => mockClearDraft(),
-    restoreRoomDraft: () => null,
-    draftStepPath: () => [],
-  }
-})
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockRoomState.query,
@@ -55,7 +45,6 @@ jest.mock('@/shared/api', () => ({
   useRemoveRoomSeedPlace: () => ({ mutate: jest.fn() }),
 }))
 
-import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { isoToLocalSchedule } from '@/features/gogo-room/room-schedule'
 import RoomManageScreen from '@/features/gogo-room/room-manage.view'
 
@@ -74,28 +63,6 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
     await fireEvent.press(element)
   })
 }
-
-describe('delete a saved draft', () => {
-  it('asks in an in-app dialog and deletes only on the destructive button', async () => {
-    const view = await renderScreen(<DraftResume />)
-    await press(view.getByRole('button', { name: 'Xóa nháp' }))
-    expect(alert).not.toHaveBeenCalled()
-    expect(view.getByRole('header', { name: 'Xóa nháp' })).toBeTruthy()
-    expect(mockClearDraft).not.toHaveBeenCalled()
-
-    await press(view.getAllByRole('button', { name: 'Xóa nháp' }).at(-1)!)
-    expect(mockClearDraft).toHaveBeenCalledTimes(1)
-    expect(view.queryByRole('header', { name: 'Xóa nháp' })).toBeNull()
-  })
-
-  it('keeps the draft when cancelled', async () => {
-    const view = await renderScreen(<DraftResume />)
-    await press(view.getByRole('button', { name: 'Xóa nháp' }))
-    await press(view.getByRole('button', { name: 'Huỷ' }))
-    expect(mockClearDraft).not.toHaveBeenCalled()
-    expect(view.queryByRole('header', { name: 'Xóa nháp' })).toBeNull()
-  })
-})
 
 describe('room management', () => {
   it('confirms cancelling the room in an in-app dialog', async () => {

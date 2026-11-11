@@ -43,6 +43,8 @@ function RootLayout() {
             contentStyle: { backgroundColor: theme.surface.canvas },
           }}
         >
+          {/* Wizard Back owns the exit prompt; root swipe must not bypass it. */}
+          <Stack.Screen name="create" options={{ gestureEnabled: false }} />
           {/* A normal stack card keeps the conversation mounted beneath destinations. */}
           <Stack.Screen
             name="assistant"

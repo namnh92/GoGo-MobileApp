@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
+import { touchTarget } from './tokens'
 
 export const styles = StyleSheet.create(theme => ({
   surface: { padding: theme.spacing[2], borderRadius: 16, borderWidth: 1, borderColor: theme.border.hairline, shadowOpacity: 0 },
@@ -7,6 +8,8 @@ export const styles = StyleSheet.create(theme => ({
   photo: { width: 80, height: 80, borderRadius: 10, overflow: 'hidden', backgroundColor: theme.surface.container },
   unavailableName: { textDecorationLine: 'line-through' },
   body: { flex: 1, minWidth: 0, gap: 4 },
+  withRemove: { paddingRight: touchTarget.min + theme.spacing[2] },
+  remove: { position: 'absolute', top: theme.spacing[2], right: theme.spacing[2], width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface.high },
   name: { paddingVertical: 2 },
   withAction: { paddingRight: 22 + theme.spacing[3] },
   featureOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },

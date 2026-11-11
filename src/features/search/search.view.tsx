@@ -19,6 +19,7 @@ import { isAssistantEntryOn } from '@/shared/config/features'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/shared/location/use-discovery-scope'
+import { clearPickerScope, readPickerScope } from '@/shared/location/picker-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
@@ -64,7 +65,7 @@ export default function SearchScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { picker, q, filters, roomId, moods, categories, suggestions, suggestionScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; categories?: string; suggestions?: string; suggestionScope?: string }>()
+  const { picker, q, filters, roomId, moods, categories, suggestions, suggestionScope, pickerScope } = useLocalSearchParams<{ picker?: string; q?: string; filters?: string; roomId?: string; moods?: string; categories?: string; suggestions?: string; suggestionScope?: string; pickerScope?: string }>()
   const { status } = useSession()
   const isPicker = picker === '1'
   const canSave = status === 'user'
@@ -75,7 +76,15 @@ export default function SearchScreen() {
   const savedScope = useMemo(() => suggestions === '1' && categories ? readSuggestionScope(suggestionScope) : null, [suggestions, categories, suggestionScope])
   // Saved's similar-place search keeps its canonical area until the user changes it.
   if (area !== entryArea && !scopeOverridden) setScopeOverridden(true)
-  const scope = !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope
+  const explicitPicker = isPicker && pickerScope !== undefined
+  const wizardScope = useMemo(() => readPickerScope(pickerScope), [pickerScope])
+  useEffect(() => {
+    if (explicitPicker) return () => clearPickerScope(pickerScope)
+  }, [explicitPicker, pickerScope])
+  const scope = useMemo<DiscoveryScope>(() => explicitPicker
+    ? wizardScope ?? { status: 'unavailable', offline: false, error: new Error(t('createMood.seedScopeUnavailable')) }
+    : !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope,
+  [explicitPicker, wizardScope, t, isPicker, scopeOverridden, savedScope, area, entryArea, resolvedScope])
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(q ?? '')
@@ -100,9 +109,10 @@ export default function SearchScreen() {
   const activeFilterCount = Object.keys(applied).length
   const searchQuery: PlaceSearchQuery = useMemo(() => ({
     ...scopeSearchParams(scope),
+    ...(explicitPicker && wizardScope?.source === 'gps' ? { radiusM: wizardScope.radiusM } : {}),
     locale: i18n.language.startsWith('en') ? 'en' : 'vi', includeTotal: true, limit: 10,
     ...applied, ...(debouncedQuery.trim() ? { q: debouncedQuery.trim() } : {}),
-  }), [scope, applied, debouncedQuery, i18n.language])
+  }), [scope, explicitPicker, wizardScope, applied, debouncedQuery, i18n.language])
   const baseKey = JSON.stringify(searchQuery)
   const [exploration, setExploration] = useState<{ key: string; region: NonNullable<ReturnType<typeof discoveryMap>['region']> } | null>(null)
   const viewport = mode === 'map' && exploration?.key === baseKey ? exploration.region : null
@@ -117,7 +127,7 @@ export default function SearchScreen() {
   const regionSearch = usePlaceSearch(mapSearchQuery, { enabled: !!viewportScope && (scope.status === 'ready') })
   const search = viewportScope ? regionSearch : baseSearch
   function exploreRegion(region: NonNullable<ReturnType<typeof discoveryMap>['region']>) {
-    if (!viewportSearchScope(region)) return
+    if (explicitPicker || !viewportSearchScope(region)) return
     if (regionTimer.current) clearTimeout(regionTimer.current)
     regionTimer.current = setTimeout(() => setExploration({ key: baseKey, region }), 400)
   }
@@ -153,7 +163,7 @@ export default function SearchScreen() {
   // Count availability and an empty result set cannot revoke filter controls.
   const supports774 = ['mood', 'amenity', 'setting', 'suitability'].some(kind => Object.keys(labels[kind] ?? {}).length > 0) || search.data?.pages[0]?.meta?.totalCount !== undefined || results.some(place => place.discovery !== undefined) || [committed, draft].some(value => value.moods.length + value.amenities.length + value.settings.length > 0)
   const valid = validateFilters(draft)
-  const previewQuery: PlaceSearchQuery = { ...scopeSearchParams(scope), locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...filterParams(draft), q: query.trim() || undefined }
+  const previewQuery: PlaceSearchQuery = { ...scopeSearchParams(scope), ...(explicitPicker && wizardScope?.source === 'gps' ? { radiusM: wizardScope.radiusM } : {}), locale: i18n.language.startsWith('en') ? 'en' : 'vi', ...filterParams(draft), q: query.trim() || undefined }
   const previewKey = JSON.stringify(previewQuery)
   const [settledPreviewKey, setSettledPreviewKey] = useState('')
   useEffect(() => {
@@ -232,7 +242,7 @@ export default function SearchScreen() {
       ListHeaderComponent={mapFallback ? <Text variant="introSmall" color="text.secondary">{t('discovery.mapFallback')}</Text> : null}
       ListEmptyComponent={search.isPending ? <PlaceListSkeleton count={4} /> : verifiedEmpty && !sheetOpen ? <SearchEmpty
         key={JSON.stringify(searchQuery)} filters={committed} labels={labels}
-        query={{ ...scopeSearchParams(scope), locale: searchQuery.locale, q: debouncedQuery.trim() || undefined }}
+        query={{ ...scopeSearchParams(scope), ...(explicitPicker && wizardScope?.source === 'gps' ? { radiusM: wizardScope.radiusM } : {}), locale: searchQuery.locale, q: debouncedQuery.trim() || undefined }}
         onApply={next => { setCommitted(next); setDraft(next) }}
         onMore={() => { clearFilters(); setQuery(''); setDebouncedQuery(''); setMode('list') }}
         onPlacePress={onPlacePress}
@@ -245,7 +255,7 @@ export default function SearchScreen() {
     /></PullToRefresh>
   }
   function renderContent() {
-    if (!isPicker && scope.status === 'unavailable') return scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={() => void retryScope()} />
+    if ((!isPicker || explicitPicker) && scope.status === 'unavailable') return scope.offline ? <OfflineState /> : <ErrorState error={scope.error} onRetry={explicitPicker ? undefined : () => void retryScope()} />
     if (mode === 'map' && search.isPaused && !viewport) return <OfflineState />
     if (search.isError && !search.isFetchNextPageError && !viewport) return <ErrorState error={search.error} onRetry={() => void search.refetch()} />
     if (mode !== 'map' || verifiedEmpty) return renderResults()

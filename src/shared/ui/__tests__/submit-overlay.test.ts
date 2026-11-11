@@ -18,7 +18,6 @@ const submitScreens = {
   'account/profile-defaults': 'blocking',
   'account/theme-accent': 'saving',
   'create-date/create-mood': 'createRoom.isPending',
-  'create-date/save-draft': 'saving',
   'create-date/wizard-actions': 'leaving',
   'gogo-room/join-by-code': 'pending',
   'gogo-room/guest-join': 'pending',

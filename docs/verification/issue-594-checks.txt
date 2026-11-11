@@ -1,0 +1,56 @@
+Issue #594 verification, 2026-11-10 Asia/Ho_Chi_Minh
+Base c48d501; source remains uncommitted on feature/GOGO-594-redesign-g05a-create.
+Baseline was extracted with git archive c48d501 into /tmp; its dependencies point to this checkout node_modules.
+
+pnpm typecheck
+EXIT 0
+> gogo-mobile@0.1.0 typecheck /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> tsc --noEmit
+
+pnpm lint
+EXIT 0
+> gogo-mobile@0.1.0 lint /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> expo lint
+
+pnpm test
+EXIT 1
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses while the owner is alive
+TypeError: Cannot read properties of undefined (reading 'trim')
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses recovery while a recorded build process group is still alive
+AssertionError: expected +0 not to be +0 // Object.is equality
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > keeps the lock and run files when a recorded build group is still alive after the child exits
+AssertionError: expected +0 not to be +0 // Object.is equality
+ Test Files  1 failed | 143 passed | 1 skipped (145)
+      Tests  3 failed | 1733 passed | 39 skipped (1775)
+   Duration  54.34s (transform 1.43s, setup 0ms, import 6.99s, tests 27.64s, environment 8ms)
+
+pnpm --dir /tmp/gogo-594-baseline-c48d501 test src/shared/config/__tests__/distribute-wrapper.test.ts
+EXIT 1
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses while the owner is alive
+TypeError: Cannot read properties of undefined (reading 'trim')
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > refuses recovery while a recorded build process group is still alive
+AssertionError: expected +0 not to be +0 // Object.is equality
+ FAIL  src/shared/config/__tests__/distribute-wrapper.test.ts > scripts/distribute.sh > keeps the lock and run files when a recorded build group is still alive after the child exits
+AssertionError: expected +0 not to be +0 // Object.is equality
+ Test Files  1 failed (1)
+      Tests  3 failed | 23 passed (26)
+   Duration  13.38s (transform 40ms, setup 0ms, import 63ms, tests 13.10s, environment 0ms)
+
+pnpm test:ui --runInBand (7 focused/regression suites)
+EXIT 0
+Test Suites: 7 passed, 7 total
+Tests:       81 passed, 81 total
+Time:        11.189 s
+
+
+pnpm test:ui --runInBand
+EXIT 0
+Test Suites: 231 passed, 231 total
+Tests:       3337 passed, 3337 total
+Snapshots:   11 passed, 11 total
+Time:        156.77 s, estimated 167 s
+
+git diff --check
+EXIT 0

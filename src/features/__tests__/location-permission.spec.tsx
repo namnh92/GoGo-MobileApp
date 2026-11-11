@@ -32,7 +32,7 @@ jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3 },
 }))
 
-// The location step reads the profile's home area as a default (ADR-0022);
+// The step 1 location section reads the profile's home area as a default (ADR-0022);
 // an anonymous session has none, and the session provider would otherwise pull
 // the OneSignal native module into a renderer that has no native side.
 jest.mock('@/shared/providers/session-provider', () => ({
@@ -51,10 +51,9 @@ jest.mock('@/shared/administrative/queries', () => ({
   useAdministrativeUnits: () => ({ data: [], isPending: false, isError: false, error: null, refetch: jest.fn() }),
 }))
 
-import CreateLocationScreen from '@/features/create-date/create-location.view'
+import CreateTypeScreen from '@/features/create-date/create-type.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 
-const PROMPT = /Chạm để dùng vị trí của bạn/
 const DENIED = /Chưa có quyền vị trí/
 const UNAVAILABLE = /Chưa lấy được vị trí/
 
@@ -69,22 +68,24 @@ beforeEach(() => {
 
 describe('location permission', () => {
   it('asks nothing on launch — the row invites a tap instead', async () => {
-    const view = await renderScreen(<CreateLocationScreen />)
-    expect(view.queryAllByText(PROMPT).length).toBeGreaterThan(0)
+    const view = await renderScreen(<CreateTypeScreen />)
+    expect(view.getByTestId('create-location-field')).toBeTruthy()
     expect(view.queryAllByText(DENIED)).toHaveLength(0)
     expect(view.queryAllByText(UNAVAILABLE)).toHaveLength(0)
   })
 
   it('shows the resolved area once the user grants it', async () => {
-    const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(PROMPT))
+    const view = await renderScreen(<CreateTypeScreen />)
+    await fireEvent.press(view.getByTestId('create-location-field'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(/Thảo Điền, TP\.HCM/)).length).toBeGreaterThan(0)
   })
 
   it('explains the fallback when the user denies it', async () => {
     mockPermission.status = 'denied'
-    const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(PROMPT))
+    const view = await renderScreen(<CreateTypeScreen />)
+    await fireEvent.press(view.getByTestId('create-location-field'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(DENIED)).length).toBeGreaterThan(0)
   })
 
@@ -92,8 +93,9 @@ describe('location permission', () => {
   // failure has its own file, since the mock cannot be swapped per test.
   it('degrades to the picker when the location call itself fails', async () => {
     mockModuleMissing.value = true
-    const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(PROMPT))
+    const view = await renderScreen(<CreateTypeScreen />)
+    await fireEvent.press(view.getByTestId('create-location-field'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(UNAVAILABLE)).length).toBeGreaterThan(0)
   })
 })
