@@ -55,7 +55,6 @@ jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ status: mockSessionStatus, session: null }),
 }))
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => mockUnread }))
-jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/location/use-current-location', () => ({
   useCurrentLocation: () => ({ state: { status: 'idle' }, request: jest.fn() }),
 }))

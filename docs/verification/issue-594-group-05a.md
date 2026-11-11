@@ -692,3 +692,52 @@ Source/test SHA-256 của tập touched/new `src` files, sắp xếp path, hash 
 Logs: `/tmp/594-round7-baseline.log`, `/tmp/594-round7-after.log`, `/tmp/594-round7-ui.log`, `/tmp/594-round7-registry.log`, `/tmp/594-round7-typecheck.log`, `/tmp/594-round7-lint.log`. Baseline path còn ở `/tmp/594-round7-baseline-path.txt`. UI gate có Node `punycode` deprecation hiện hữu.
 
 Đây là component/config/store regression. Stack/route segments được giả lập trong component tests; chưa kiểm native navigation transitions, runtime deep-link history, OS settings/quyền vị trí, bàn phím thực tế hoặc ảnh Light/Dark trên simulator. Không suy ra native acceptance/pixel parity từ Jest. HEAD giữ `dc52c94a`, index trống.
+
+
+## Owner sim feedback round 8 (drafts)
+
+Ngày 2026-11-11. Sol sửa trên worktree `mobile-594`, PR #598, từ HEAD **`ad784a1b`** (round 7 đã commit). Basis: owner decision `dev/policy/decisions-log.md:5` và yêu cầu giao việc round 8. Không truy cập/chạm `mobile-647`; không git add/commit.
+
+### Thay đổi và delete UX
+
+- Bỏ block “Tiếp tục nháp / Xoá nháp” khỏi Home và phần đầu tab Kế hoạch. Xoá `draft-resume.view.tsx` / `.style.tsx`, cập nhật test cũ và mock tham chiếu component đã bỏ. Giữ nguyên `savedRoomDraft` schema, persistence, restore, session guards và APP-053 account scoping.
+- Trong danh sách **Sắp tới**, bản nháp của tài khoản hiện tại đứng trước các phòng, dùng đúng shared `PlanCard` qua presenter `DraftPlanCard`. Lịch sử không hiện nháp; không có nháp hoặc khác tài khoản thì không có thẻ. Empty state không hiện khi chỉ có nháp; loading/error/offline của room query không che thẻ nháp local.
+- Pill shared `Chip` variant `default` (neutral), i18n mới `draft.status`: **vi “Bản nháp” / en “Draft”**. Trạng thái luôn có chữ. Icon theo audience, title đã trim hoặc `plans.untitled` (“Kèo chưa đặt tên”), người/ngân sách/thời gian lấy từ snapshot. Không thêm placeholder cho budget/time thiếu; ngày/giờ đang điền dở vẫn hiển thị phần có thật. Ngân sách dùng `budgetFact` và `budgetModeFor`, giữ đúng đơn vị và tổng của wizard couple, không chia bình quân.
+- Tap thẻ gọi lại restore + `dropStaleDay` + `draftStepPath`: quay về bước đã lưu và dựng đầy đủ history cho Back; giữ tương thích draft bước location cũ → type.
+- **Delete UX:** thêm `PlanCard.trailingAction` tuỳ chọn, dùng shared `IconBtn` regular **48×48pt**, icon trash màu `text.secondary`, accessibility label **“Xoá nháp”**. Đây là sibling của vùng mở thẻ, không là nút lồng trong nút resume. Nhấn mở shared **ResultSheet warning**, mô tả không thể hoàn tác; Huỷ bên trái, Xoá nháp destructive bên phải. Huỷ/backdrop/back giữ snapshot; chỉ xác nhận mới xoá memory/disk. Confirmation giữ account lifetime và identity của snapshot lúc mở: không xoá snapshot thay thế hoặc của lifetime cũ. Storage error dùng thông báo i18n `draft.deleteFailed`.
+- Color bindings của shared PlanCard và draft presenter thêm vào `stitch-color-pins.json`; thêm registry `plan-card-ownership.test.ts` để pin hai presenter cùng dùng PlanCard, neutral status, warning ResultSheet và Home không còn draft entry. Không thay giá trị token/màu. Test shared card kiểm action độc lập và metadata thiếu; test legacy resume được chuyển sang thẻ mới.
+
+### FAIL trước / PASS sau
+
+Xuất production **`git archive ad784a1b`** ra `/private/tmp/594-round8-ad784a1b-9canjsa5`, symlink dependencies; chỉ copy hai final test files `plans-draft.spec.tsx`, `home-location-scope.spec.tsx`. Hai test files baseline/patch giống byte-for-byte. Không checkout/reset/stash working tree. Cùng lệnh: `pnpm test:ui --runInBand plans-draft home-location-scope`.
+
+| Nhóm bằng chứng | ad784a1b | Patch |
+| --- | --- | --- |
+| Home không còn nút nháp dù tài khoản có snapshot | 1 FAIL: còn “Tiếp tục nháp” | 1 PASS |
+| Shared thẻ đầu danh sách, pill neutral, facts + resume history couple/group | 2 FAIL: thiếu draft PlanCard | 2 PASS |
+| Chỉ có draft → không empty; title fallback, ẩn budget/time thiếu; chỉ Sắp tới | 1 FAIL: thiếu draft PlanCard | 1 PASS |
+| Room query pending/error vẫn có local draft | 2 FAIL: thiếu draft PlanCard | 2 PASS |
+| Delete icon ≥44pt, cancel giữ, confirm xoá memory/disk và hiện lại empty | 1 FAIL: còn nút cũ thay icon 48pt | 1 PASS |
+| English Draft; budget per-person và lịch điền dở | 2 FAIL: thiếu draft PlanCard | 2 PASS |
+| Confirmation cũ không xoá snapshot thay thế | 1 FAIL: thiếu warning ResultSheet | 1 PASS |
+| No-draft / khác tài khoản / đổi tài khoản + 20 Home regressions còn lại | 23 PASS | 23 PASS |
+| **Tổng** | **10 FAIL / 23 PASS**, exit 1 | **33 PASS**, exit 0 |
+
+Raw logs: `/tmp/594-round8-before-final.log`, `/tmp/594-round8-after-final.log`. Baseline path ghi tại `/tmp/594-round8-baseline-path.txt`. Không tính lỗi hạ tầng/test harness là product FAIL.
+
+### Checks và giới hạn
+
+Source/test review basis **`rs-1324ec6885f1`**, scope `src`; manifest + retrievable tracked diff/untracked files: `/tmp/594-round8-snapshots/mobile-594-round8-rs-1324ec6885f1/MANIFEST.txt`. Docs ngoài fingerprint; source/test không đổi sau basis.
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | **PASS**, exit 0 |
+| `pnpm test:ui plans home draft create-date plan-card confirm-dialogs list-first-load --runInBand` | **PASS**, 20 suites / 316 tests; gồm toàn bộ requested filter và các touched suites bổ sung |
+| `pnpm test` với plan-card-ownership, color-roles, chip-ownership, app-header-ownership, saved-room-draft, room-draft | **PASS**, 6 files / 101 tests |
+| `pnpm exec eslint --no-cache <19 touched/new TS/TSX files>` | **PASS**, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | **PASS** |
+| `snapshot.sh verify <manifest>` | **MATCH** |
+
+Logs: `/tmp/594-round8-ui-final.log`, `/tmp/594-round8-registry-final.log`, `/tmp/594-round8-typecheck-final.log`, `/tmp/594-round8-lint-final.log`. Jest còn Node `punycode` deprecation hiện hữu.
+
+Đây là component/store/static-ownership regression; chưa chạy native build/simulator, chưa đo layout/VoiceOver trên máy hoặc Light/Dark pixel parity. Không suy ra runtime acceptance từ Jest. HEAD giữ **`ad784a1b`**, index trống.

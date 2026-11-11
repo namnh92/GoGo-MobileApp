@@ -8,7 +8,7 @@ import CreateType from '../create-type.view'
 import GroupSetup from '../group-setup.view'
 import LegacyLocation from '@/app/create/location'
 import { saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
-import { DraftResume } from '../draft-resume.view'
+import { DraftPlanCard } from '../draft-plan-card.view'
 import { WizardStep } from '../wizard-step.view'
 
 const mockPush = jest.fn()
@@ -106,15 +106,15 @@ it('round 3: old /create/location deep links redirect to step 1', async () => {
   expect(view.getByTestId('redirect').props.children).toBe('/create/type')
 })
 
-it.each(['couple', 'group-host'] as const)('round 3: DraftResume pushes only step 1 for a saved old location route (%s)', async audience => {
+it.each(['couple', 'group-host'] as const)('round 3: draft PlanCard pushes only step 1 for a saved old location route (%s)', async audience => {
   useRoomStore.getState().setAudience(audience)
   await act(async () => {
     await saveRoomDraft('owner', 'type')
     const snapshot = useSavedRoomDraft.getState().draft!
     useSavedRoomDraft.setState({ draft: { ...snapshot, step: 'location' } })
   })
-  const view = await renderScreen(<DraftResume />)
-  await fireEvent.press(view.getByText(i18n.t('draft.resume')))
+  const view = await renderScreen(<DraftPlanCard draft={useSavedRoomDraft.getState().draft!} />)
+  await fireEvent.press(view.getByTestId('plan-card-draft'))
   expect(mockPush.mock.calls).toEqual([['/create/type']])
 })
 it('round 3: restores an unlimited GPS radius without resetting it to the default', async () => {

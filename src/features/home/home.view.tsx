@@ -3,7 +3,6 @@ import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
 import { useUnreadInbox } from '@/features/notifications/unread-count'
-import { DraftResume } from '@/features/create-date/draft-resume.view'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useUnistyles } from 'react-native-unistyles'
@@ -181,7 +180,6 @@ export default function HomeScreen() {
           onRetry={() => void search.refetch()}
         />
 
-        <DraftResume />
 
         <LinearGradient colors={[theme.accent.gradientStart, theme.accent.gradientMiddle, theme.status.infoGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
           <View pointerEvents="none" style={styles.heroDecor}><MaterialIcon name="groups" size={140} color="accent.text" /></View>

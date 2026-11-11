@@ -1149,7 +1149,20 @@
     "src/shared/ui/place-card-small.view.tsx": [
       "text.primary",
       "text.primary"
-    ]
+    ],
+    "src/shared/ui/plan-card.view.tsx": [
+      "text.secondary",
+      "accent.onSoft",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/shared/ui/plan-card.style.tsx": [
+      "surface.canvas",
+      "border.hairline",
+      "accent.soft",
+      "surface.subtle"
+    ],
+    "src/features/create-date/draft-plan-card.view.tsx": []
   },
   "workspace": {
     "canvas": "#121212",

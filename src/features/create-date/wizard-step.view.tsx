@@ -31,7 +31,7 @@ export const WizardHeaderOffset = createContext(0)
 
 /**
  * Later steps pop: the previous step is below on the stack whether
- * the user walked here or resumed a draft (`DraftResume` pushes the whole
+ * the user walked here or resumed a draft (`DraftPlanCard` pushes the whole
  * path). First-step Back shares Close's existing save/discard/keep prompt.
  */
 export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {

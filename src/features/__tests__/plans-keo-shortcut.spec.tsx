@@ -31,7 +31,6 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/providers/session-provider', () => ({
   useSession: () => ({ session: { kind: 'user', userId: 'u' }, status: 'user', signOut: jest.fn() }),
 }))
-jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/api', () => {
   const idle = { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn() }
   const rooms = {
