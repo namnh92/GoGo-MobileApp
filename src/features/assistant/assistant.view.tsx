@@ -1,7 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BackHandler, KeyboardAvoidingView, Platform, View, useWindowDimensions } from 'react-native'
+import { BackHandler, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
@@ -21,7 +21,6 @@ import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 import { markAssistantOpened, takeChatSavedToast } from '@/shared/store/assistantIntroStore'
 import { NEW_CHAT, useAssistantDraftStore } from '@/shared/store/assistantDraftStore'
 import { useToast } from '@/shared/ui/toast.view'
-import { spacing } from '@/shared/ui/tokens'
 
 import { useAssistantAccount } from './assistant-entry'
 import { AssistantHeader } from './assistant-header.view'
@@ -31,7 +30,6 @@ import { formatClock } from './format'
 import { History } from './history.view'
 import { OfflineBanner } from './offline-banner.view'
 import { pickAssistantImages } from './pick-images'
-import { sheetKeyboardOffset } from './keyboard-offset'
 import { isUserOnly } from './send-error'
 import { SignInPrompt } from './sign-in-prompt.view'
 import { StateNotice } from './state-notice.view'
@@ -40,8 +38,8 @@ import { styles } from './assistant.style'
 
 /**
  * GoGo AI (GoGo-MobileApp#378, design `ScreenWelcome` / `ScreenConversation` /
- * `ScreenHistory` and the states). Opened from an entry point (#379) as an
- * iOS page sheet, full screen on Android. With the gate off the route leads
+ * `ScreenHistory` and the states). Opened from an entry point (#379) as a
+ * full-screen stack card on iOS and Android. With the gate off the route leads
  * home; a guest or signed-out person is asked to sign in (owner decision on
  * #377: guests cannot use it).
  *
@@ -56,9 +54,6 @@ export default function AssistantScreen() {
 function AssistantRoot() {
   const insets = useSafeAreaInsets()
   const account = useAssistantAccount()
-  const { height: windowHeight } = useWindowDimensions()
-  const [sheetHeight, setSheetHeight] = useState<number | null>(null)
-  const keyboardOffset = sheetKeyboardOffset({ windowHeight, sheetHeight, os: Platform.OS })
 
   // Opening clears the "New" badge for this account.
   useEffect(() => {
@@ -68,28 +63,14 @@ function AssistantRoot() {
   return (
     <View
       testID="assistant-screen"
-      onLayout={event => setSheetHeight(event.nativeEvent.layout.height)}
-      style={[styles.screen, { paddingTop: Platform.OS === 'ios' ? spacing[2] : insets.top }]}
+      style={[styles.screen, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}
     >
-      {account ? <AssistantChat account={account} keyboardOffset={keyboardOffset} /> : <SignedOut />}
+      {account ? <AssistantChat account={account} /> : <SignedOut />}
     </View>
   )
 }
 
-/**
- * Sign-in from inside GoGo AI (acceptance BUG1). Pushing the sign-in screen
- * from the page sheet stacked it *inside* the sheet on iOS (a card pushed
- * above a modal is presented in the modal's container), and sign-in's own
- * `replace` then put the tabs there too — Home drawn in the sheet. It also
- * kept this screen mounted behind sign-in, so the session turning `user`
- * cleared the "New" badge for an assistant nobody had seen signed in.
- *
- * Replacing the sheet with sign-in is one navigation action: the sheet goes
- * and sign-in lands on the root stack over the screen GoGo AI was opened from.
- * `next=assistant` brings the person back to GoGo AI once they are signed in —
- * it is what they were trying to use — and that open, seen signed in, is the
- * one that clears the badge.
- */
+/** Replace the signed-out screen so signing in does not retain an inactive assistant. */
 export const ASSISTANT_SIGN_IN_HREF = '/auth/sign-in?next=assistant'
 
 function useSignInFromAssistant() {
@@ -108,7 +89,7 @@ function SignedOut() {
   )
 }
 
-function AssistantChat({ account, keyboardOffset }: { account: string; keyboardOffset: number }) {
+function AssistantChat({ account }: { account: string }) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const signIn = useSignInFromAssistant()
@@ -283,7 +264,7 @@ function AssistantChat({ account, keyboardOffset }: { account: string; keyboardO
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={keyboardOffset}
+        keyboardVerticalOffset={0}
       >
         <View style={styles.flex}>
           {welcome ? (

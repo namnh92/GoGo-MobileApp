@@ -10,21 +10,7 @@ import { setAssistantBackend } from '@/shared/api/assistant-backend'
 import { assistantIsNew, useAssistantIntroStore } from '@/shared/store/assistantIntroStore'
 import { ToastProvider } from '@/shared/ui/toast.view'
 
-/**
- * iOS acceptance BUG1 (GoGo-MobileApp#378/#379): signing in from GoGo AI.
- *
- * Before: "Đăng nhập" pushed `/auth/sign-in` above the page sheet, and
- * sign-in's `replace('/(tabs)')` swapped itself for the tabs — still above the
- * sheet. On iOS a card above a modal is presented inside the modal, so Home
- * was drawn inside the assistant sheet. The assistant also stayed mounted
- * behind sign-in, so the session turning `user` cleared the "New" badge for
- * an assistant nobody had seen signed in.
- *
- * These run the real assistant and sign-in screens in expo-router's real
- * navigator, and read the root stack: nothing may ever sit above the
- * `assistant` modal, and the badge is cleared only by an assistant that is on
- * screen signed in.
- */
+/** Signing in replaces the inactive assistant; returning opens a full-screen card. */
 
 // expo-router's matcher module imports `expect/build/matchers`, which this jest cannot load.
 jest.mock('expo-router/build/testing-library/expect', () => ({}))
@@ -78,7 +64,7 @@ function app() {
       <QueryClientProvider client={client}>
         <ToastProvider>
           <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="assistant" options={{ presentation: 'pageSheet' }} />
+            <Stack.Screen name="assistant" options={{ presentation: 'card' }} />
           </Stack>
         </ToastProvider>
       </QueryClientProvider>
@@ -119,7 +105,7 @@ async function openAssistantSignedOut() {
   expect(rootStack()).toEqual(['(tabs)', 'assistant'])
 }
 
-it('"Đăng nhập" closes the sheet: sign-in sits on the root stack, never above the assistant', async () => {
+it('"Đăng nhập" replaces the assistant with sign-in on the root stack', async () => {
   await openAssistantSignedOut()
   await press(screen.getByRole('button', { name: 'Đăng nhập' }))
   await waitFor(() => expect(nav.getPathname()).toBe('/auth/sign-in'))
@@ -137,7 +123,7 @@ it('the session turning `user` while sign-in is on screen does not clear the "Ne
   expect(assistantIsNew(useAssistantIntroStore.getState().accounts[USER])).toBe(true)
 })
 
-it('after signing in, GoGo AI opens again signed in — as the sheet over Home, not Home inside it', async () => {
+it('after signing in, GoGo AI opens signed in as a card over Home', async () => {
   mockSignIn.mockImplementation(async () => {
     setSession({ status: 'user', session: { kind: 'user', userId: USER } })
   })

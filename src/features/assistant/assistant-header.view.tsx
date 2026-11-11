@@ -32,7 +32,7 @@ export function AssistantHeader({
   const { t } = useTranslation()
   return (
     <AppHeader variant="sub-screen" showNotifications={false} safeArea={false} title={title ?? t('assistant.name')} subtitle={subtitle} subtitleTone={offline ? 'danger' : 'default'}
-      onBack={onBack ?? onClose} backLabel={t(onBack ? 'assistant.history.back' : 'assistant.close')} backTestID={onBack ? 'assistant-back' : 'assistant-close'}
+      onBack={onBack ?? onClose} backLabel={t(onBack ? 'assistant.history.back' : 'common.back')} backTestID={onBack ? 'assistant-back' : 'assistant-close'}
       leading={<>
         {avatar ? <AssistantAvatar size="md" /> : null}
       </>}
