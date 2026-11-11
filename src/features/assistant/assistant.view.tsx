@@ -21,6 +21,7 @@ import { isAssistantEntryOn } from '@/shared/config/features'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 import { markAssistantOpened, takeChatSavedToast } from '@/shared/store/assistantIntroStore'
 import { NEW_CHAT, useAssistantDraftStore } from '@/shared/store/assistantDraftStore'
+import { useKeyboardVisible } from '@/shared/ui/keyboard'
 import { useToast } from '@/shared/ui/toast.view'
 
 import { useAssistantAccount } from './assistant-entry'
@@ -96,6 +97,8 @@ function AssistantChat({ account }: { account: string }) {
   const signIn = useSignInFromAssistant()
   const toast = useToast()
   const online = useOnlineStatus()
+  const insets = useSafeAreaInsets()
+  const keyboard = useKeyboardVisible()
   const params = useLocalSearchParams<{ placeId?: string; placeName?: string; question?: string }>()
   const [context, setContext] = useState(
     params.placeId && params.placeName ? { placeId: params.placeId, name: params.placeName } : null,
@@ -267,7 +270,6 @@ function AssistantChat({ account }: { account: string }) {
         onNewChat={welcome ? undefined : newChat}
         onHistory={() => setView('history')}
       />
-      <CreditBalanceRow assistant />
       {!online ? <OfflineBanner /> : null}
       <KeyboardAvoidingView
         style={styles.flex}
@@ -299,20 +301,23 @@ function AssistantChat({ account }: { account: string }) {
             />
           )}
         </View>
-        <Composer
-          value={draft}
-          onChangeText={setDraft}
-          onSend={() => submit(draft)}
-          onStop={() => streaming && stop.mutate(streaming.id)}
-          stopping={stop.isPending}
-          generating={generating}
-          disabled={sendDisabled}
-          hint={hint}
-          images={images}
-          onAttach={() => void attach()}
-          onRemoveImage={index => setImages(current => current.filter((_, at) => at !== index))}
-          context={context ? { label: context.name, onRemove: () => setContext(null) } : null}
-        />
+        <View testID="assistant-footer" style={styles.footer(keyboard ? 0 : insets.bottom)}>
+          <Composer
+            value={draft}
+            onChangeText={setDraft}
+            onSend={() => submit(draft)}
+            onStop={() => streaming && stop.mutate(streaming.id)}
+            stopping={stop.isPending}
+            generating={generating}
+            disabled={sendDisabled}
+            hint={hint}
+            images={images}
+            onAttach={() => void attach()}
+            onRemoveImage={index => setImages(current => current.filter((_, at) => at !== index))}
+            context={context ? { label: context.name, onRemove: () => setContext(null) } : null}
+          />
+          <CreditBalanceRow assistant />
+        </View>
       </KeyboardAvoidingView>
     </>
   )

@@ -26,14 +26,14 @@ function CreditBalanceContent({ assistant }: { assistant: boolean }) {
   const { t, i18n } = useTranslation()
   const { refetch } = credits
   useFocusEffect(useCallback(() => { void refetch() }, [refetch]))
-  const title = t(assistant && (credits.data?.reserved ?? 0) > 0 ? 'credits.available' : 'credits.title')
+  const title = t('credits.title')
   return <View style={assistant ? styles.assistant : styles.account} testID="credit-balance-row">
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t('credits.viewHistory')} accessibilityState={{ busy: credits.isPending && online }} onPress={() => router.push('/me/credits')}>
-      <Text style={styles.label}>{title}</Text>
+      <Text variant={assistant ? 'bodySmall' : 'body'} numberOfLines={assistant ? 1 : undefined} style={styles.label}>{title}</Text>
       <View accessibilityLiveRegion="polite">
-        {credits.data ? <Text variant="title2">{formatCredit(assistant ? credits.data.availableBalance : credits.data.balance, i18n.language)}</Text>
-          : !online || credits.isPaused ? <Text color="text.secondary">{t('credits.offline')}</Text>
-            : credits.isError ? <Text color="text.secondary">{t('credits.unavailable')}</Text>
+        {credits.data ? <Text variant={assistant ? 'caption' : 'title2'} numberOfLines={assistant ? 1 : undefined}>{formatCredit(assistant ? credits.data.availableBalance : credits.data.balance, i18n.language)}</Text>
+          : !online || credits.isPaused ? <Text variant={assistant ? 'caption' : 'body'} numberOfLines={assistant ? 1 : undefined} color="text.secondary">{t('credits.offline')}</Text>
+            : credits.isError ? <Text variant={assistant ? 'caption' : 'body'} numberOfLines={assistant ? 1 : undefined} color="text.secondary">{t('credits.unavailable')}</Text>
               : <View testID="credit-balance-loading"><Skeleton width={64} height={24} /></View>}
       </View>
     </Pressable>
