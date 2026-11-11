@@ -686,9 +686,6 @@
       "border.hairline",
       "text.primary",
       "surface.subtle",
-      "surface.subtle",
-      "surface.subtle",
-      "accent.text",
       "accent.soft",
       "accent.soft",
       "surface.subtle",
@@ -752,10 +749,6 @@
       "status.dangerText"
     ],
     "src/features/place-import/contribution-choices.view.tsx": [
-      "text.secondary",
-      "text.primary",
-      "text.secondary",
-      "text.primary",
       "text.secondary",
       "text.primary",
       "accent.primary"
@@ -1101,6 +1094,29 @@
     ],
     "src/features/settings/permissions.style.tsx": [
       "status.infoSoft"
+    ],
+    "src/shared/ui/checkbox-row.style.tsx": [
+      "surface.subtle",
+      "surface.subtle",
+      "accent.text"
+    ],
+    "src/shared/ui/time-wheel.style.tsx": [
+      "accent.soft"
+    ],
+    "src/features/create-date/time-picker-sheet.style.tsx": [],
+    "src/shared/ui/checkbox-row.view.tsx": [
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.primary"
+    ],
+    "src/shared/ui/time-wheel.view.tsx": [
+      "text.secondary",
+      "accent.onSoft",
+      "text.secondary"
+    ],
+    "src/features/create-date/time-picker-sheet.view.tsx": [
+      "status.dangerText"
     ]
   },
   "workspace": {
