@@ -93,7 +93,7 @@ it.each(['area', 'gps'] as const)('F-10: synchronous Add presses open one %s pic
   } finally { saveScope.mockRestore() }
 })
 
-it.each(['vi', 'en'])('round 4: shared icon-only accessible mood/calendar toggles (%s)', async locale => {
+it.each(['vi', 'en'])('round 5: shared icon-only mood toggles follow the last option, like the calendar (%s)', async locale => {
   await act(async () => { await i18n.changeLanguage(locale) })
   let view = await renderScreen(<CreateMoodScreen />)
   const toggles = view.getAllByRole('button', { name: i18n.t('createMood.showAll') })
@@ -104,9 +104,18 @@ it.each(['vi', 'en'])('round 4: shared icon-only accessible mood/calendar toggle
     const style = StyleSheet.flatten(toggle.props.style)
     expect(style.minHeight).toBeGreaterThanOrEqual(44); expect(style.minWidth).toBeGreaterThanOrEqual(44)
     expect(toggle.props.accessibilityState.expanded).toBe(false)
-    expect(StyleSheet.flatten(toggle.parent?.props.style).alignItems).toBe('center')
-    const title = toggle.parent?.children[0]
-    expect(StyleSheet.flatten(typeof title === 'object' ? title.props.style : undefined).flex).toBe(1)
+    expect(style.alignSelf).toBe('center')
+    const section = toggle.parent!
+    expect(section.children.at(-1)).toBe(toggle)
+    const header = section.children[0]
+    expect(typeof header).toBe('object')
+    if (typeof header === 'object') {
+      expect(within(header).queryAllByRole('button')).toHaveLength(0)
+      expect(within(header).getAllByText(/.+/)).toHaveLength(1)
+    }
+    const options = section.children[1]
+    expect(typeof options).toBe('object')
+    if (typeof options === 'object') expect(within(options).getAllByRole('checkbox')).toHaveLength(5)
   }
   await fireEvent.press(toggles[0])
   const collapse = view.getByRole('button', { name: i18n.t('createMood.showLess') })
@@ -118,11 +127,25 @@ it.each(['vi', 'en'])('round 4: shared icon-only accessible mood/calendar toggle
   await view.unmount()
   view = await renderScreen(<DateTimeSheet initialDay={null} onDayChange={jest.fn()} />)
   const calendar = view.getByRole('button', { name: i18n.t('createTime.expandCalendar') })
+  expect(calendar.parent!.children.at(-1)).toBe(calendar)
   expect(within(calendar).queryByText(i18n.t('createTime.expandCalendar'))).toBeNull()
   expect(within(calendar).getByTestId('material-icon-keyboardDoubleArrowDown', { includeHiddenElements: true })).toBeTruthy()
   expect(StyleSheet.flatten(calendar.props.style).minHeight).toBeGreaterThanOrEqual(44)
   await fireEvent.press(calendar)
   expect(within(view.getByRole('button', { name: i18n.t('createTime.collapseCalendar') })).getByTestId('material-icon-keyboardDoubleArrowUp', { includeHiddenElements: true })).toBeTruthy()
+})
+
+it('round 5: collapsing keeps five options in stable taxonomy order including an overflow selection', async () => {
+  useRoomStore.getState().patchDraft({ moodKeys: ['g'] })
+  const view = await renderScreen(<CreateMoodScreen />)
+  const labels = () => view.getAllByRole('checkbox').slice(0, 5).map(option => option.props.accessibilityLabel)
+  const collapsed = ['mood a', 'mood b', 'mood c', 'mood d', 'mood g']
+  expect(labels()).toEqual(collapsed)
+  await fireEvent.press(view.getAllByRole('button', { name: i18n.t('createMood.showAll') })[0])
+  expect(view.getAllByRole('checkbox').slice(0, 7).map(option => option.props.accessibilityLabel)).toEqual('abcdefg'.split('').map(key => `mood ${key}`))
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.showLess') }))
+  expect(labels()).toEqual(collapsed)
+  expect(useRoomStore.getState().moodKeys).toEqual(['g'])
 })
 
 it.each(['area', 'gps'] as const)('round 4: opens picker with explicit wizard %s scope independent of global scope', async source => {
@@ -216,7 +239,7 @@ it('round 4: unlimited GPS picker is blocked by the actual search contract', asy
   expect(mockPush).not.toHaveBeenCalled()
 })
 
-it('round 4: seed places use vertical shared small cards with accessible remove and omitted unknown facts', async () => {
+it('round 5: seed remove is inside each full-width small card and only removes that seed', async () => {
   useRoomStore.getState().addSeedPlace({ placeId: 'full', name: 'Verified cafe' })
   useRoomStore.getState().addSeedPlace({ placeId: 'sparse', name: 'Sparse cafe' })
   const view = await renderScreen(<CreateMoodScreen />)
@@ -229,16 +252,23 @@ it('round 4: seed places use vertical shared small cards with accessible remove 
   expect(within(cards[1]).queryByTestId('place-card-ratings')).toBeNull()
   expect(within(cards[1]).queryByText('—')).toBeNull()
   expect(within(cards[1]).queryByTestId('place-card-address')).toBeNull()
-  for (const name of ['Verified cafe', 'Sparse cafe']) {
+  for (const [index, name] of ['Verified cafe', 'Sparse cafe'].entries()) {
     const remove = view.getByRole('button', { name: i18n.t('createMood.removePlace', { name }) })
+    const surface = view.getAllByTestId('place-card-surface')[index]
+    expect(within(surface).getByRole('button', { name: i18n.t('createMood.removePlace', { name }) })).toBe(remove)
+    expect(surface.parent?.props.testID).toBe('create-mood-seed-list')
+    expect(StyleSheet.flatten(surface.props.style).flex).toBeUndefined()
     expect(within(remove).queryByText(name)).toBeNull()
     const style = StyleSheet.flatten(remove.props.style)
-    expect(style.width ?? style.minWidth).toBeGreaterThanOrEqual(44)
-    expect(style.height ?? style.minHeight).toBeGreaterThanOrEqual(44)
+    expect(style.position).toBe('absolute')
+    expect(style.top).toBeGreaterThanOrEqual(0); expect(style.right).toBeGreaterThanOrEqual(0)
+    expect(style.width + remove.props.hitSlop.left + remove.props.hitSlop.right).toBeGreaterThanOrEqual(44)
+    expect(style.height + remove.props.hitSlop.top + remove.props.hitSlop.bottom).toBeGreaterThanOrEqual(44)
   }
   await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.removePlace', { name: 'Verified cafe' }) }))
   expect(view.getAllByTestId('place-card-small')).toHaveLength(1)
   expect(useRoomStore.getState().seedPlaces).toEqual([{ placeId: 'sparse', name: 'Sparse cafe' }])
+  expect(mockPush).not.toHaveBeenCalled()
   expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeTruthy()
 })
 

@@ -1139,6 +1139,15 @@
     ],
     "src/shared/ui/expand-toggle.view.tsx": [
       "accent.primary"
+    ],
+    "src/shared/ui/place-card-small.style.tsx": [
+      "border.hairline",
+      "surface.container",
+      "surface.high"
+    ],
+    "src/shared/ui/place-card-small.view.tsx": [
+      "text.primary",
+      "text.primary"
     ]
   },
   "workspace": {

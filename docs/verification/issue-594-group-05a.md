@@ -515,3 +515,47 @@ Raw logs: `/tmp/mobile-594-assistant-before.log`, `/tmp/mobile-594-assistant-fin
 Source/test snapshot: **`rs-1fa5d003876b`**, scope `src`; manifest và retrievable binary diff tại `/tmp/mobile-594-rating-snapshots/mobile-594-assistant-ratings-rs-1fa5d003876b/`. Tài liệu verification này ngoài snapshot scope; source/test không đổi sau checks. Manifest verify **MATCH** trước bàn giao.
 
 Đây là component regression verification; chưa chạy simulator/native build hoặc live API acceptance. Không thay OpenAPI/generated types. Không git add/commit/push; index trống khi bàn giao.
+
+## Owner sim feedback round 5 — 2026-11-11
+
+Basis: PR #598, HEAD `ed91a7df373565f01f82ab18aa3671cd3e525d8e`, worktree `mobile-594` sạch lúc bắt đầu. Áp dụng owner decision “Tạo kèo vòng 5 (#598)” trong workspace `dev/policy/decisions-log.md`. Chỉ sửa working tree này; không thao tác `mobile-647`, không git add/commit/push.
+
+### Thay đổi
+
+- Seed card dùng optional `onRemove` + `removeAccessibilityLabel` trên shared `PlaceCardSmall`; type bắt buộc nhãn khi có handler. Bỏ wrapper hàng ngang và sibling IconBtn, nên card là con trực tiếp của danh sách dọc, chiếm trọn chiều ngang.
+- X nằm absolute trong surface của card, inset trên/phải 8pt, visual tròn 32×32pt, icon 18pt `text.primary`, nền `surface.high` theo Light/Dark. `hitSlop` mở vào trong 12pt bên trái/dưới, thành target 44×44pt không bị bounds card cắt. Text column chừa 52pt bên phải để cả tên và địa chỉ không đè lên nút/hit area.
+- `CardShell` có internal `surfaceAction` slot ngay trong surface, bên ngoài open target. Remove không nằm trong Pressable mở card; test kiểm cây render lẫn cả hai chiều press. Caller không truyền remove giữ nguyên layout/name padding, header action và save action hiện có; không sửa các call site khác.
+- Mỗi Mood section chỉ có title trong header; shared `ExpandToggle` nằm sau option list và căn giữa bằng cùng style với lịch. Giữ logic collapse tối đa 5, thứ tự taxonomy, selected overflow, expand/collapse và nhãn vi/en. Calendar vẫn có toggle cuối danh sách ngày.
+- Thêm color pins cho binding thực của small-card view/style (`text.primary`, `surface.high` và các role sẵn có). Không chuyển chip row hay thay chip gap: checkbox list/card list không thuộc chip registry; registry hiện có giữ nguyên và đã chạy gate.
+
+### FAIL trên ed91a7d / PASS sau sửa
+
+Final tests: `src/features/create-date/__tests__/round-four.spec.tsx` và `src/shared/ui/__tests__/place-card-remove.spec.tsx`. Baseline production lấy nguyên `git archive ed91a7d` vào `/tmp` riêng; chỉ copy hai final test files và symlink node_modules. Không checkout/reset/stash worktree. Baseline path ghi tại `/tmp/594-round5-baseline-path.txt`.
+
+Cùng lệnh trên baseline và patch: `pnpm test:ui --runInBand round-four place-card-remove -t 'round 5'`.
+
+| Regression | Baseline `ed91a7d` | Working-tree patch |
+| --- | --- | --- |
+| Mood toggle sau option list, header chỉ title, căn giữa, icon/a11y vi/en; calendar placement | 2 FAIL | 2 PASS |
+| Seed remove trong full-width card, remove đúng seed, không route/open | 1 FAIL: remove ngoài card | 1 PASS |
+| Optional remove top-right, text clearance, 44pt hit area, Light/Dark roles, remove/open độc lập | 2 FAIL: chưa có optional remove | 2 PASS |
+| Collapse giữ 5 options, stable order và selected overflow | 1 PASS | 1 PASS |
+| Caller không có remove giữ body/name/header action | 1 PASS | 1 PASS |
+| **Tổng** | **5 FAIL / 2 PASS**, exit 1 | **7 PASS**, exit 0 |
+
+Raw logs: `/tmp/594-round5-before-final.log`, `/tmp/594-round5-after-final.log`.
+
+### Checks cuối
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm test:ui create-date place-card assistant --runInBand` | PASS, 29 suites / 460 tests / 9 snapshots |
+| `pnpm test src/shared/ui/__tests__/color-roles.test.ts src/shared/ui/__tests__/chip-ownership.test.ts` | PASS, 2 files / 11 tests; role bindings và chip registry |
+| `pnpm test:ui --runInBand chip.spec app-color-roles` | PASS, 4 suites / 105 tests |
+| `pnpm exec eslint --no-cache <all 8 touched/new .ts/.tsx files>` | PASS, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | PASS |
+
+Raw check logs: `/tmp/594-round5-typecheck-final.log`, `/tmp/594-round5-ui-final.log`, `/tmp/594-round5-token-chip.log`, `/tmp/594-round5-shared-ui.log`, `/tmp/594-round5-lint-final.log`. UI gate còn cảnh báo Node `punycode` deprecated hiện hữu. Typecheck ban đầu bắt thiếu required metadata trong fixture mới; đã bổ sung đúng type và chạy lại typecheck/UI/lint thành công.
+
+Đây là component/unit regression và source/style verification; chưa chạy simulator/native build hoặc live API acceptance, không suy ra visual/pixel acceptance. Index trống; không git add/commit/push.

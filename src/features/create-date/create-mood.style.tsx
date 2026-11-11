@@ -10,11 +10,8 @@ export const styles = StyleSheet.create({
   errorWrap: { flex: 1 },
   seedHint: { marginBottom: spacing[3], marginTop: -spacing[2] },
   seedList: { flexDirection: 'column', gap: spacing[3] },
-  seedPlaceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  seedCard: { flex: 1 },
   addPlace: { alignItems: 'flex-start', marginTop: spacing[2] },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
-  sectionHeading: { flex: 1 },
+  sectionHeader: { marginTop: spacing[4], marginBottom: spacing[3] },
   sectionTitle: {
     marginTop: spacing[6],
     marginBottom: spacing[3],
