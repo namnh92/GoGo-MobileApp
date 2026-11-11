@@ -92,6 +92,7 @@ describe('application header ownership', () => {
   it('accounts for every routed feature screen, including deliberate headerless scenes', () => {
     const headerless = [
       // The /create layout owns WizardStep; nested screens own content only.
+      'create-date/create-type-entry',
       'create-date/create-type', 'create-date/group-setup', 'create-date/create-time',
       'create-date/create-budget', 'create-date/create-mood',
       'create-date/create-location', // compatibility redirect to step 1

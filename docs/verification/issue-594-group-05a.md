@@ -741,3 +741,49 @@ Source/test review basis **`rs-1324ec6885f1`**, scope `src`; manifest + retrieva
 Logs: `/tmp/594-round8-ui-final.log`, `/tmp/594-round8-registry-final.log`, `/tmp/594-round8-typecheck-final.log`, `/tmp/594-round8-lint-final.log`. Jest còn Node `punycode` deprecation hiện hữu.
 
 Đây là component/store/static-ownership regression; chưa chạy native build/simulator, chưa đo layout/VoiceOver trên máy hoặc Light/Dark pixel parity. Không suy ra runtime acceptance từ Jest. HEAD giữ **`ad784a1b`**, index trống.
+
+## Astra @b493438 — F-13 / F-14 / F-15
+
+Ngày 2026-11-11. Sol sửa đúng ba findings trên worktree `mobile-594`, PR #598, từ HEAD **`b4934387980357124e7498f0678ed3beff7a5146`**. Không git add/commit; HEAD và index giữ nguyên.
+
+### Diff và cách dựng navigation
+
+- **F-13:** `DraftPlanCard` restore snapshot + `dropStaleDay` như trước, nhưng chỉ push **một** `/create/type`, truyền `resumeStep` khi cần. Route type re-export `create-type-entry.view.tsx`. Entry chạy bên trong create Stack đã mount, kiểm param bằng `draftStepSchema`, rồi gọi **nested** `navigation.reset({ index, routes })` với `draftStepPath(step, audience)`. Root giữ đúng một route `create`; nested routes là toàn bộ bước tới bước đã lưu. Reset bỏ param khỏi route type mới nên Back về type không restore lại. Entry không mount form/location effects trong lúc restore bước sau. Giữ `unstable_settings.initialRouteName = 'type'`, legacy location → type và header ở parent layout. Cập nhật comment history và inventory headerless cho entry mới; không đổi submit/exit handlers.
+- **F-14:** metadata thẻ lấy ngày/giờ từ `scheduleDay/startTime/endTime` khi có, kể cả input điền dở; chỉ fallback `startAt/endAt` khi không có input. Không trộn instant cũ vào lịch đang sửa. Test vi/en restore draft, gọi đúng day/time setters của form, lưu bằng `SaveDraftButton` compact của header trước Continue, xác nhận instant cũ vẫn tồn tại trong snapshot nhưng thẻ hiển thị ngày/giờ mới. Giữ test legacy chỉ có instants.
+- **F-15:** create Stack nhận `screenLayout={screenTagLayout}` từ shared observability. Trong `sentry-usage.spec.ts`, chỉ thêm dòng inventory `src/app/create/_layout.tsx Stack`; logic audit và mọi assertion khác giữ nguyên.
+
+### FAIL trên b493438 / PASS sau
+
+Xuất production bằng `git archive b493438` vào **`/private/tmp/594-f13-f15-b493438-Tm3LbI`**, symlink dependencies; copy ba final test files `draft-navigation.spec.tsx`, `plans-draft.spec.tsx`, `sentry-usage.spec.ts` và kiểm `cmp` giống byte-for-byte. Không checkout/reset/stash working tree. Cùng lệnh baseline/patch: `pnpm test:ui --runInBand draft-navigation plans-draft sentry-usage`.
+
+| Bằng chứng | b493438 | Patch |
+| --- | --- | --- |
+| F-13: 7 later-step couple/group root-state + nested-history cases, 2 submit cases, 2 Plans single-push assertions | **11 FAIL** | **11 PASS** |
+| F-14: header-save lịch vừa sửa, vi/en | **2 FAIL**, thẻ còn ngày/giờ từ instant cũ | **2 PASS** |
+| F-15: audit navigator trên app tree | **1 FAIL**, create Stack thiếu screenTagLayout | **1 PASS** |
+| Các regression còn lại, gồm first/legacy step, save/discard/header-save exit, legacy schedule và Sentry boundary | **40 PASS** | **40 PASS** |
+| **Tổng** | **14 FAIL / 40 PASS**, exit 1 | **54 PASS**, exit 0 |
+
+`draft-navigation.spec.tsx` dùng **Expo Router và React Navigation thật** qua `renderRouter`, đọc `navigationRef.getRootState()` (bỏ lớp `__root` của test shell). Production create layout/entry/header, saved store và Mood submit đều chạy thật; form bodies không liên quan và remote API response là fixtures. Với mọi later step của couple/group: assert root `[(tabs), create]`, nested route names/index đúng path, nhấn Back lần lượt chỉ pop nested step, về type không restore lại. Baseline couple budget có 3 root create routes, group mood có 5. Submit baseline để lại create routes; sau sửa root là `[(tabs), room/[roomId]]`, Back về Plans. Save/discard/header-save đều về root `[(tabs)]`.
+
+Logs: `/tmp/594-f13-f15-before-final.log`, `/tmp/594-f13-f15-after-final.log`. Baseline path: `/tmp/594-f13-f15-baseline-path.txt`.
+
+### Checks và giới hạn
+
+Source/test review basis **`rs-cf0f27623f70`**, scope `src`, 10 touched/new files. Manifest và retrievable diff/files: `/tmp/594-f13-f15-snapshots/mobile-594-f13-f15-rs-cf0f27623f70/MANIFEST.txt`. Docs ngoài fingerprint.
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | **PASS**, exit 0 |
+| `pnpm test:ui create-date plans draft --runInBand` | **PASS**, 15 suites / 158 tests, exit 0 |
+| `pnpm test:ui --runInBand draft-navigation plans-draft sentry-usage` | **PASS**, 3 suites / 54 tests, exit 0 |
+| `pnpm test` (toàn bộ Vitest) | **FAIL do sandbox**, exit 1: 152 files PASS / 1 FAIL / 1 skipped; 1812 tests PASS / 3 FAIL / 39 skipped |
+| `pnpm exec eslint --no-cache <10 touched/new TS/TSX files>` | **PASS**, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | **PASS** |
+| `snapshot.sh verify <manifest>` | **MATCH** |
+
+Ba Vitest failures đều ở `src/shared/config/__tests__/distribute-wrapper.test.ts`: `refuses while the owner is alive`; `refuses recovery while a recorded build process group is still alive`; `keeps the lock and run files when a recorded build group is still alive after the child exits`. Chạy riêng file này trên archive **b493438** tái hiện đúng **3 FAIL / 23 PASS**, exit 1. Probe `spawnSync('ps', ['-o', 'lstart=', '-p', String(process.pid)])` trả **`EPERM`** trong sandbox; các test kiểm PID/process group không thể đọc process state. Không sửa hoặc bỏ qua các test/script này. Log baseline: `/tmp/594-f13-f15-distribute-baseline.log`.
+
+`sentry-usage.spec.ts` thuộc Jest (`*.spec.ts`), không thuộc Vitest (`*.test.ts`); đã chạy riêng trong gate 54 tests ở trên. Logs còn lại: `/tmp/594-f13-f15-typecheck-final.log`, `/tmp/594-f13-f15-ui-final.log`, `/tmp/594-f13-f15-vitest-final.log`, `/tmp/594-f13-f15-lint-final.log`. Jest có Node `punycode` deprecation hiện hữu.
+
+Đây là bằng chứng navigation-state integration + component/store/static audit; chưa chạy native simulator/build hoặc DEV acceptance. HEAD vẫn **`b4934387`**, không staged changes.

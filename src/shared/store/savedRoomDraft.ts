@@ -130,7 +130,7 @@ export function restoreRoomDraft(ownerId: string): DraftStep | null {
 
 /**
  * Every wizard route up to and including `step`, in the order the wizard
- * walks them. A resumed draft pushes this whole path (not just its step) so
+ * walks them. The mounted create entry restores this nested path so
  * Back returns to the previous step with restored data instead of leaving
  * the wizard — the same shape the stack has when the user got there by hand.
  */

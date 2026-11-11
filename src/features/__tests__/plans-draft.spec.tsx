@@ -2,20 +2,23 @@ import { act, fireEvent, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { renderScreen } from './harness'
-import { saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
+import { restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
 import { useRoomStore } from '@/shared/store/roomStore'
 import i18n from '@/shared/i18n'
 import { surface, text } from '@/shared/ui/tokens'
+import { SaveDraftButton } from '@/features/create-date/save-draft.view'
+import { roomScheduleRange } from '@/features/gogo-room/room-schedule'
 
 const mockPush = jest.fn()
+const mockDismiss = jest.fn()
 let mockOwner = 'owner'
 const mockQuery = {
   data: { pages: [{ items: [{ id: 'room', title: 'Live room', type: 'group', status: 'collecting', participantCount: 3 }] }] },
   isPending: false, isError: false, isPaused: false, isFetching: false, hasNextPage: false,
   refetch: jest.fn(), fetchNextPage: jest.fn(), error: null,
 }
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }), useLocalSearchParams: () => ({}), useFocusEffect: () => undefined }))
-jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { userId: mockOwner } }) }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, dismissTo: mockDismiss }), useLocalSearchParams: () => ({}), useFocusEffect: () => undefined }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: mockOwner } }) }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useMyRooms: () => mockQuery }))
 
 import PlansScreen from '@/features/tabs/plans.view'
@@ -54,10 +57,39 @@ it.each(['couple', 'group-host'] as const)('draft is the first shared PlanCard w
   expect(view.getAllByTestId(/^plan-card-(draft|room)$/)[0]).toBe(card)
   expect(view.queryByText('Tiếp tục nháp')).toBeNull()
   await fireEvent.press(card)
-  expect(mockPush.mock.calls.map(([route]) => route)).toEqual(audience === 'couple'
-    ? ['/create/type', '/create/time', '/create/budget']
-    : ['/create/type', '/create/group-setup', '/create/time', '/create/budget'])
+  expect(mockPush.mock.calls).toEqual([[{ pathname: '/create/type', params: { resumeStep: 'budget' } }]])
   expect(useRoomStore.getState().title).toBe('Draft dinner')
+})
+
+it.each(['vi', 'en'])('F-14: header-save after returning to time shows current inputs over stale instants (%s)', async locale => {
+  await save()
+  await i18n.changeLanguage(locale)
+  restoreRoomDraft('owner')
+  const oldStart = useRoomStore.getState().startAt
+  // Time inputs are edited before Continue rebuilds the instants.
+  useRoomStore.getState().patchDraft({ scheduleDay: '2031-01-14' })
+  useRoomStore.getState().setStartTime('18:15')
+  useRoomStore.getState().setEndTime('22:45')
+  const header = await renderScreen(<SaveDraftButton step="time" compact />)
+  await fireEvent.press(header.getByRole('button', { name: i18n.t('draft.save') }))
+  expect(mockDismiss).toHaveBeenCalledWith('/(tabs)')
+  expect(useSavedRoomDraft.getState().draft!.fields.startAt).toBe(oldStart)
+  await header.unmount()
+  const plans = await renderScreen(<PlansScreen />)
+  const meta = within(plans.getByTestId('plan-card-draft')).getByTestId('plan-card-meta')
+  expect(meta.props.children).toContain(new Date('2031-01-14T12:00:00').toLocaleDateString(locale))
+  expect(meta.props.children).toContain('18:15 – 22:45')
+  expect(meta.props.accessibilityLabel).toContain('18:15 – 22:45')
+  expect(meta).not.toHaveTextContent('2030')
+})
+
+it('F-14: old drafts with only instants retain the legacy schedule display', async () => {
+  await save()
+  useSavedRoomDraft.setState(state => ({ draft: { ...state.draft!, fields: { ...state.draft!.fields, scheduleDay: null, startTime: null, endTime: null } } }))
+  const fields = useSavedRoomDraft.getState().draft!.fields
+  const range = roomScheduleRange(fields.startAt!, fields.endAt!, 'vi')!
+  const view = await renderScreen(<PlansScreen />)
+  expect(within(view.getByTestId('plan-card-draft')).getByTestId('plan-card-meta').props.children).toContain(`${range.start} – ${range.end}`)
 })
 
 it('draft alone suppresses empty state; blank name and unknown budget/time are omitted', async () => {

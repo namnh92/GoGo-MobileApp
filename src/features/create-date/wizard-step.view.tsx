@@ -31,8 +31,8 @@ export const WizardHeaderOffset = createContext(0)
 
 /**
  * Later steps pop: the previous step is below on the stack whether
- * the user walked here or resumed a draft (`DraftPlanCard` pushes the whole
- * path). First-step Back shares Close's existing save/discard/keep prompt.
+ * the user walked here or the create entry restored the nested draft history.
+ * First-step Back shares Close's existing save/discard/keep prompt.
  */
 export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {
   const { t } = useTranslation()

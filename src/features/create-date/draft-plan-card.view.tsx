@@ -6,8 +6,8 @@ import { Alert, type StyleProp, type ViewStyle } from 'react-native'
 import { roomScheduleRange } from '@/features/gogo-room/room-schedule'
 import { captureSessionScope, SessionCancelledError } from '@/shared/api/session'
 import { budgetFact } from '@/shared/pricing/budget-unit'
-import { budgetModeFor, useRoomStore } from '@/shared/store/roomStore'
-import { clearSavedRoomDraft, draftStepPath, restoreRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
+import { budgetModeFor } from '@/shared/store/roomStore'
+import { clearSavedRoomDraft, restoreRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
 import { PlanCard } from '@/shared/ui/plan-card.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 
@@ -23,11 +23,13 @@ export function DraftPlanCard({ draft, style }: { draft: SavedDraft; style?: Sty
   const fields = draft.fields
   const count = fields.audience === 'couple' ? 2 : fields.participantCount
   const range = roomScheduleRange(fields.startAt ?? undefined, fields.endAt ?? undefined, i18n.language)
-  // A partially filled time step can hold a day or clock without an instant.
-  const schedule = range ? [range.start, range.end].filter(Boolean).join(' – ') : [
+  // Header-save can precede Continue, which rebuilds the derived instants.
+  // Prefer the current inputs, including partial edits; instants are legacy fallback only.
+  const inputSchedule = [
     fields.scheduleDay ? new Date(`${fields.scheduleDay}T12:00:00`).toLocaleDateString(i18n.language) : null,
     [fields.startTime, fields.endTime].filter(Boolean).join(' – '),
   ].filter(Boolean).join(' ')
+  const schedule = inputSchedule || (range ? [range.start, range.end].filter(Boolean).join(' – ') : '')
   const people = fields.audience === 'couple' ? t('datePlan.for2') : t('groupSetup.people', { n: count })
   const facts = [
     { text: people, spoken: people },
@@ -41,8 +43,8 @@ export function DraftPlanCard({ draft, style }: { draft: SavedDraft; style?: Sty
     const step = restoreRoomDraft(draft.ownerId)
     if (!step) return
     dropStaleDay()
-    // Preserve the existing resume history, including Back through prior steps.
-    for (const route of draftStepPath(step, useRoomStore.getState().audience)) router.push(`/create/${route}`)
+    // Open one root navigator. Its mounted type entry restores nested history.
+    router.push(step === 'type' ? '/create/type' : { pathname: '/create/type', params: { resumeStep: step } })
   }
 
   async function remove() {
