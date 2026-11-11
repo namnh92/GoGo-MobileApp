@@ -1,3 +1,5 @@
+import { creditsAvailable } from '@/features/credits/credit-format'
+import { CreditBalanceRow } from '@/features/credits/credit-balance.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
@@ -151,6 +153,7 @@ export default function ProfileScreen() {
         </Pressable>
       })}</View> : null}
       {!canRead ? <Card appearance="stitch" padded={false} style={styles.card}><Text variant="bodySmall" color="text.secondary">{t('g11.guestHint')}</Text><GhostBtn label={t('joinByCode.title')} onPress={() => router.push('/join')} /></Card> : null}
+      {canRead && creditsAvailable(profile) ? <CreditBalanceRow /> : null}
       <ProfileUpcoming enabled={canRead} />
       {(['settings', 'experience'] as const).map(group => {
         const rows = SETTINGS_ROWS.filter(row => row.group === group && (canRead || !row.userOnly))

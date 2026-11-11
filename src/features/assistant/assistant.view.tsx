@@ -1,3 +1,4 @@
+import { CreditBalanceRow } from '@/features/credits/credit-balance.view'
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -266,6 +267,7 @@ function AssistantChat({ account }: { account: string }) {
         onNewChat={welcome ? undefined : newChat}
         onHistory={() => setView('history')}
       />
+      <CreditBalanceRow assistant />
       {!online ? <OfflineBanner /> : null}
       <KeyboardAvoidingView
         style={styles.flex}

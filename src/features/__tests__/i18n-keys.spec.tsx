@@ -94,6 +94,8 @@ const ROOT = join(SRC, '..')
 const COMPUTED_KEYS: Record<string, readonly string[]> = {
   'src/features/auth/forgot-password.view.tsx': ['recoveryErrorKey(request.error)', 'recoveryErrorKey(verify.error)'], // recoveryErrorKey returns MessageKey
   'src/features/auth/reset-password.view.tsx': ['recoveryErrorKey(complete.error)'], // recoveryErrorKey returns MessageKey
+  // creditSourceKey returns only the typed local source-label union, including fallback.
+  'src/features/credits/credits.view.tsx': ['creditSourceKey(item)'],
   'src/features/account/account.view.tsx': ['avatarErrorKey(error)', 'message', 'form.formState.errors.name.message'], // MessageKey or catalog literal union
   'src/features/account/date-of-birth.view.tsx': ['error'], // MessageKey prop
   'src/features/account/theme-accent.view.tsx': ['LABEL[accent]', 'LABEL[current]', 'DESCRIPTION[accent]', "(['tabs.home', 'tabs.plans', 'tabs.saved', 'tabs.profile'] as const)[index]"], // all typed catalog keys

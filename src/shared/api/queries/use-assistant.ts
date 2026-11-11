@@ -1,4 +1,4 @@
-import { captureSessionScope } from '../session'
+import { captureSessionScope, getSession } from '../session'
 import {
   useInfiniteQuery,
   useMutation,
@@ -238,6 +238,8 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
           item.idempotencyKey,
         )
         scope.assert()
+        const userId = getSession()?.userId
+        if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, scope.generation) })
         insertTurn(client, target, turn)
         useAssistantDraftStore.getState().removeOutgoing(localId)
         void client.invalidateQueries({ queryKey: queryKeys.assistantConversations() })
@@ -305,6 +307,7 @@ export function useAssistantReply(conversationId: string | null, message: Assist
 
   useEffect(() => {
     if (!conversationId || !streamingId) return
+    const creditScope = captureSessionScope()
     const update = (change: { step?: string | null; connection?: AssistantReplyConnection | null }) =>
       setLive(current => {
         const base = current?.id === streamingId ? current : { id: streamingId, step: null, connection: null }
@@ -319,6 +322,10 @@ export function useAssistantReply(conversationId: string | null, message: Assist
         if (event.type === 'step') update({ step: event.step })
         patchMessage(client, conversationId, streamingId, existing => applyAssistantEvent(existing, event))
         if (isTerminalEvent(event)) {
+          if (!creditScope.signal.aborted) {
+            const userId = getSession()?.userId
+            if (userId) void client.invalidateQueries({ queryKey: queryKeys.credits(userId, creditScope.generation) })
+          }
           update({ step: null, connection: null })
           // Cut short: the stream's structured outputs were dropped; the stored
           // row says which of them the server completed and kept.
