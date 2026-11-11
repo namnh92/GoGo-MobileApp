@@ -256,3 +256,22 @@ Hai file regression cuối cùng được copy vào bản `git archive ea8bdad6`
 - `git diff --check`: PASS.
 
 Sandbox cho phép các checks trên. Chưa chạy lại simulator/native build; kết quả component/unit không xác nhận visual acceptance trên simulator. Không có phần implementation nào trong năm item bị bỏ lại.
+
+
+## Astra F-06 — 2026-11-11
+
+Basis: PR #598, HEAD `ad6f3316` (round-2 commit), worktree `mobile-594` sạch trước khi thêm regression. Chỉ sửa F-06 P2; không stage/commit/push.
+
+Owner rule thay thế mô tả overflow ở mục Mood round 2 phía trên: **thu gọn tối đa 5 lựa chọn mỗi section**. `create-mood.view.tsx` đưa các lựa chọn đã chọn lên trước (giữ thứ tự taxonomy giữa chúng), điền các slot còn lại bằng lựa chọn chưa chọn theo thứ tự taxonomy, rồi giới hạn 5. Max mood 3 / setting 2 / spending 1 bảo đảm mọi lựa chọn đã chọn đều nằm trong 5 slot và vẫn bỏ chọn được. Expanded giữ nguyên thứ tự taxonomy đầy đủ.
+
+`round-two.spec.tsx` đổi assertions cũ 16/18 hàng thành 15 cho ba section thu gọn; kiểm tra thứ tự selected-first và fill, restored selections, max-3. Thêm regression riêng cho từng section: mở 7 lựa chọn → chọn lựa chọn thứ 7 → Thu gọn → đúng 5 hàng/section, lựa chọn thứ 7 đứng đầu và checked → bỏ chọn vẫn còn đúng 5 hàng. Case nhiều lựa chọn kiểm tra draft `['g', 'a', 'b']` hiển thị `a, b, g, c, d`, không theo thứ tự thao tác chọn.
+
+| Check | Kết quả |
+| --- | --- |
+| FAIL-before: `pnpm test:ui create-date --runInBand` | Production nguyên `ad6f3316`, chỉ cập nhật test: exit 1, **1 suite failed / 2 passed; 6 tests failed / 23 passed**. Hai locale và ba case lựa chọn thứ 7 nhận 16 thay vì 15 hàng; restored selections nhận 18 thay vì 15. |
+| PASS-after: cùng lệnh, cùng regression | exit 0, **3 suites / 29 tests passed** trên working-tree patch. |
+| `pnpm typecheck` | PASS, exit 0; sandbox cho phép. |
+| `pnpm exec eslint src/features/create-date/create-mood.view.tsx src/features/create-date/__tests__/round-two.spec.tsx` | PASS, exit 0. |
+| `git diff --check` | PASS, exit 0. |
+
+Raw logs local: `/tmp/594-f06-before.log`, `/tmp/594-f06-after.log`, `/tmp/594-f06-typecheck.log`. Đây là component regression; chưa chạy simulator/native build. API/store/submit mapping không thay đổi.

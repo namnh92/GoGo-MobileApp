@@ -43,8 +43,11 @@ function ChoiceList({ title, options, selected, onToggle, max }: {
 }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
-  // Collapsing hides only unselected overflow, so every selection stays removable.
-  const visible = expanded ? options : options.filter((option, index) => index < 5 || selected.includes(option.key))
+  // Keep selections removable within the five collapsed slots, in taxonomy order.
+  const visible = expanded ? options : [
+    ...options.filter(option => selected.includes(option.key)),
+    ...options.filter(option => !selected.includes(option.key)),
+  ].slice(0, 5)
   const atLimit = max !== undefined && selected.length >= max
   return (
     <View>

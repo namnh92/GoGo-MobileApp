@@ -79,7 +79,8 @@ it.each(['vi', 'en'])('round 2: caps each section, expands independently and ret
   expect(view.getAllByRole('button', { name: all })).toHaveLength(2)
   await fireEvent.press(view.getByRole('checkbox', { name: 'Mood g' }))
   await fireEvent.press(view.getByRole('button', { name: collapse }))
-  expect(view.getAllByRole('checkbox')).toHaveLength(16)
+  expect(view.getAllByRole('checkbox')).toHaveLength(15)
+  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood g', 'Mood a', 'Mood b', 'Mood c', 'Mood d'])
   expect(view.getByRole('checkbox', { name: 'Mood g' }).props.accessibilityState.checked).toBe(true)
   expect(view.queryByRole('checkbox', { name: 'Mood f' })).toBeNull()
   await fireEvent.press(view.getByRole('checkbox', { name: 'Mood g' }))
@@ -89,7 +90,7 @@ it.each(['vi', 'en'])('round 2: caps each section, expands independently and ret
 it('round 2: keeps restored overflow selections visible and preserves max three after expansion', async () => {
   useRoomStore.getState().patchDraft({ moodKeys: ['g'], settingKeys: ['s7'], spendingStyleKey: 's7' })
   const view = await renderScreen(<CreateMoodScreen />)
-  expect(view.getAllByRole('checkbox')).toHaveLength(18)
+  expect(view.getAllByRole('checkbox')).toHaveLength(15)
   for (const name of ['Mood g', 's7', 'Spend s7']) expect(view.getByRole('checkbox', { name }).props.accessibilityState.checked).toBe(true)
   await fireEvent.press(view.getAllByRole('button', { name: 'Tất cả' })[0])
   for (const name of ['Mood a', 'Mood b']) await fireEvent.press(view.getByRole('checkbox', { name }))
@@ -99,6 +100,26 @@ it('round 2: keeps restored overflow selections visible and preserves max three 
   expect(useRoomStore.getState().moodKeys).toHaveLength(3)
   await fireEvent.press(view.getByRole('button', { name: 'Thu gọn' }))
   expect(view.getByRole('checkbox', { name: 'Mood g' }).props.accessibilityState.checked).toBe(true)
+  expect(view.getAllByRole('checkbox')).toHaveLength(15)
+  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood a', 'Mood b', 'Mood g', 'Mood c', 'Mood d'])
+})
+
+it.each([
+  [0, 'Mood g', ['Mood g', 'Mood a', 'Mood b', 'Mood c', 'Mood d']],
+  [1, 's7', ['s7', 'inside', 'outside', 'quiet', 's4']],
+  [2, 'Spend s7', ['Spend s7', 'Spend value', 'Spend s2', 'Spend s3', 'Spend s4']],
+] as const)('#594 F-06: keeps option seven within five slots in section %s', async (section, seventh, expected) => {
+  const view = await renderScreen(<CreateMoodScreen />)
+  await fireEvent.press(view.getAllByRole('button', { name: 'Tất cả' })[section])
+  await fireEvent.press(view.getByRole('checkbox', { name: seventh }))
+  await fireEvent.press(view.getByRole('button', { name: 'Thu gọn' }))
+  const rows = view.getAllByRole('checkbox')
+  expect(rows).toHaveLength(15)
+  expect(rows.slice(section * 5, section * 5 + 5).map(row => row.props.accessibilityLabel)).toEqual(expected)
+  expect(view.getByRole('checkbox', { name: seventh }).props.accessibilityState.checked).toBe(true)
+  await fireEvent.press(view.getByRole('checkbox', { name: seventh }))
+  expect(view.queryByRole('checkbox', { name: seventh })).toBeNull()
+  expect(view.getAllByRole('checkbox')).toHaveLength(15)
 })
 
 it.each([0, 1, 2])('round 2: expands section %s inline and collapses independently', async section => {
