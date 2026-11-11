@@ -1,0 +1,101 @@
+Owner sim feedback round 3 — 2026-11-11
+Baseline production HEAD: 9fcc4e9a78be26417a7b7632a50d9b88bd8dc73e
+Baseline archive: /tmp/gogo-594-round3-9fcc4e9-2pwdk7ci
+No staging, commits, pushes or changes to mobile-647.
+
+--- /tmp/594-round3-ui-before-final-tests.log ---
+  ● round 3: renders the full-width area field below the name in step 1 and opens the existing sheet
+  ● round 3: validates the dataset on step 1 before continuing for couple
+  ● round 3: validates the dataset on step 1 before continuing for group-host
+  ● round 3: step 1 owns current-position radius chips, persists the choice and keeps the payload
+  ● round 3: counts all steps for couple without a location page
+  ● round 3: counts all steps for group-host without a location page
+  ● round 3: group goes from type to group setup to time
+  ● round 3: old /create/location deep links redirect to step 1
+  ● round 3: DraftResume pushes only step 1 for a saved old location route (couple)
+  ● round 3: DraftResume pushes only step 1 for a saved old location route (group-host)
+  ● round 3: restores an unlimited GPS radius without resetting it to the default
+Test Suites: 1 failed, 1 total
+Tests:       11 failed, 11 total
+Ran all test suites matching /round-three/i.
+
+--- /tmp/594-round3-unit-before-final-tests.log ---
+ FAIL  src/shared/store/__tests__/saved-room-draft.test.ts > re-enters every step before the resumed one so Back keeps the wizard order
+ FAIL  src/shared/store/__tests__/saved-room-draft.test.ts > ADM-202: a pre-canonical area pick is dropped, with its centre, and resumes at step 1
+ FAIL  src/shared/store/__tests__/saved-room-draft.test.ts > ADM-202 + #204: a v1 draft carrying a length preset migrates to v2 and keeps the preset
+ FAIL  src/shared/store/__tests__/saved-room-draft.test.ts > round 3: cold-loads an old location-route draft at step 1 for couple
+ FAIL  src/shared/store/__tests__/saved-room-draft.test.ts > round 3: cold-loads an old location-route draft at step 1 for group-host
+ FAIL  src/shared/store/__tests__/saved-room-draft.test.ts > round 3: saves and resumes a step 1 GPS radius and the new group back stack
+ Test Files  1 failed (1)
+      Tests  6 failed | 9 passed (15)
+
+--- /tmp/594-round3-ui-after.log ---
+  ✓ round 3: restores an unlimited GPS radius without resetting it to the default (22 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       11 passed, 11 total
+Snapshots:   0 total
+Time:        2.153 s
+Ran all test suites matching /round-three/i.
+
+--- /tmp/594-round3-requested-ui.log ---
+PASS src/features/__tests__/wizard-exit.spec.tsx
+
+Test Suites: 9 passed, 9 total
+Tests:       251 passed, 251 total
+Snapshots:   0 total
+Time:        15.318 s, estimated 32 s
+Ran all test suites matching /create-date|wizard|draft|home/i.
+
+--- /tmp/594-round3-ui-final.log ---
+PASS src/features/__tests__/wizard-exit.spec.tsx
+
+Test Suites: 20 passed, 20 total
+Tests:       436 passed, 436 total
+Snapshots:   0 total
+Time:        19.404 s, estimated 24 s
+Ran all test suites matching /create-date|wizard|draft|home|create-location|prefill-location|location-permission|location-module-missing|create-room-name|location-field|chip.spec|app-color-roles|i18n-keys/i.
+
+--- /tmp/594-round3-unit-final.log ---
+
+
+ Test Files  24 passed (24)
+      Tests  377 passed (377)
+   Start at  19:32:48
+   Duration  8.81s (transform 260ms, setup 0ms, import 2.20s, tests 3.47s, environment 1ms)
+
+
+--- /tmp/594-round3-typecheck.log ---
+> gogo-mobile@0.1.0 typecheck /Users/maxnguyen/MyWorks/GoGo/dev/worktrees/mobile-594
+> tsc --noEmit
+
+--- /tmp/594-round3-lint.log ---
+(no output; exit 0)
+
+SHA-256 of final changed/new source and test files:
+453868776b06d71ad3287e5163f13466867e700cab99331fd58f66766c348670  src/features/__tests__/create-location-gps-card.spec.tsx
+e529646b6d9f1c5828736db22a3e30bad5e92ee85e41b359e657a4a29afed800  src/features/__tests__/create-room-name.spec.tsx
+380ccb14bc1e2ec312490300ea7f11bceb1f500ea919d28cb612bb27b08c22e4  src/features/__tests__/location-module-missing.spec.tsx
+3347c6dcdee74764e2802ea3aa43ef777f8475c4a0433e6c2989bcdb1448f729  src/features/__tests__/location-permission.spec.tsx
+8a186ea98ba12e7d3c40ce13391420aa639d4d502202da00d8eeb699677c61e9  src/features/__tests__/prefill-location.spec.tsx
+23e84a6c4b364b2963b0ae63be08331f1269ac6fec7d1eeae3bf87dfe06c2756  src/features/create-date/__tests__/owner-feedback.spec.tsx
+1042d7e41554de4770c68d30ce4ce2d5e118b3f28883b0b92e62dfaeeb9175a7  src/features/create-date/__tests__/owner-theme.spec.tsx
+28684fb772ee4111121438ff2bb99a461f7c378f2babe751071e70bf25e941a0  src/features/create-date/__tests__/round-three.spec.tsx
+369d61b6f2c1c4ca9db438704785ae9bce95f5a81fb26ee32678177bc194287d  src/features/create-date/create-location-fields.style.tsx
+b3964f8a8632ab6cc18db459ce9f567225fd871f208ab643170fd73bf9eb370f  src/features/create-date/create-location-fields.view.tsx
+832ae85dc1a70f43df2e71579b62a3e475aa5bb3ec98743481ae685db9c9590e  src/features/create-date/create-location.view.tsx
+d98b876a8c31dcd4616ff5de6d98f88847ebd4f3316207b02a16806db0501640  src/features/create-date/create-type.view.tsx
+425bf6a03e432c651e549959591bf9bb4e84afd3500b9e94a74a82cf96b82ef8  src/features/create-date/group-setup.view.tsx
+fc87ac1aab916ef01617d4e2df26c7197aac4ccb9f576826ad4530db66d58ed5  src/features/create-date/use-create-location.ts
+cb1ac00a714e72fa0fcd8bbde8a03e0de4907d6df52f61c8b44e30e91a8f461f  src/features/create-date/wizard-step.view.tsx
+1251cb5f0a0f532ee7361f9abc2837f5d01ff4c4560000718351e771155fdd21  src/shared/i18n/en.ts
+35e64b1b2e1a1b6322dd9e55523423553d1528a20423e92926716a6e040fcde4  src/shared/i18n/vi.ts
+d724ef998172cfc882c3e8fefeb40bec6ce5782db9cf28e82dfc6e93c1390d6f  src/shared/store/__tests__/saved-room-draft.test.ts
+06c65bbdf6862aef313230f0b4b6a4b422641133e5aa52400f0f6f41cd605893  src/shared/store/savedRoomDraft.ts
+73d70da8b84dfed0461e4534605c6b064b0f2056de5e20378a8156f606677799  src/shared/ui/__tests__/app-header-ownership.test.ts
+5dec05a6705cc835600b5b1df87bd6202b714fb705bedede6e1357bda2b9bb52  src/shared/ui/__tests__/chip-ownership.test.ts
+50a1c7651f9436bdc764862cc44692d55bdc049bf8850ab94b174c88496b8ee3  src/shared/ui/__tests__/chip.spec.tsx
+71e1e80adf6557f467cabb8dc0a63b03dbe6574dbdbef780646aee48d225ac17  src/shared/ui/__tests__/fixtures/stitch-color-pins.json
+f93593b7d0673ae03a52181cccbe860f8d451941587db62550fa53bb429ce6de  src/shared/ui/__tests__/location-field.spec.tsx
+827776416af1a355af84a18fc7b64f38c67688d58bf26b1469cab92daece679b  src/shared/ui/location-field.style.tsx
+20bca13d2f39ff8d97c2aedd9b6f1a36e206a5e23ca0d55668b2125f7eb868bf  src/shared/ui/location-field.view.tsx

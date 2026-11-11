@@ -109,7 +109,7 @@ export default function GroupSetupScreen() {
         </View>
       </ScrollView>
       <GlassBar placement="docked" testID="create-footer">
-        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={() => router.push('/create/location')} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={() => router.push('/create/time')} icon="arrowRight" />
       </GlassBar>
     </Atmosphere>
   )

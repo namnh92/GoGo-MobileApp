@@ -779,6 +779,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createLocation.current': 'Current location',
   'createLocation.anywhere': 'Anywhere',
   'createLocation.maxDistance': 'Max distance',
+  'createType.area': 'Area',
   'createLocation.areaTitle': 'Or choose a fixed area',
   'createLocation.useMyLocation': 'Tap to use your location',
   'createLocation.locating': 'Getting your location…',

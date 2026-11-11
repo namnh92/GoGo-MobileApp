@@ -13,11 +13,11 @@ import { styles } from './wizard-step.style'
  *
  * Every step renders this, so adding one never means editing six screens and
  * hoping none says "3 / 4" on its last page. The steps are the path the person
- * is on: a group has the head-count step between the type and the area, a
+ * is on: a group has the head-count step between type/location and time, a
  * couple does not, so "Bước n / total" counts the steps they will really see.
  */
-const COUPLE_STEPS = ['type', 'location', 'time', 'budget', 'mood'] as const
-const GROUP_STEPS = ['type', 'group-setup', 'location', 'time', 'budget', 'mood'] as const
+const COUPLE_STEPS = ['type', 'time', 'budget', 'mood'] as const
+const GROUP_STEPS = ['type', 'group-setup', 'time', 'budget', 'mood'] as const
 
 export type WizardStepKey = (typeof GROUP_STEPS)[number]
 

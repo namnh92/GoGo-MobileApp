@@ -5,7 +5,7 @@ import { themes, type AppTheme } from '@/shared/ui/theme'
 import { useRoomStore } from '@/shared/store/roomStore'
 import i18n from '@/shared/i18n'
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn() }) }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: jest.fn(), back: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 
 // Evaluate real style factories in each mode instead of the default mock's frozen Light theme.

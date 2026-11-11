@@ -2,8 +2,8 @@ import { StyleSheet } from 'react-native-unistyles'
 import { chipRowGap, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing[4], paddingBottom: spacing[6] },
-  body: { marginTop: spacing[2], marginBottom: spacing[6] },
+  section: { marginTop: spacing[6] },
+  label: { marginBottom: spacing[2] },
   distanceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
   distanceTitle: { flex: 1 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },

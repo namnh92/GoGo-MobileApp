@@ -51,8 +51,8 @@ it('finishing resets the whole wizard but keeps preferences scoped to the create
 })
 
 it('re-enters every step before the resumed one so Back keeps the wizard order', () => {
-  expect(draftStepPath('budget', 'couple')).toEqual(['type', 'location', 'time', 'budget'])
-  expect(draftStepPath('location', 'group-host')).toEqual(['type', 'group-setup', 'location'])
+  expect(draftStepPath('budget', 'couple')).toEqual(['type', 'time', 'budget'])
+  expect(draftStepPath('location', 'group-host')).toEqual(['type'])
   expect(draftStepPath('type', 'couple')).toEqual(['type'])
   // A couple draft cannot be on the group step; fall back to the first step.
   expect(draftStepPath('group-setup', 'couple')).toEqual(['type'])
@@ -112,10 +112,10 @@ function legacyDraft(step: string, fields: Record<string, unknown>) {
   })
 }
 
-it('ADM-202: a pre-canonical area pick is dropped, with its centre, and resumes at the location step', async () => {
+it('ADM-202: a pre-canonical area pick is dropped, with its centre, and resumes at step 1', async () => {
   storage.value = legacyDraft('budget', {})
   await loadRoomDraft('alice')
-  expect(restoreRoomDraft('alice')).toBe('location')
+  expect(restoreRoomDraft('alice')).toBe('type')
   expect(useRoomStore.getState()).toMatchObject({
     administrativeArea: null, originLat: null, originLng: null, area: '', title: 'Cũ', budgetAmount: 500000,
   })
@@ -131,7 +131,7 @@ it('ADM-202: a pre-canonical device position is kept where it was', async () => 
 it('ADM-202 + #204: a v1 draft carrying a length preset migrates to v2 and keeps the preset', async () => {
   storage.value = legacyDraft('mood', { endTime: '22:00', durationPreset: 'upTo3h' })
   await loadRoomDraft('alice')
-  expect(restoreRoomDraft('alice')).toBe('location')
+  expect(restoreRoomDraft('alice')).toBe('type')
   expect(useRoomStore.getState()).toMatchObject({
     administrativeArea: null, originLat: null, originLng: null, area: '',
     startTime: '19:00', endTime: '22:00', durationPreset: 'upTo3h',
@@ -145,4 +145,27 @@ it('ADM-202 + #204: a v1 draft without a preset migrates with none', async () =>
   await loadRoomDraft('alice')
   expect(restoreRoomDraft('alice')).toBe('time')
   expect(useRoomStore.getState()).toMatchObject({ durationPreset: null, originLat: 10.77 })
+})
+
+it.each(['couple', 'group-host'] as const)('round 3: cold-loads an old location-route draft at step 1 for %s', async audience => {
+  useRoomStore.getState().setAudience(audience)
+  useRoomStore.setState({ administrativeArea: AREA, radiusM: 10000, title: 'Resume' })
+  await saveRoomDraft('alice', 'type')
+  const previous = JSON.parse(storage.value!)
+  previous.step = 'location'
+  storage.value = JSON.stringify(previous)
+  useRoomStore.getState().resetDraft()
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('type')
+  expect(draftStepPath('location', audience)).toEqual(['type'])
+  expect(useRoomStore.getState()).toMatchObject({ administrativeArea: AREA, radiusM: 10000, title: 'Resume', audience })
+})
+
+it('round 3: saves and resumes a step 1 GPS radius and the new group back stack', async () => {
+  useRoomStore.setState({ audience: 'group-host', originLat: 21, originLng: 105, radiusM: null })
+  await saveRoomDraft('alice', 'type')
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('type')
+  expect(useRoomStore.getState()).toMatchObject({ originLat: 21, originLng: 105, radiusM: null })
+  expect(draftStepPath('mood', 'group-host')).toEqual(['type', 'group-setup', 'time', 'budget', 'mood'])
 })

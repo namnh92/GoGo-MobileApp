@@ -17,6 +17,9 @@ import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 
+import { CreateLocationFields } from './create-location-fields.view'
+import { useCreateLocation } from './use-create-location'
+
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-type.style'
 
@@ -39,6 +42,7 @@ export default function CreateTypeScreen() {
   const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag, field } = useFieldVisibility('create-type')
   const { groupRef, controlRef, onGroupLayout, onFocus, onBlur: blurName } = field('room-name')
   const { roomType, setAudience } = useRoom()
+  const location = useCreateLocation()
   const patchDraft = useRoomStore(state => state.patchDraft)
   const { control, handleSubmit } = useForm({
     resolver: zodResolver(nameSchema),
@@ -63,9 +67,9 @@ export default function CreateTypeScreen() {
 
   function next({ title }: z.infer<typeof nameSchema>) {
     patchDraft({ title })
-    if (!selected) return
+    if (!selected || !location.validate()) return
     track('room_type_selected', { type: selected })
-    router.push(selected === 'group' ? '/create/group-setup' : '/create/location')
+    router.push(selected === 'group' ? '/create/group-setup' : '/create/time')
   }
 
   return (
@@ -113,6 +117,7 @@ export default function CreateTypeScreen() {
                   )} />
               </View>
             </View>
+            <CreateLocationFields model={location} />
           </ScrollView>
         </View>
         <GlassBar placement="docked" testID="create-footer">

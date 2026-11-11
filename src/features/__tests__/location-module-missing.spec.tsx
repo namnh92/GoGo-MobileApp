@@ -24,7 +24,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }))
 
-// The location step reads the profile's home area as a default (ADR-0022);
+// The step 1 location section reads the profile's home area as a default (ADR-0022);
 // an anonymous session has none, and the session provider would otherwise pull
 // the OneSignal native module into a renderer that has no native side.
 jest.mock('@/shared/providers/session-provider', () => ({
@@ -43,17 +43,17 @@ jest.mock('@/shared/administrative/queries', () => ({
   useAdministrativeUnits: () => ({ data: [], isPending: false, isError: false, error: null, refetch: jest.fn() }),
 }))
 
-import CreateLocationScreen from '@/features/create-date/create-location.view'
+import CreateTypeScreen from '@/features/create-date/create-type.view'
 
 describe('create location without the native location module', () => {
   it('still renders instead of crashing on import', async () => {
-    const view = await renderScreen(<CreateLocationScreen />)
+    const view = await renderScreen(<CreateTypeScreen />)
     expect(view.toJSON()).not.toBeNull()
   })
 
   it('says the location is unavailable and leaves the area picker', async () => {
-    const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByTestId('create-location-row'))
+    const view = await renderScreen(<CreateTypeScreen />)
+    await fireEvent.press(view.getByTestId('create-location-field'))
     await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(/Chưa lấy được vị trí/)).length).toBeGreaterThan(0)
   })

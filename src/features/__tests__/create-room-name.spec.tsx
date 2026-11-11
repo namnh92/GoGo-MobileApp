@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/react-native'
 import { renderScreen } from './harness'
 
 const mockPush = jest.fn()
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, back: jest.fn() }) }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: mockPush, back: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'user-1' } }) }))
 import GroupSetupScreen from '@/features/create-date/group-setup.view'
 import CreateTypeScreen from '@/features/create-date/create-type.view'
@@ -14,7 +14,7 @@ it('keeps an optional room name across navigation and sends it trimmed', async (
   await fireEvent.changeText(view.getByLabelText('Tên kèo (không bắt buộc)'), '  Hẹn cuối tuần  ')
   expect(toCreateRoomBody(useRoomStore.getState()).title).toBe('Hẹn cuối tuần')
   await fireEvent.press(view.getByText('Tiếp tục'))
-  expect(mockPush).toHaveBeenCalledWith('/create/location')
+  expect(mockPush).toHaveBeenCalledWith('/create/time')
 })
 
 it('retains the 80-character contract and selected group route (#594)', async () => {
@@ -23,7 +23,7 @@ it('retains the 80-character contract and selected group route (#594)', async ()
   expect(view.getByLabelText('Tên kèo (không bắt buộc)').props.maxLength).toBe(80)
   await fireEvent.press(view.getByText('Nhóm bạn'))
   expect(view.getAllByRole('radio').map(option => option.props.accessibilityState.selected)).toEqual([false, true])
-  expect(view.getByText('Bước 1 / 6')).toBeTruthy()
+  expect(view.getByText('Bước 1 / 5')).toBeTruthy()
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(mockPush).toHaveBeenCalledWith('/create/group-setup')
 })

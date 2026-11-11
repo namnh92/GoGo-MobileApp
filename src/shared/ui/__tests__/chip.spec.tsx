@@ -161,6 +161,7 @@ it('dispatches press and the separate remove action with their accessible labels
 
 // Audit inventory: row geometry is shared even where the row has screen-specific padding.
 const chipRows = [
+  ['features/create-date/create-location-fields.grid', () => jest.requireActual('@/features/create-date/create-location-fields.style').styles.grid],
   ['features/assistant/follow-ups.chips', () => jest.requireActual('@/features/assistant/follow-ups.style').styles.chips],
   ['features/assistant/proposal-edit.chips', () => jest.requireActual('@/features/assistant/proposal-edit.style').styles.chips],
   ['features/assistant/assistant-place-card.questions', () => jest.requireActual('@/features/assistant/assistant-place-card.style').styles.questions],

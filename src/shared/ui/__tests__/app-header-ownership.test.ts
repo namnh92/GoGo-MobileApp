@@ -27,7 +27,7 @@ const wrappers: Record<string, string> = {
   'account/defaults-screen': 'SettingsPage', 'account/profile-defaults': 'SettingsPage', 'account/theme-screen': 'SettingsPage',
   'settings/permissions': 'SettingsPage',
   'create-date/create-type': 'WizardStep', 'create-date/group-setup': 'WizardStep',
-  'create-date/create-location': 'WizardStep', 'create-date/create-time': 'WizardStep',
+  'create-date/create-time': 'WizardStep',
   'create-date/create-budget': 'WizardStep', 'create-date/create-mood': 'WizardStep',
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
@@ -94,6 +94,7 @@ describe('application header ownership', () => {
   })
   it('accounts for every routed feature screen, including deliberate headerless scenes', () => {
     const headerless = [
+      'create-date/create-location', // compatibility redirect to step 1
       'onboarding/splash', 'onboarding/onboarding', 'deep-link/share-link',
       'active-date/date-finished', 'matching/matching', 'matching/match-result',
       'review/shared-result', 'date-plan/place-reviews-page',

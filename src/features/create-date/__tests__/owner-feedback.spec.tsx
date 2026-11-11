@@ -19,7 +19,7 @@ jest.mock('react-native', () => {
   Object.defineProperty(mockRN, 'KeyboardAvoidingView', { value: (props: import('react-native').KeyboardAvoidingViewProps) => React.createElement(RN.View, props) })
   return mockRN
 })
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }) }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),

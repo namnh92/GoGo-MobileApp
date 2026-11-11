@@ -760,6 +760,7 @@ export const viMessages = {
   'createLocation.current': 'Vị trí hiện tại',
   'createLocation.anywhere': 'Bất kỳ đâu',
   'createLocation.maxDistance': 'Khoảng cách tối đa',
+  'createType.area': 'Khu vực',
   'createLocation.areaTitle': 'Hoặc chọn khu vực cố định',
   'createLocation.useMyLocation': 'Chạm để dùng vị trí của bạn',
   'createLocation.locating': 'Đang lấy vị trí…',

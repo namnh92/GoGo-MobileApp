@@ -299,3 +299,39 @@ Regression trong `round-two.spec.tsx`:
 | `git diff --check` | PASS, exit 0. |
 
 Raw logs local: `/tmp/594-f07-before.log`, `/tmp/594-f07-after.log`, `/tmp/594-f07-typecheck.log`. Đây là component regression; chưa chạy simulator/native build. API/store/submit mapping không thay đổi.
+
+
+## Owner sim feedback round 3
+
+Ngày 2026-11-11. Basis: PR #598, branch `feature/GOGO-594-redesign-g05a-create`, HEAD `9fcc4e9a`. Owner quyết định tại workspace `dev/policy/decisions-log.md:5`: vị trí dùng ô lớn và chuyển lên bước 1; quyết định này thắng tham chiếu Stitch. Working-tree patch, không stage/commit/push; không chạm `mobile-647`.
+
+### Layout và thay đổi
+
+- Bước 1 giữ thứ tự **loại kèo → Tên kèo → Khu vực → khoảng cách (chỉ khi dùng GPS)**. Khu vực nằm sau tên để đọc các thông tin cơ bản liên tục, trước CTA; cùng ScrollView/KeyboardAvoidingView đang có, CTA docked ngoài viewport và cơ chế đẩy ô tên lên khi mở bàn phím được giữ.
+- Thêm shared `src/shared/ui/location-field.view.tsx` + `.style.tsx`: full width, `minHeight: 48`, padding/radius/surface/border giống `create-type.style.tsx:nameInput`; icon pin/chevron 20pt; `body`, primary khi có giá trị, secondary placeholder “Chọn khu vực”; một dòng ellipsis; role button, label + accessibilityValue đầy đủ. Kiểm cả tám theme (Light/Dark, các accent). Không sửa `LocationRow` của Home/Discovery.
+- `create-type.view.tsx` dùng `use-create-location.ts` + `create-location-fields.view.tsx`/`.style.tsx` để chứa shared DiscoveryLocationSheet, radius chips, denied/unavailable warning, home-area prefill chip và stale-dataset warning. Xóa stylesheet của màn location cũ, chuyển các style còn dùng sang section. `createType.area` có vi/en (“Khu vực”/“Area”).
+- `wizard-step.view.tsx`: couple 4 bước (`type → time → budget → mood`), group 5 bước (`type → group-setup → time → budget → mood`). `group-setup.view.tsx` đi thẳng sang time; Back vẫn pop theo stack. `draftStepPath` tạo đúng stack mới khi resume.
+- `create-location.view.tsx` chỉ còn `<Redirect href="/create/type" />`; giữ nguyên route re-export `src/app/create/location.tsx`. Grep không còn caller sản phẩm push `/create/location`; telemetry route inventory vẫn giữ path vì file redirect vẫn tồn tại.
+- `savedRoomDraft.ts` vẫn đọc `location` trong schema để tương thích snapshot v1/v2, nhưng save/restore ánh xạ về `type`. Snapshot v1 có area provider cũ cũng quay về bước 1 để chọn lại, không dùng centre thay vị trí thiết bị.
+- GPS prefetch từ app start và refresh khi focus giữ qua shared location hook hiện có, không cần tap. Manual choice (kể cả khôi phục draft khi app GPS đã sẵn sàng) không bị ghi đè; mở picker từ draft seed lại lựa chọn đó để Clear/Use current position vẫn hoạt động. Radius ghi vào draft ngay khi chọn, giữ 10km/“Bất kỳ đâu” qua save/back/resume. Continue kiểm dataset trên bước 1 cho cả couple/group. `roomStore.ts`/`toCreateRoomBody` không thay đổi; test kiểm canonical codes, mutual exclusion và GPS/radius payload.
+- Các suite location cũ nay render `CreateTypeScreen`; cập nhật name/step assertions, header registry cho redirect, chip ownership/spacing registry cho section mới, color pins cho field và section.
+
+### FAIL-before / PASS-after và checks
+
+Production baseline lấy bằng `git archive 9fcc4e9` trong thư mục `/tmp` độc lập; chỉ copy final regression tests và symlink node_modules để chạy. Không checkout/reset/stash hay sửa worktree khác. Cùng file `round-three.spec.tsx`, cùng lệnh `pnpm test:ui --runInBand round-three`:
+
+| Check | HEAD `9fcc4e9` | Working-tree patch |
+| --- | --- | --- |
+| Final wizard regressions (field + sheet, step-1 validation couple/group, GPS radius/payload, counts mọi bước, navigation, old route, DraftResume couple/group, unlimited restored radius) | **11 FAIL** | **11 PASS** |
+| `pnpm test src/shared/store/__tests__/saved-room-draft.test.ts` | **6 FAIL / 9 PASS** (old paths/location-route resume) | **15 PASS**, thuộc shared-module gate bên dưới |
+
+- `pnpm typecheck`: **PASS**, exit 0, source cuối.
+- `pnpm test:ui create-date wizard draft home --runInBand`: **PASS**, 9 suites / 251 tests (trước khi bổ sung 3 regression cuối).
+- Gate UI cuối, bao gồm nguyên tập yêu cầu và các shared/legacy checks liên quan: `pnpm test:ui create-date wizard draft home create-location prefill-location location-permission location-module-missing create-room-name location-field chip.spec app-color-roles i18n-keys --runInBand`: **PASS, 20 suites / 436 tests**. Bao gồm new field tám theme, location focus/prefetch/manual/permissions, home prefill, color roles, chip spacing và các regression round 1/2.
+- `pnpm test src/shared/store src/shared/ui src/shared/i18n`: **PASS, 24 suites / 377 tests**; bao gồm color-roles, chip ownership, header ownership và saved-draft.
+- `pnpm exec eslint --no-cache <all touched existing/new .ts/.tsx files>`: **PASS**, exit 0; sandbox cho chạy, không dùng cache.
+- `git diff --check`: **PASS**. Index trống; không git add/commit/push.
+
+Evidence commands, summary và SHA-256 các file source/test tại [issue-594-round-3-checks.txt](issue-594-round-3-checks.txt). Raw logs nằm ở `/tmp/594-round3-*.log`, baseline path tại `/tmp/594-round3-baseline-path.txt`.
+
+Chưa chạy simulator/native build hoặc acceptance ảnh mới Light/Dark; Jest kiểm token/layout props/a11y và hành vi, không xác nhận pixel parity hay trải nghiệm bàn phím trên thiết bị. Không đổi API contract, payload mapping, native dependencies hay worktree nhánh stacked.

@@ -1120,7 +1120,23 @@
       "text.secondary",
       "text.secondary"
     ],
-    "src/shared/ui/location-row.style.tsx": []
+    "src/shared/ui/location-row.style.tsx": [],
+    "src/shared/ui/location-field.view.tsx": [
+      "text.secondary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/shared/ui/location-field.style.tsx": [
+      "surface.subtle",
+      "border.hairline"
+    ],
+    "src/features/create-date/create-location-fields.view.tsx": [
+      "status.warningText",
+      "text.secondary",
+      "accent.primary",
+      "status.warningText"
+    ]
   },
   "workspace": {
     "canvas": "#121212",
