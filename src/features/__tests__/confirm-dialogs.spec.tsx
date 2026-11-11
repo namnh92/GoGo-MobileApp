@@ -27,6 +27,7 @@ const mockRemoveMember = jest.fn()
 const mockReplace = jest.fn()
 
 jest.mock('expo-router', () => ({
+  useFocusEffect: () => undefined,
   useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
 }))

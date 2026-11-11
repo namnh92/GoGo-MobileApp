@@ -918,6 +918,7 @@ export const viMessages = {
   'roomManage.budgetTitle': 'Ngân sách',
   'roomManage.staleWarning': 'Đổi điều kiện sẽ làm gợi ý và kế hoạch hiện tại không còn đúng — cần ghép lại.',
   'roomManage.savedStale': '✓ Đã lưu · gợi ý và kế hoạch cần tạo lại',
+  'roomManage.seedScopeUnavailable': 'Hãy chọn khu vực của phòng để thêm địa điểm gợi ý.',
   'roomManage.saveFailed': 'Chưa lưu được. Thử lại nhé.',
   'roomManage.conflict': 'Người khác vừa sửa điều kiện. Tải lại rồi thử lại nhé.',
   'roomManage.membersTitle': 'Thành viên',

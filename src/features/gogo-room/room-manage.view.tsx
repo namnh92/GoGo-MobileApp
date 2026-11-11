@@ -1,8 +1,8 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -24,7 +24,7 @@ import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
@@ -35,7 +35,9 @@ import { RoomScheduleEditor } from './room-schedule-editor.view'
 import { RoomTitleEditor } from './room-title-editor.view'
 import { RoomEditSheet } from './room-edit-sheet.view'
 import { roomScheduleLabel } from './room-schedule'
-import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
+import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
+import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/location/picker-scope'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
@@ -60,8 +62,19 @@ export default function RoomManageScreen() {
   const [schedulePending, setSchedulePending] = useState(false)
   const editorPending = titlePending || schedulePending
   const [budgetAmount, setBudgetAmount] = useState<number | null>(null)
+  const [areaDraft, setAreaDraft] = useState<AdministrativeSelection | null | undefined>(undefined)
+  const [areaValid, setAreaValid] = useState(false)
+  const [areaChoosing, setAreaChoosing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const { confirm, dialog } = useDialog()
+  const pickerScopeId = useRef<string | null>(null)
+  const pickerOpening = useRef(false)
+  const [isPickerOpening, setIsPickerOpening] = useState(false)
+  useFocusEffect(useCallback(() => {
+    pickerOpening.current = false
+    setIsPickerOpening(false)
+  }, []))
+  useEffect(() => () => clearPickerScope(pickerScopeId.current), [])
 
   const summary = room.data
   const capabilities = roomCapabilities(summary)
@@ -111,21 +124,36 @@ export default function RoomManageScreen() {
   const currency = constraints?.currency ?? 'VND'
   const selectedBudget = budgetAmount ?? constraints?.budgetAmount ?? 0
   const budgetDirty = selectedBudget !== (constraints?.budgetAmount ?? 0)
+  const storedArea = constraints?.administrativeArea
+  const selectedArea = areaDraft === undefined ? storedArea ?? null : areaDraft
+  const areaDirty = !!selectedArea && (storedArea?.status === 'needs_reselection'
+    || selectedArea.datasetVersion !== storedArea?.datasetVersion
+    || selectedArea.provinceCode !== storedArea?.provinceCode
+    || selectedArea.communeCode !== storedArea?.communeCode)
+  const pickerScope = storedArea?.status === 'current'
+    ? draftPickerScope({ administrativeArea: storedArea, originLat: null, originLng: null, radiusM: null }) : null
 
-  async function saveConstraints() {
-    if (!constraints || !summary) return
+  async function saveConstraints(area?: AdministrativeSelection) {
+    if (!constraints || !summary || updateConstraints.isPending) return
     setNotice(null)
     try {
-      await updateConstraints.mutateAsync({
+      await updateConstraints.mutateAsync(area ? {
+        administrativeArea: { datasetVersion: area.datasetVersion, provinceCode: area.provinceCode, communeCode: area.communeCode },
+        budgetMode: constraints.budgetMode,
+        budgetAmount: constraints.budgetAmount,
+        currency,
+        expectedConstraintVersion: summary.constraintVersion,
+      } : {
         ...constraints,
         budgetAmount: selectedBudget,
         currency,
         // Optimistic concurrency: a 409 means someone edited first.
         expectedConstraintVersion: summary.constraintVersion,
       })
-      setBudgetAmount(null)
+      if (area) setAreaDraft(undefined)
+      else setBudgetAmount(null)
       // Changing a constraint marks scores and plans stale (RULE-CORE-006);
-      // the hook already dropped them, so say what that means.
+      // the hook already invalidated them, so say what that means.
       setNotice(t('roomManage.savedStale'))
     } catch (caught) {
       setNotice(
@@ -175,11 +203,11 @@ export default function RoomManageScreen() {
       >
         <View style={styles.warnBox}>
           <Icon name="alert" size={22} color="status.warningText" />
-          <View style={styles.flex}><Text variant="title2" color="status.warningText">{t('roomLobby.warning')}</Text><Text variant="bodySmall" color="status.warningText">{t('roomManage.staleWarning')}</Text></View>
+          <View style={styles.flex}><Text variant="body" color="status.warningText">{t('roomLobby.warning')}</Text><Text variant="bodySmall" color="status.warningText">{t('roomManage.staleWarning')}</Text></View>
         </View>
         <View style={styles.sectionHead}>
           <Icon name="sliders" size={20} color="accent.primary" />
-          <Text variant="title2">{t('gogoRoom.constraints')}</Text>
+          <Text variant="discoveryHeading">{t('gogoRoom.constraints')}</Text>
         </View>
         <Card padded={false} style={styles.card}>
         <RoomEditSheet pending={editorPending} title={t('roomEdit.title')} label={t('roomTitle.title')} value={summary.title?.trim() || t('plans.untitled')}
@@ -195,7 +223,7 @@ export default function RoomManageScreen() {
         <RoomEditSheet pending={updateConstraints.isPending} onClose={() => setBudgetAmount(null)} label={t('roomManage.budgetTitle')} value={constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}>
         {close => <View style={styles.editorBody}>
           <BlockingLoadingOverlay visible={updateConstraints.isPending} />
-          <Text variant="label" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
+          <Text variant="caption" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary">
             {t(
               constraints?.budgetMode === 'per_person'
@@ -220,7 +248,7 @@ export default function RoomManageScreen() {
           <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
           <PrimaryBtn
             label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
-            onPress={saveConstraints}
+            onPress={() => void saveConstraints()}
             disabled={!budgetDirty}
             loading={updateConstraints.isPending}
           />
@@ -228,27 +256,54 @@ export default function RoomManageScreen() {
           {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
         </View>}
         </RoomEditSheet>
-        {constraints?.administrativeArea ? <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomLobby.area')}</Text><Text variant="body">{administrativeAreaLabel(constraints.administrativeArea)}</Text></View></View> : null}
+        <RoomEditSheet pending={updateConstraints.isPending} scroll={false} size={areaChoosing ? 'full' : 'content'} label={t('roomLobby.area')}
+          value={storedArea ? administrativeAreaLabel(storedArea) : ''}
+          onClose={() => { setAreaDraft(undefined); setAreaValid(false); setAreaChoosing(false) }}>
+          {close => <View testID="room-manage-area-editor" style={[styles.editorBody, areaChoosing && styles.flex]}>
+            <BlockingLoadingOverlay visible={updateConstraints.isPending} />
+            <AdministrativePicker embedded value={selectedArea} onChange={setAreaDraft}
+              onValidityChange={setAreaValid} onChoosingChange={setAreaChoosing} />
+            {!areaChoosing ? <>
+              <View style={styles.warnBox}>
+                <Icon name="alert" size={18} color="status.warningText" />
+                <Text variant="caption" color="status.warningText" style={styles.flex}>{t('roomManage.staleWarning')}</Text>
+              </View>
+              <SheetActions>
+                <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
+                <PrimaryBtn label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
+                  onPress={() => { if (selectedArea && areaValid && areaDirty) void saveConstraints(selectedArea) }}
+                  disabled={!areaValid || !areaDirty} loading={updateConstraints.isPending} />
+              </SheetActions>
+              {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
+            </> : null}
+          </View>}
+        </RoomEditSheet>
         </Card>
 
         <View style={styles.sectionHead}>
           <Icon name="mapPin" size={20} color="accent.primary" />
-          <Text variant="title2">{t('roomManage.seedTitle')}</Text>
+          <Text variant="discoveryHeading" style={styles.flex}>{t('roomManage.seedTitle')}</Text>
+          <IconBtn accessibilityLabel={t('roomManage.addSeedPlaces')} style={styles.addSeed}
+            disabled={!pickerScope || isPickerOpening} onPress={() => {
+              if (!pickerScope || pickerOpening.current) return
+              pickerOpening.current = true
+              setIsPickerOpening(true)
+              pickerScopeId.current = savePickerScope(pickerScope)
+              router.push({ pathname: '/places/search', params: { picker: '1', roomId, pickerScope: pickerScopeId.current } })
+            }}><Icon name="plus" size={20} color="accent.primary" /></IconBtn>
         </View>
         <Card padded={false} style={styles.card}>
           <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
           {(summary.seedPlaces ?? []).map(seed => seed.placeId && seed.name ? (
-            <PlaceCardSmall key={seed.placeId} place={detailToPlaceCard({ id: seed.placeId, name: seed.name })} headerAction={<GhostBtn size="small" label={t('roomManage.removeConfirm')} onPress={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)} />} />
+            <PlaceCardSmall key={seed.placeId} place={detailToPlaceCard({ id: seed.placeId, name: seed.name })}
+              onRemove={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)} removeAccessibilityLabel={t('roomManage.removeConfirm')} />
           ) : null)}
-          <GhostBtn
-            label={t('roomManage.addSeedPlaces')}
-            onPress={() => router.push(`/places/search?picker=1&roomId=${roomId}`)}
-          />
+          {!pickerScope ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.seedScopeUnavailable')}</Text> : null}
         </Card>
 
         <View style={styles.sectionHead}>
           <Icon name="users" size={20} color="accent.primary" />
-          <Text variant="title2">{t('roomManage.membersTitle')}</Text>
+          <Text variant="discoveryHeading">{t('roomManage.membersTitle')}</Text>
         </View>
         <Card padded={false} style={styles.card}>
           {members.length === 0 ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.noMembers')}</Text> : null}
@@ -281,7 +336,7 @@ export default function RoomManageScreen() {
 
         <View style={styles.sectionHead}>
           <Icon name="unlock" size={20} color="accent.primary" />
-          <Text variant="title2">{t('roomManage.invitesTitle')}</Text>
+          <Text variant="discoveryHeading">{t('roomManage.invitesTitle')}</Text>
         </View>
         <Card padded={false} style={styles.card}>
           {(invites.data as { inviteId?: string; expiresAt?: string; maxUses?: number }[] | undefined)?.map(
@@ -317,11 +372,11 @@ export default function RoomManageScreen() {
         </Card>
 
         <Card padded={false} style={styles.permissionCard}>
-          <Text variant="title2" color="status.infoText">{t('roomManage.hostOnlyTitle')}</Text>
+          <Text variant="body" color="status.infoText">{t('roomManage.hostOnlyTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary">{t('roomManage.hostOnlyBody')}</Text>
         </Card>
         <Card padded={false} style={styles.dangerCard}>
-          <Text variant="title2" color="status.dangerText">{t('roomLobby.danger')}</Text>
+          <Text variant="discoveryHeading" color="status.dangerText">{t('roomLobby.danger')}</Text>
           <View style={styles.noteRow}>
             <Icon name="alert" size={18} color="status.dangerText" />
             <Text variant="bodySmall" color="text.secondary" style={styles.flex}>{t('roomManage.cancelBody')}</Text>

@@ -937,6 +937,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'roomManage.budgetTitle': 'Budget',
   'roomManage.staleWarning': 'Changing a constraint makes the current suggestions and plan out of date — they need rebuilding.',
   'roomManage.savedStale': '✓ Saved · suggestions and plan need rebuilding',
+  'roomManage.seedScopeUnavailable': 'Choose the room’s area to add suggested places.',
   'roomManage.saveFailed': 'Could not save. Please try again.',
   'roomManage.conflict': 'Someone else just changed the constraints. Reload and try again.',
   'roomManage.membersTitle': 'Members',

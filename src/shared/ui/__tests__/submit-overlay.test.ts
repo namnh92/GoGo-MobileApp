@@ -24,7 +24,7 @@ const submitScreens = {
   'home/quick-join': 'pending',
   'gogo-room/room-title-editor': 'rename.isPending',
   'gogo-room/room-schedule-editor': 'update.isPending',
-  // Budget submits from the native Sheet's presenter; other actions block the screen.
+  // Budget and area submit from their native Sheet's presenter; other actions block the screen.
   'gogo-room/room-manage': [
     'updateConstraints.isPending',
     'transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending',
@@ -69,6 +69,7 @@ describe('submit overlay coverage', () => {
     for (const expected of typeof pending === 'string' ? [pending] : pending) {
       expect(bindings).toContain(expected)
     }
+    if (screen === 'gogo-room/room-manage') expect(bindings.filter(binding => binding === 'updateConstraints.isPending')).toHaveLength(2)
   })
 
   it.each(Object.entries(themes))('%s submit backdrop is the dark canvas at exactly 85 percent', (_name, theme) => {

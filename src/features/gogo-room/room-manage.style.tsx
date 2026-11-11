@@ -4,7 +4,8 @@ import { chipRowGap, radius, spacing, touchTarget, type } from '@/shared/ui/toke
 
 export const styles = StyleSheet.create(theme => ({
   loading: { padding: spacing[4] },
-  conditionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], minHeight: 64 },
+  conditionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], minHeight: touchTarget.min },
+  addSeed: { width: touchTarget.min, height: touchTarget.min },
   scheduleFields: { flexDirection: 'row', gap: spacing[3] },
   editorBody: { gap: spacing[3] },
   permissionCard: { padding: spacing[4], marginVertical: spacing[4], gap: spacing[2], backgroundColor: theme.status.infoSoft },
@@ -42,7 +43,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingTop: spacing[3],
     paddingBottom: spacing[1],
   },
-  rowMeta: { marginTop: 2 },
+  rowMeta: { marginTop: spacing[1] },
   rowAction: {
     minHeight: touchTarget.min,
     justifyContent: 'center',

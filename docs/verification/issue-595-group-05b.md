@@ -271,3 +271,85 @@ replace old assertions that required the opaque token to be visible.
 Native simulator recheck / pixel acceptance: NOT RUN. Jest verifies rendered
 structure, typography/color props and navigation/share behavior; native Share is
 mocked. This report does not claim new simulator or 100% Stitch acceptance.
+
+## Owner sim feedback 2026-11-12 (3)
+
+Phạm vi: PR #600, màn 5.13, bắt đầu từ HEAD `06ac6f89` trên nhánh
+`feature/GOGO-595-redesign-g05b-room`; working tree ban đầu sạch. Căn cứ:
+owner instruction vòng này và `dev/policy/decisions-log.md`, mục #600 ngày 2026-11-12.
+Không stage, commit, push hoặc sửa Stitch.
+
+### Thay đổi và contract
+
+- Seed dùng nguyên `PlaceCardSmall` với `onRemove` / `removeAccessibilityLabel`:
+  nút X chung ở góc trên bên phải gọi mutation xoá seed hiện hành. Adapter chỉ
+  truyền `placeId` và `name` có thật; không dựng ảnh/địa chỉ/giá/rating chưa có.
+- Nút thêm là `IconBtn` dấu + ở bên phải tiêu đề `Địa điểm gợi ý`, nhãn trợ năng
+  `Thêm địa điểm gợi ý`, kích thước thật `touchTarget.min` (44×44).
+  Vẫn mở `/places/search` với `picker=1` và `roomId`; `pickerScope` là UUID trỏ
+  vào snapshot trong bộ nhớ từ store #598. Snapshot lấy khu vực của phòng,
+  không lấy discovery state toàn app; URL không chứa mã khu vực/toạ độ.
+  Chặn mở lặp đến khi màn được focus lại; cleanup scope khi rời màn/picker.
+- Phòng thiếu khu vực hoặc khu vực `needs_reselection` không mở tìm kiếm
+  không giới hạn: disable + và hiện hướng dẫn chọn khu vực của phòng.
+  `RoomSummary` không trả origin coordinates (chủ đích privacy của contract);
+  không dựng toạ độ hoặc dùng vị trí toàn app làm thay thế.
+- Tiêu đề section dùng `discoveryHeading` (17/22, cùng scale với `title2`),
+  nhãn điều kiện dùng `caption` / `text.secondary`, giá trị dùng `body`.
+  Warning/permission heading dùng `body`; nhãn budget trong editor dùng caption.
+  Không đổi giá trị typography/color token; layout mới dùng spacing/touch tokens.
+- Khu vực có `Sửa`, mở `AdministrativePicker` thật ở chế độ embedded trong
+  `RoomEditSheet`. Danh sách tỉnh/xã tự scroll trong sheet full-height với
+  chuỗi parent `flex: 1`; giữ nguyên container để không remount/mất lựa chọn.
+  Huỷ bỏ draft, không gọi API. Save chỉ khả dụng khi khu vực hợp lệ và thay đổi,
+  hoặc khu vực cũ cần chọn lại. Dataset đổi sẽ khoá Save đến khi chọn lại.
+- **Không có contract gap:** `RoomConstraintPatch.administrativeArea` trong
+  `openapi/gogo.v1.yaml` và generated schema nhận dataset/province/commune codes.
+  Save gọi `useUpdateRoomConstraints` hiện hành, gửi riêng codes, giữ budget
+  đã lưu/currency, kèm `expectedConstraintVersion`; không gửi labels/status/GPS.
+  Dùng chung stale warning, success notice, conflict 409 và lỗi validation với
+  budget. Mutation pending chặn submit/đóng sheet bằng overlay bên trong modal.
+  Hook thật cập nhật room cache và invalidate suggestions/current plan/list.
+  Manage vẫn host-only; member/guest không có editor, xem điều kiện qua lobby.
+- Pins/registry: thêm view/style bindings của manage vào `stitch-color-pins.json`,
+  thêm hàng + vào parent-geometry inventory, xác nhận cả budget/area có overlay.
+  Registry i18n/header/type scale giữ nguyên và qua guard. Mock router của
+  `confirm-dialogs` bổ sung focus hook; không thay kỳ vọng budget/name/schedule.
+
+### FAIL trước / PASS sau
+
+Command giống nhau: `pnpm test:ui --runInBand room-manage-feedback`.
+Tạm nạp đúng sáu production files từ `git show HEAD:<path>`, chạy cùng specs,
+khôi phục byte-for-byte trong `finally`, rồi chạy lại trên patch.
+HEAD/index không đổi; SHA-256 và exit codes ở `/tmp/595-owner-sim-3/regression.json`.
+
+| Bằng chứng | Trước @06ac6f89 | Sau patch |
+| --- | --- | --- |
+| Shared X, + icon/44pt/title placement/opaque scope/cleanup, typography Light/Dark | FAIL | PASS |
+| Khu vực bắt buộc cho seed search, host save qua hook/API, stale invalidation, cancel, dataset validation, pending/409/400 | FAIL | PASS |
+| Member/guest không có editor | PASS | PASS |
+| Tổng | **14 failed / 2 passed**, exit 1 | **16 passed**, exit 0 |
+
+Logs: `/tmp/595-owner-sim-3/fail-before.log`, `pass-after.log`.
+Picker component và mutation hook là thật; query dataset và endpoint là test
+boundaries. Không phải bằng chứng API DEV, server authorization hoặc simulator.
+
+### Checks
+
+| Command | Kết quả | Evidence |
+| --- | --- | --- |
+| `pnpm typecheck` | PASS | `/tmp/595-owner-sim-3/typecheck.log` |
+| `pnpm test:ui room gogo-room --runInBand` | PASS, 18 suites / 290 tests | `/tmp/595-owner-sim-3/ui-room.log` |
+| `pnpm test:ui --runInBand confirm-dialogs i18n-keys button-parent-geometry` | PASS, 3 suites / 124 tests | `/tmp/595-owner-sim-3/affected.log` |
+| `pnpm test` với bốn path type-scale, color-roles, app-header-ownership, submit-overlay (không thêm `--`) | PASS, 4 files / 112 tests | `/tmp/595-owner-sim-3/guards.log` |
+| `pnpm exec eslint` mọi TS/TSX đã chạm | PASS, không diagnostics | `/tmp/595-owner-sim-3/lint.log` |
+| `git diff --check` | PASS | Không whitespace errors |
+
+Một lần gọi nhầm `pnpm test -- <paths>` đã mở rộng thành full Vitest; dừng bằng
+Ctrl-C sau khi thấy ba lỗi process/liveness sandbox trong `distribute-wrapper.test.ts`
+(owner alive, recorded build process group alive, lock/run files after child exit),
+cùng nhóm hạn chế đã ghi ở round trước. Không coi full Vitest là PASS; không sửa
+hoặc skip các test đó. Lệnh scoped đúng phía trên chạy xong và PASS.
+
+Chưa chạy simulator/build hoặc nghiệm thu native Light/Dark/pixel cho vòng này.
+Các kết quả trên chỉ xác nhận code, rendered structure, contract binding và regressions.

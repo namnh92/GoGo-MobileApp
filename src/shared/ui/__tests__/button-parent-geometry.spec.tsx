@@ -5,6 +5,7 @@ import { styles as saved } from '@/features/tabs/saved.style'
 import { styles as onboarding } from '@/features/onboarding/onboarding.style'
 import { styles as profile } from '@/features/tabs/profile.style'
 import { styles as room } from '@/features/gogo-room/gogo-room.style'
+import { styles as manage } from '@/features/gogo-room/room-manage.style'
 import { styles as search } from '@/features/search/search.style'
 import { GhostBtn, IconBtn, PrimaryBtn } from '../button.view'
 import { buttonSizes, hitSlop, touchTarget } from '../tokens'
@@ -31,6 +32,7 @@ const rows = [
   { name: 'onboarding skip', style: onboarding.header, siblingHeight: 0, icon: false },
   { name: 'profile edit', style: profile.identity, siblingHeight: 64, icon: true },
   { name: 'room copy', style: room.codeRow, siblingHeight: 28, icon: true },
+  { name: 'room add seed', style: manage.sectionHead, siblingHeight: touchTarget.min, icon: true },
   { name: 'search reset', style: search.sheetFooter, siblingHeight: buttonSizes.regular.minHeight, icon: true },
 ]
 

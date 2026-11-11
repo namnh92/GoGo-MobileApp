@@ -3,16 +3,19 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { GhostBtn } from '@/shared/ui/primitives'
-import { Sheet } from '@/shared/ui/sheet.view'
+import { Sheet, type SheetProps } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
 import { styles } from './room-edit-sheet.style'
 
 /** Presentation only: every editor keeps its own validation and mutation. */
-export function RoomEditSheet({ label, value, children, onClose, pending = false, title = label, additionalRow }: {
+export function RoomEditSheet({ label, value, children, onClose, pending = false, title = label, additionalRow, scroll = true, size = 'content' }: {
   label: string
   value: string
   title?: string
   pending?: boolean
+  /** Embedded administrative lists own their scrolling. */
+  scroll?: boolean
+  size?: SheetProps['size']
   /** A second summary row that opens this same sheet. */
   additionalRow?: (open: () => void) => ReactNode
   onClose?: () => void
@@ -32,8 +35,8 @@ export function RoomEditSheet({ label, value, children, onClose, pending = false
       <GhostBtn size="small" label={t('roomLobby.edit')} accessibilityHint={label} onPress={() => setOpen(true)} />
     </View>
     {additionalRow?.(() => setOpen(true))}
-    <Sheet visible={open} onClose={close} testID="room-edit-sheet" header={<AppHeader variant="sheet" safeArea={false} title={title} onBack={close} backDisabled={pending} />}>
-      {open ? <View testID="room-edit-body" style={styles.editorBody}>{children(close)}</View> : null}
+    <Sheet visible={open} onClose={close} scroll={scroll} size={size} testID="room-edit-sheet" header={<AppHeader variant="sheet" safeArea={false} title={title} onBack={close} backDisabled={pending} />}>
+      {open ? <View testID="room-edit-body" style={[styles.editorBody, size === 'full' && styles.fullBody]}>{children(close)}</View> : null}
     </Sheet>
   </>
 }
