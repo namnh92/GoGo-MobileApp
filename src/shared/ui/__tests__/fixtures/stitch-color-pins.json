@@ -1135,6 +1135,7 @@
       "status.warningText",
       "text.secondary",
       "accent.primary",
+      "status.warningText",
       "status.warningText"
     ],
     "src/shared/ui/expand-toggle.view.tsx": [

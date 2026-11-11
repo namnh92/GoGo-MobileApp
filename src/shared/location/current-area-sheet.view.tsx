@@ -13,8 +13,19 @@ import type { AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useAppAreaStore } from './app-area'
 import { styles } from './current-area-sheet.style'
 
+type CurrentAreaSheetProps = {
+  visible: boolean
+  onClose: () => void
+  onApplied: () => void
+  /** Wizard-only recovery; other callers retain the inline warning. */
+  onLocationFailure?: () => void
+  /** Wait for native dismissal before presenting a recovery dialog. */
+  onClosed?: () => void
+  selection?: { value: AdministrativeSelection | null; onApply: (value: AdministrativeSelection) => void }
+}
+
 /** Shared #524 picker. A controlled selection edits a caller draft without changing the app-wide area. */
-export function CurrentAreaSheet({ visible, onClose, onApplied, selection }: { visible: boolean; onClose: () => void; onApplied: () => void; selection?: { value: AdministrativeSelection | null; onApply: (value: AdministrativeSelection) => void } }) {
+export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLocationFailure, onClosed }: CurrentAreaSheetProps) {
   const { t } = useTranslation()
   const location = useCurrentLocation()
   const appArea = useAppAreaStore()
@@ -39,7 +50,9 @@ export function CurrentAreaSheet({ visible, onClose, onApplied, selection }: { v
   }, [])
   async function requestDeviceLocation() {
     const result = await location.request()
-    if (mounted.current && visibleRef.current && result.status === 'granted') { onApplied(); onClose() }
+    if (!mounted.current || !visibleRef.current) return
+    if (result.status === 'granted') { onApplied(); onClose() }
+    else if (result.status === 'denied' || result.status === 'unavailable') onLocationFailure?.()
   }
   function confirm() {
     if (!draftArea || !valid) return
@@ -48,7 +61,7 @@ export function CurrentAreaSheet({ visible, onClose, onApplied, selection }: { v
     onApplied()
     onClose()
   }
-  return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} testID="discovery-location-sheet"
+  return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} onClosed={onClosed} testID="discovery-location-sheet"
     size={choosing ? 'full' : 'content'} scroll={false}
     footer={!choosing ? <SheetActions>
       {!selection ? <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} onPress={() => { setDraftArea(null); setArea(null) }} /> : null}

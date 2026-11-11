@@ -559,3 +559,48 @@ Raw logs: `/tmp/594-round5-before-final.log`, `/tmp/594-round5-after-final.log`.
 Raw check logs: `/tmp/594-round5-typecheck-final.log`, `/tmp/594-round5-ui-final.log`, `/tmp/594-round5-token-chip.log`, `/tmp/594-round5-shared-ui.log`, `/tmp/594-round5-lint-final.log`. UI gate còn cảnh báo Node `punycode` deprecated hiện hữu. Typecheck ban đầu bắt thiếu required metadata trong fixture mới; đã bổ sung đúng type và chạy lại typecheck/UI/lint thành công.
 
 Đây là component/unit regression và source/style verification; chưa chạy simulator/native build hoặc live API acceptance, không suy ra visual/pixel acceptance. Index trống; không git add/commit/push.
+
+## Owner sim feedback round 6
+
+Ngày 2026-11-11. Owner feedback tại workspace `dev/policy/decisions-log.md:5`; PR #598, branch `feature/GOGO-594-redesign-g05a-create`, baseline `20fe8a80`. Đây là working-tree patch, không stage/commit/push; không chạm `mobile-647`.
+
+### Thay đổi và phạm vi
+
+- Lỗi lấy vị trí ở bước 1 (`denied` / `unavailable`) dùng shared `useDialog`: title + hướng dẫn bật dịch vụ vị trí và cấp quyền cho GoGo trong cài đặt thiết bị. Hai nút cùng hàng, secondary **Huỷ** bên trái, primary **Xác nhận** bên phải, bằng chiều rộng. Xác nhận gọi `Linking.openSettings()` — cùng API mở trang cài đặt app đang dùng ở `settings/location-permission.view.tsx` và `settings/permissions.view.tsx`; không thêm deep link riêng.
+- Huỷ ở câu hỏi đầu mở câu hỏi “Chọn khu vực thủ công?”; Xác nhận mở lại `DiscoveryLocationSheet` với các trường hành chính có sẵn, chọn và áp dụng được vào draft; Huỷ ở câu hỏi sau đóng flow. Dismiss bằng backdrop/back/escape chỉ đóng câu hỏi hiện tại. Giữ title role header, modal accessibility, shared button targets và bản dịch vi/en.
+- `useCreateLocation` chỉ hiện thông báo tự động sau kết quả refresh thực sự lỗi, tối đa một lần trong lần mount wizard bước 1. Các bước tiếp theo push lên stack nên quay lại bước 1 không reset cờ; wizard mới được thông báo lại. Cờ được đặt trước khi trình bày; lỗi từ thao tác chủ động cũng tiêu thụ thông báo auto đang chờ. Mỗi tap chủ động lấy vị trí vẫn được thông báo lỗi; kết quả refresh sau khi rời bước 1 không mở popup.
+- Sheet chỉ thêm callback tùy chọn `onLocationFailure` / `onClosed`; **chỉ wizard truyền callback này**. Home/Discovery giữ hành vi cũ. Giữ inline warning denied/unavailable ở wizard và sheet làm đường lui không modal sau khi đóng thông báo hoặc khi auto notice đã dùng hết; người dùng vẫn bấm ô khu vực để chọn thủ công. Nếu mở cài đặt bị từ chối, hiện warning vi/en có `accessibilityLiveRegion="polite"` bằng key hiện có.
+- Chuỗi modal chờ native dismissal: sheet → dialog qua `Sheet.onClosed`; dialog → dialog / manual sheet qua opt-in `useDialog({ waitForDismiss: true })`. Dialog được giữ mounted với `visible=false` đến `Modal.onDismiss` trên iOS; Android/web hoàn thành sau commit ẩn modal. Callers cũ của `useDialog` vẫn dùng layout stack và thời điểm resolve mặc định.
+- Tất cả type / group-setup / time / budget / mood dùng `WizardScreen`: `WizardStep` là khối chrome `flexShrink: 0`, ngoài phần nội dung có `flex: 1`, `minHeight: 0`, `overflow: hidden`. Navigation (back/title/save/close/bell) và progress ở khối cố định; nội dung cuộn trong ScrollView riêng bên dưới. Header cũng giữ vị trí trong các nhánh pending/error/offline của Mood.
+- Bước tên giữ `KeyboardAvoidingView` iOS `padding`, đặt trực tiếp dưới chrome để giữ tọa độ `layout.y` mà RN dùng so với vị trí bàn phím; không lồng avoiding view bên trong body làm mất offset header. Giữ nguyên `useFieldVisibility`, refs, scroll/layout/focus handlers, keyboard taps/dismiss và GlassBar placement/insets ở từng bước.
+- Registry header chuyển năm callers từ `WizardStep` sang `WizardScreen`; color pins thêm binding warning cho lỗi mở cài đặt. Không di chuyển binding màu cũ, không thêm token/palette, không đổi chip registry, API contract hay payload.
+
+### FAIL trước / PASS sau
+
+Dùng **cùng file** `src/features/create-date/__tests__/round-six.spec.tsx` trên baseline `20fe8a8` xuất bằng `git archive` vào `/private/tmp/gogo-594-round6-baseline.mITuWd` (chỉ thêm test, dùng cùng dependencies), rồi chạy trên patch. Không checkout/ghi đè source working tree để đo baseline.
+
+| Regression | `20fe8a8` | Patch |
+| --- | --- | --- |
+| Manual failure denied/unavailable, vi/en, secondary-left/primary-right, Xác nhận mở settings | 4 FAIL: thiếu dialog | 4 PASS |
+| Huỷ → câu hỏi thủ công → Xác nhận chọn/applied area; Huỷ lần hai; tap chủ động lặp lại | 2 FAIL: thiếu recovery flow | 2 PASS |
+| Auto denied/unavailable một lần qua refocus/rerender, wizard mới được báo lại | 2 FAIL: thiếu auto dialog | 2 PASS |
+| Auto → settings; auto khi sheet đang mở; lỗi mở settings có fallback | 3 FAIL: thiếu recovery flow | 3 PASS |
+| Chrome không co + body bị giới hạn trên cả năm bước, đầy đủ navigation/progress ngoài scroll, footer ngoài scroll; cấu hình/y-offset KAV bước tên | 5 FAIL: thiếu bounded shell | 5 PASS |
+| Auto thành công không popup; late auto không popup; Home/Discovery giữ inline fallback | 3 PASS | 3 PASS |
+| **Tổng** | **16 FAIL / 3 PASS**, exit 1 | **19 PASS**, trong UI gate dưới đây |
+
+Baseline vốn đã đặt `WizardStep` ngoài ScrollView ở cả năm screen. FAIL layout ở đây chứng minh thiếu khối chrome/body bị ràng buộc rõ ràng; không tuyên bố đã tái hiện chuyển động header trên simulator bằng Jest. Tests xác nhận hierarchy/style/keyboard contract; chuyển động và kích thước thực tế vẫn cần owner recheck trên native build.
+
+### Checks cuối
+
+Code/test/registry basis: **`rs-10c70b1ba456`**, scope `src` (docs không nằm trong fingerprint), manifest và patch/files tại `/private/tmp/594-round6-snapshots/mobile-594-round6-rs-10c70b1ba456/MANIFEST.txt`. Không thay source sau khi tạo basis và chạy gate.
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm test:ui create-date location dialog create-mood-footer-inset create-room-name wizard-exit --runInBand` | PASS, 20 suites / 180 tests, bao gồm toàn bộ bộ lọc yêu cầu `create-date location dialog` và regression footer/name/exit |
+| `pnpm test src/shared/ui/__tests__/app-header-ownership.test.ts src/shared/ui/__tests__/color-roles.test.ts src/shared/ui/__tests__/chip-ownership.test.ts src/shared/i18n` | PASS, 4 files / 83 tests |
+| `pnpm exec eslint <all 16 touched/new .ts/.tsx files>` | PASS, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | PASS |
+
+Logs local: `/tmp/594-round6-final-before.log`, `/tmp/594-round6-ui.log`, `/tmp/594-round6-registry.log`, `/tmp/594-round6-typecheck.log`, `/tmp/594-round6-lint.log`. Native presenter giả lập dismissal trễ để bắt modal overlap; các flow không bị từ chối trình bày modal. UI gate có Node `punycode` deprecation hiện hữu. Chưa chạy simulator/native build hoặc live acceptance; không suy ra pixel parity, trải nghiệm bàn phím hay quyền hệ điều hành thực tế từ component tests. Index trống; không git add/commit.

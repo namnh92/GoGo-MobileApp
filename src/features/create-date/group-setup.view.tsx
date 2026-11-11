@@ -7,11 +7,11 @@ import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { hitSlop } from '@/shared/ui/tokens'
 
-import { WizardStep } from './wizard-step.view'
+import { WizardScreen } from './wizard-step.view'
 import { styles } from './group-setup.style'
 
 const MIN_PEOPLE = 3
@@ -36,9 +36,8 @@ export default function GroupSetupScreen() {
   }
 
   return (
-    <Atmosphere redesign>
-      <WizardStep step="group-setup" onBack={() => router.back()} />
-      <ScrollView contentContainerStyle={styles.content}>
+    <WizardScreen step="group-setup" onBack={() => router.back()}>
+      <ScrollView testID="create-group-setup-scroll" contentContainerStyle={styles.content}>
         <Text variant="discoveryTitle" style={styles.title}>{t('groupSetup.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('groupSetup.body')}</Text>
         <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('groupSetup.countTitle')}</Text>
@@ -111,6 +110,6 @@ export default function GroupSetupScreen() {
       <GlassBar placement="docked" testID="create-footer">
         <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={() => router.push('/create/time')} icon="arrowRight" />
       </GlassBar>
-    </Atmosphere>
+    </WizardScreen>
   )
 }

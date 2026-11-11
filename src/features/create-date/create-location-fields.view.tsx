@@ -17,7 +17,7 @@ const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 export function CreateLocationFields({ model }: { model: ReturnType<typeof useCreateLocation> }) {
   const { t } = useTranslation()
   const { areaOpen, setAreaOpen, openArea, scopeLabel, locationStatus, usingCurrent, radiusM, setRadiusM,
-    offerHomeArea, homeArea, useHomeArea, staleArea, onApplied } = model
+    offerHomeArea, homeArea, useHomeArea, staleArea, onApplied, dialog, settingsFailed, onLocationFailure, onAreaClosed } = model
   return (
     <View testID="create-location-section" style={styles.section}>
       <Text variant="label" style={styles.label}>{t('createType.area')}</Text>
@@ -66,7 +66,9 @@ export function CreateLocationFields({ model }: { model: ReturnType<typeof useCr
           {t('administrative.changed')}
         </Text>
       ) : null}
-      <DiscoveryLocationSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
+      {settingsFailed ? <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
+      <DiscoveryLocationSheet onLocationFailure={onLocationFailure} onClosed={onAreaClosed} visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
+      {dialog}
     </View>
   )
 }

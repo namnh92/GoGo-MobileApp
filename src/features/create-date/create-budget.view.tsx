@@ -8,12 +8,12 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
+import { Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
 import { IconCheck } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, tierForAmount, type BudgetTier } from './budget-tiers'
-import { WizardStep } from './wizard-step.view'
+import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
@@ -59,8 +59,7 @@ export default function CreateBudgetScreen() {
       : t('createBudget.body')
 
   return (
-    <Atmosphere redesign>
-      <WizardStep step="budget" onBack={() => router.back()} />
+    <WizardScreen step="budget" onBack={() => router.back()}>
       <ScrollView
         testID="create-budget-scroll"
         style={styles.scroll}
@@ -115,6 +114,6 @@ export default function CreateBudgetScreen() {
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>
-    </Atmosphere>
+    </WizardScreen>
   )
 }

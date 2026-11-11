@@ -1,6 +1,9 @@
 import { useFocusEffect } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Linking } from 'react-native'
+
+import { useDialog } from '@/shared/ui/dialog.view'
 
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
@@ -26,7 +29,25 @@ export function useCreateLocation() {
   const { status } = useSession()
   const location = useCurrentLocation()
   const { refresh } = location
-  useFocusEffect(useCallback(() => { void refresh() }, [refresh]))
+  const { confirm, dialog } = useDialog({ waitForDismiss: true })
+  // Step 1 stays mounted under the other steps in the stack. A fresh wizard
+  // mount starts a new session; returning from another step does not re-prompt.
+  const autoFailureShown = useRef(false)
+  const focused = useRef(false)
+  const areaOpenRef = useRef(areaOpen)
+  const pendingFailure = useRef(false)
+  const [settingsFailed, setSettingsFailed] = useState(false)
+  const failureHandler = useRef(() => {})
+  useFocusEffect(useCallback(() => {
+    focused.current = true
+    let active = true
+    void refresh().then(result => {
+      if (active && !autoFailureShown.current && (result?.status === 'denied' || result?.status === 'unavailable')) {
+        failureHandler.current()
+      }
+    })
+    return () => { active = false; focused.current = false; pendingFailure.current = false }
+  }, [refresh]))
   const version = useAdministrativeVersion()
   const radiusM = useRoomStore(state => state.radiusM)
   // A restored manual draft is its own choice, even when startup GPS is ready.
@@ -74,6 +95,48 @@ export function useCreateLocation() {
     setAreaOpen(true)
   }
 
+  async function promptLocationFailure() {
+    if (!focused.current) return
+    setSettingsFailed(false)
+    const actions = [
+      { key: 'cancel', label: t('common.cancel'), style: 'cancel' as const },
+      { key: 'confirm', label: t('createLocation.confirm') },
+    ]
+    const choice = await confirm({
+      title: t('createLocation.failureTitle'), message: t('createLocation.failureBody'), actions, actionLayout: 'row',
+    })
+    if (!focused.current) return
+    if (choice === 'confirm') {
+      try { await Linking.openSettings() } catch { setSettingsFailed(true) }
+    } else if (choice === 'cancel') {
+      const manual = await confirm({
+        title: t('createLocation.manualTitle'), message: t('createLocation.manualBody'), actions, actionLayout: 'row',
+      })
+      if (manual === 'confirm' && focused.current) openArea()
+    }
+  }
+
+  function onLocationFailure() {
+    // An explicit failure also consumes the auto notice if a focus refresh is
+    // still in flight. Explicit taps always enter this flow again.
+    autoFailureShown.current = true
+    if (areaOpenRef.current) {
+      pendingFailure.current = true
+      setAreaOpen(false)
+    } else void promptLocationFailure()
+  }
+
+  function onAreaClosed() {
+    if (!pendingFailure.current) return
+    pendingFailure.current = false
+    void promptLocationFailure()
+  }
+
+  useLayoutEffect(() => {
+    areaOpenRef.current = areaOpen
+    failureHandler.current = onLocationFailure
+  })
+
   function chooseArea(value: AdministrativeSelection | null) {
     setKeepDraftArea(true)
     selectArea(value)
@@ -111,6 +174,7 @@ export function useCreateLocation() {
     : usingCurrent ? gpsLabel || t('createLocation.locatedNoLabel') : null
 
   return {
+    dialog, settingsFailed, onLocationFailure, onAreaClosed,
     validate, areaOpen, setAreaOpen, openArea, scopeLabel, usingCurrent, radiusM,
     setRadiusM: (value: number | null) => patchDraft({ radiusM: value }),
     locationStatus: location.state.status, offerHomeArea, homeArea, useHomeArea,

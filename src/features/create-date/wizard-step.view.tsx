@@ -1,6 +1,9 @@
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
+import { KeyboardAvoidingView, Platform, View } from 'react-native'
+import type { ReactNode } from 'react'
+
+import { Atmosphere } from '@/shared/ui/primitives'
 
 import { useRoom } from '@/shared/store/roomStore'
 import { Text } from '@/shared/ui/text'
@@ -35,7 +38,7 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
   const label = t('createWizard.step', { current: index + 1, total })
 
   return (
-    <>
+    <View testID="wizard-chrome" style={styles.chrome}>
       <View>
         <AppHeader onBack={onBack} title={t('home.createDate')} rightAction={<WizardActions step={step} compact />} />
       </View>
@@ -50,6 +53,19 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
           <View style={[styles.fill, { width: `${((index + 1) / total) * 100}%` }]} />
         </View>
       </View>
-    </>
+    </View>
   )
+}
+
+/** Keep chrome out of the bounded body on every step, including loading/error.
+ * The avoiding view stays directly below the chrome: RN measures its local y
+ * against the keyboard's screen y. Nesting it inside the body loses that offset.
+ * Each screen keeps its GlassBar placement and scroll/field visibility handlers. */
+export function WizardScreen({ step, onBack, avoidKeyboard = false, children }: { step: WizardStepKey; onBack: () => void; avoidKeyboard?: boolean; children: ReactNode }) {
+  const content = <View testID="wizard-content" style={styles.content}>{children}</View>
+  return <Atmosphere redesign>
+    <WizardStep step={step} onBack={onBack} />
+    {avoidKeyboard ? <KeyboardAvoidingView testID={`create-${step}-keyboard`} style={styles.content}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{content}</KeyboardAvoidingView> : content}
+  </Atmosphere>
 }

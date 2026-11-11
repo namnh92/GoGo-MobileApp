@@ -6,7 +6,7 @@ import i18n from '@/shared/i18n'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { TimePickerSheet } from './time-picker-sheet.view'
 import { Text } from '@/shared/ui/text'
@@ -17,7 +17,7 @@ import { DateTimeSheet } from './date-time-sheet.view'
 import { dayTimeLabel, dayLabel } from './day-format'
 import { isPastSlot, parseDayKey } from './calendar'
 import { freshDay, scheduleToIso } from './schedule-day'
-import { WizardStep } from './wizard-step.view'
+import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-time.style'
 
 type PickerTarget = 'start' | 'end' | null
@@ -100,8 +100,7 @@ export default function CreateTimeScreen() {
 
 
   return (
-    <Atmosphere redesign>
-      <WizardStep step="time" onBack={() => router.back()} />
+    <WizardScreen step="time" onBack={() => router.back()}>
       <ScrollView
         testID="create-time-scroll"
         style={styles.scroll}
@@ -201,6 +200,6 @@ export default function CreateTimeScreen() {
         invalidHint={t('createTime.endAfterStart')}
         onClose={() => setPickerFor(null)} onDone={pickSlot} testID="end-time-sheet" />
 
-    </Atmosphere>
+    </WizardScreen>
   )
 }

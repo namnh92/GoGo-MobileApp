@@ -26,9 +26,9 @@ const direct = [
 const wrappers: Record<string, string> = {
   'account/defaults-screen': 'SettingsPage', 'account/profile-defaults': 'SettingsPage', 'account/theme-screen': 'SettingsPage',
   'settings/permissions': 'SettingsPage',
-  'create-date/create-type': 'WizardStep', 'create-date/group-setup': 'WizardStep',
-  'create-date/create-time': 'WizardStep',
-  'create-date/create-budget': 'WizardStep', 'create-date/create-mood': 'WizardStep',
+  'create-date/create-type': 'WizardScreen', 'create-date/group-setup': 'WizardScreen',
+  'create-date/create-time': 'WizardScreen',
+  'create-date/create-budget': 'WizardScreen', 'create-date/create-mood': 'WizardScreen',
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
 // SettingsPage covers permissions/data, defaults and theme, including embedded settings.

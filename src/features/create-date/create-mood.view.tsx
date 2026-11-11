@@ -14,7 +14,7 @@ import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStor
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
@@ -25,7 +25,7 @@ import { ExpandToggle } from '@/shared/ui/expand-toggle.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import type { SeedPlaceRef } from '@/shared/store/roomStore'
 
-import { WizardStep } from './wizard-step.view'
+import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-mood.style'
 
 const MAX_MOODS = 3
@@ -199,9 +199,8 @@ export default function CreateMoodScreen() {
   }
 
   return (
-    <Atmosphere redesign>
+    <WizardScreen step="mood" onBack={() => router.back()}>
       <BlockingLoadingOverlay visible={createRoom.isPending} />
-      <WizardStep step="mood" onBack={() => router.back()} />
 
       {taxonomies.isPaused && !taxonomies.data ? (
         <View testID="create-mood-offline" style={[styles.errorWrap, { paddingBottom: footerInset + spacing[4] }]}><OfflineState /></View>
@@ -227,7 +226,7 @@ export default function CreateMoodScreen() {
           <ErrorState error={taxonomies.error} onRetry={() => void taxonomies.refetch()} />
         </View>
       ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingHorizontal: spacing[4], paddingBottom: footerInset + spacing[4] }}>
+        <ScrollView testID="create-mood-scroll" style={styles.scroll} contentContainerStyle={{ paddingHorizontal: spacing[4], paddingBottom: footerInset + spacing[4] }}>
           <Text variant="discoveryTitle">{t('createMood.title')}</Text>
           <Text color="text.secondary" style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
 
@@ -280,6 +279,6 @@ export default function CreateMoodScreen() {
           disabled={taxonomies.isPending || taxonomies.isError}
         />
       </GlassBar>
-    </Atmosphere>
+    </WizardScreen>
   )
 }
