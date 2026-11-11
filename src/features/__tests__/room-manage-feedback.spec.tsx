@@ -120,12 +120,30 @@ it('saves area codes through the real mutation and marks suggestions/plan stale'
   await press(screen.getByRole('button', { name: 'Lưu' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
     administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
+    originLat: null, originLng: null, radiusM: null,
     budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', expectedConstraintVersion: 7,
   }))
   expect(client.getQueryState(queryKeys.roomSuggestions('room-1'))?.isInvalidated).toBe(true)
   expect(client.getQueryState(queryKeys.roomCurrentPlan('room-1'))?.isInvalidated).toBe(true)
   expect(client.getQueryData(queryKeys.room('room-1'))).toMatchObject({ constraintVersion: 8 })
   expect(screen.getAllByText('✓ Đã lưu · gợi ý và kế hoạch cần tạo lại').length).toBeGreaterThan(0)
+})
+it('clears the GPS origin and radius when switching a Hanoi GPS room to a manual area', async () => {
+  // Coordinates model stored GPS state; RoomSummary normally omits them for privacy.
+  const gpsConstraints = {
+    budgetMode: 'per_person' as const, budgetAmount: 300000, currency: 'VND',
+    administrativeArea: mockArea, originLat: 21.0285, originLng: 105.8542, radiusM: 5000,
+  }
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: gpsConstraints }))
+  await openArea()
+  await chooseArea()
+  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
+    originLat: null, originLng: null, radiusM: null,
+    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', expectedConstraintVersion: 7,
+  }))
+  expect(mockPatch).toHaveBeenCalledTimes(1)
 })
 it.each(['member', 'guest'] as const)('hides area editing for %s', async role => {
   mockRoom.query = mockLoaded(roomFor('group-guest', { members: [{ id: 'me', displayName: 'Tôi', role: 'member', isGuest: role === 'guest', selectionStatus: 'pending' }] }))

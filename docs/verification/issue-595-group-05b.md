@@ -353,3 +353,61 @@ hoặc skip các test đó. Lệnh scoped đúng phía trên chạy xong và PAS
 
 Chưa chạy simulator/build hoặc nghiệm thu native Light/Dark/pixel cho vòng này.
 Các kết quả trên chỉ xác nhận code, rendered structure, contract binding và regressions.
+
+
+## Astra F-04 P2 correction — 2026-11-12
+
+Scope: only F-04 on PR #600, base HEAD `386eb45c`, worktree `mobile-595`.
+The owner's explicit instruction authorizes this focused correction and checks.
+No staging, commit, push, build, simulator or Stitch write.
+
+### Diff and contract evidence
+
+- `room-manage.view.tsx`: saving a manual administrative area now sends
+  `originLat: null`, `originLng: null`, `radiusM: null` in the same constraint
+  PATCH as the new area, existing saved budget/currency and concurrency version.
+  This clears the old GPS filter instead of retaining an incompatible radius
+  around Hà Nội when selecting TP.HCM. Budget-only saves retain their behavior.
+- `openapi/gogo.v1.yaml:14490–14512`: `RoomConstraintPatch` explicitly defines
+  omitted fields as keeping stored values and null as clearing them. Both
+  coordinates accept `[number, 'null']`; radius accepts `[integer, 'null']`.
+  Generated `src/shared/api/schema.d.ts:6968–6976` exposes all three as
+  `number | null`. No contract change or generated-type edit was needed.
+- This matches manual selection in
+  `src/features/create-date/use-create-location.ts:161`, which clears the same
+  three fields. This section supersedes the earlier round-3 phrase “không gửi
+  labels/status/GPS”: area edits now explicitly send null GPS/radius values.
+- `room-manage-feedback.spec.tsx`: new regression starts with a mocked Hà Nội
+  GPS room (21.0285, 105.8542, radius 5000m), selects TP.HCM via the real picker,
+  and asserts exactly one endpoint call with the complete PATCH body including
+  all three nulls. The existing area-save/stale-invalidation expectation also
+  requires the clears. Coordinates in this fixture model stored state;
+  RoomSummary normally omits exact coordinates for privacy. The existing
+  no-coordinate fixture also proves clearing does not depend on reading them.
+  Traceability: FR-ROOM-005; existing host/stale behavior remains covered.
+
+### FAIL on 386eb45 / PASS after
+
+Identical regression command on both runs:
+`pnpm test:ui --runInBand room-manage-feedback --testNamePattern='clears the GPS origin'`.
+
+The regression was added before modifying production code. Baseline production
+was unchanged from clean HEAD `386eb45c`; no checkout/index changes were needed.
+
+| Basis | Result | Evidence |
+| --- | --- | --- |
+| Production @386eb45c + new regression | FAIL, 1 failed / 16 skipped, Jest exit 1: received PATCH omits originLat/originLng/radiusM | `/tmp/595-f04/fail-before.log` |
+| Fixed working tree + same regression | PASS, 1 passed / 16 skipped, exit 0 | `/tmp/595-f04/pass-after.log` |
+
+### Checks
+
+| Command | Result | Evidence |
+| --- | --- | --- |
+| `pnpm test:ui room gogo-room --runInBand` | PASS, 18 suites / 291 tests, exit 0 | `/tmp/595-f04/ui-room.log` |
+| `pnpm typecheck` | PASS, exit 0 | `/tmp/595-f04/typecheck.log` |
+| `pnpm exec eslint src/features/gogo-room/room-manage.view.tsx src/features/__tests__/room-manage-feedback.spec.tsx` | PASS, exit 0, no diagnostics | `/tmp/595-f04/lint.log` |
+| `git diff --check` | PASS | No whitespace errors |
+
+Tests exercise the real mutation hook with a mocked endpoint and administrative
+queries. They prove the client PATCH body and existing room regressions; they do
+not establish live BE candidate retrieval, DEV acceptance or native visual QA.

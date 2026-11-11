@@ -139,6 +139,10 @@ export default function RoomManageScreen() {
     try {
       await updateConstraints.mutateAsync(area ? {
         administrativeArea: { datasetVersion: area.datasetVersion, provinceCode: area.provinceCode, communeCode: area.communeCode },
+        // Manual area replaces the GPS filter; PATCH omission preserves it.
+        originLat: null,
+        originLng: null,
+        radiusM: null,
         budgetMode: constraints.budgetMode,
         budgetAmount: constraints.budgetAmount,
         currency,
