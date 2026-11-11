@@ -275,3 +275,27 @@ Owner rule thay thế mô tả overflow ở mục Mood round 2 phía trên: **th
 | `git diff --check` | PASS, exit 0. |
 
 Raw logs local: `/tmp/594-f06-before.log`, `/tmp/594-f06-after.log`, `/tmp/594-f06-typecheck.log`. Đây là component regression; chưa chạy simulator/native build. API/store/submit mapping không thay đổi.
+
+
+## Astra F-07 — 2026-11-11
+
+Basis: PR #598, HEAD `9271a15056fa171f843809e031730c9b2b2a3a97`, worktree `mobile-594` sạch trước khi thêm regression. DEV chốt chính xác quy tắc bên dưới; thay thế thứ tự selected-first của mục F-06, vẫn giữ cap 5 và mọi lựa chọn đã chọn có thể bỏ chọn. Không stage/commit/push.
+
+`collapsedVisible(options, selected)` giữ `base = options.slice(0, 5)` theo thứ tự gốc. Lấy các lựa chọn đã chọn trong `options.slice(5)`; nếu không có thì trả nguyên base. Nếu có, loại đúng số lượng tương ứng từ **cuối danh sách base chưa chọn**, rồi ghép overflow theo thứ tự gốc. Base luôn đứng trước overflow nên kết quả đã đúng original index, không cần sort. Giới hạn chọn hiện có (mood 3 / setting 2 / spending 1) bảo đảm đủ slot thay thế. Expanded vẫn dùng nguyên options.
+
+Regression trong `round-two.spec.tsx`:
+
+- Bấm vị trí thứ hai hai lần khi thu gọn: `b` bật rồi tắt, thứ tự `a..e` không đổi; chạy với 3, 5 và 7 options để bao gồm section ≤5.
+- Chọn `g` khi mở rồi thu gọn: `a,b,c,d,g`; bỏ `g` khi thu gọn trả về `a,b,c,d,e` (vi/en).
+- Giữ toàn bộ case F-06 cho ba section, restored selections và max-3; chỉ sửa expectations selected-first sang taxonomy order.
+- Restored `e,f,g` giữ `a,b,e,f,g`, bỏ `f` cho `a,b,c,e,g`, bỏ `g` trả `a..e`: chứng minh chỉ thay unselected tail, không loại base đã chọn, luôn đúng 5 hàng mỗi section.
+
+| Check | Kết quả |
+| --- | --- |
+| FAIL-before: `pnpm test:ui create-date --runInBand` | Production nguyên `9271a15`, chỉ cập nhật test: exit 1, **1 suite failed / 2 passed; 10 tests failed / 23 passed**. Bấm `b` làm thứ tự thành `b,a,c,d,e`; overflow vẫn selected-first. |
+| PASS-after: cùng lệnh, cùng regression | exit 0, **3 suites / 33 tests passed** trên working-tree patch. |
+| `pnpm typecheck` | PASS, exit 0; sandbox cho phép. |
+| `pnpm exec eslint src/features/create-date/create-mood.view.tsx src/features/create-date/__tests__/round-two.spec.tsx` | PASS, exit 0. |
+| `git diff --check` | PASS, exit 0. |
+
+Raw logs local: `/tmp/594-f07-before.log`, `/tmp/594-f07-after.log`, `/tmp/594-f07-typecheck.log`. Đây là component regression; chưa chạy simulator/native build. API/store/submit mapping không thay đổi.

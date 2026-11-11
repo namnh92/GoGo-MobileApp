@@ -7,19 +7,22 @@ import GroupSetupScreen from '../group-setup.view'
 import CreateMoodScreen from '../create-mood.view'
 import CreateTimeScreen from '../create-time.view'
 
+let mockMoodOptionCount = 7
+
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useMe: () => mockLoaded({ usualBudget: null }),
   useTaxonomies: () => mockLoaded({ kinds: {
-    mood: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(key => ({ key, labels: { vi: `Mood ${key}`, en: `Mood ${key}` } })),
+    mood: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].slice(0, mockMoodOptionCount).map(key => ({ key, labels: { vi: `Mood ${key}`, en: `Mood ${key}` } })),
     setting: ['inside', 'outside', 'quiet', 's4', 's5', 's6', 's7'].map(key => ({ key, labels: { vi: key, en: key } })),
     spending_style: ['value', 's2', 's3', 's4', 's5', 's6', 's7'].map(key => ({ key, labels: { vi: `Spend ${key}`, en: `Spend ${key}` } })),
   } }),
   useCreateRoom: () => ({ isPending: false, mutateAsync: jest.fn() }),
 }))
 beforeEach(async () => {
+  mockMoodOptionCount = 7
   useRoomStore.getState().resetDraft()
   await act(async () => { await i18n.changeLanguage('vi') })
   jest.useFakeTimers({ now: new Date(2026, 10, 5, 10), doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate', 'nextTick', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'hrtime'] })
@@ -80,11 +83,12 @@ it.each(['vi', 'en'])('round 2: caps each section, expands independently and ret
   await fireEvent.press(view.getByRole('checkbox', { name: 'Mood g' }))
   await fireEvent.press(view.getByRole('button', { name: collapse }))
   expect(view.getAllByRole('checkbox')).toHaveLength(15)
-  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood g', 'Mood a', 'Mood b', 'Mood c', 'Mood d'])
+  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood a', 'Mood b', 'Mood c', 'Mood d', 'Mood g'])
   expect(view.getByRole('checkbox', { name: 'Mood g' }).props.accessibilityState.checked).toBe(true)
   expect(view.queryByRole('checkbox', { name: 'Mood f' })).toBeNull()
   await fireEvent.press(view.getByRole('checkbox', { name: 'Mood g' }))
   expect(view.queryByRole('checkbox', { name: 'Mood g' })).toBeNull()
+  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood a', 'Mood b', 'Mood c', 'Mood d', 'Mood e'])
 })
 
 it('round 2: keeps restored overflow selections visible and preserves max three after expansion', async () => {
@@ -101,13 +105,13 @@ it('round 2: keeps restored overflow selections visible and preserves max three 
   await fireEvent.press(view.getByRole('button', { name: 'Thu gọn' }))
   expect(view.getByRole('checkbox', { name: 'Mood g' }).props.accessibilityState.checked).toBe(true)
   expect(view.getAllByRole('checkbox')).toHaveLength(15)
-  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood a', 'Mood b', 'Mood g', 'Mood c', 'Mood d'])
+  expect(view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)).toEqual(['Mood a', 'Mood b', 'Mood c', 'Mood d', 'Mood g'])
 })
 
 it.each([
-  [0, 'Mood g', ['Mood g', 'Mood a', 'Mood b', 'Mood c', 'Mood d']],
-  [1, 's7', ['s7', 'inside', 'outside', 'quiet', 's4']],
-  [2, 'Spend s7', ['Spend s7', 'Spend value', 'Spend s2', 'Spend s3', 'Spend s4']],
+  [0, 'Mood g', ['Mood a', 'Mood b', 'Mood c', 'Mood d', 'Mood g']],
+  [1, 's7', ['inside', 'outside', 'quiet', 's4', 's7']],
+  [2, 'Spend s7', ['Spend value', 'Spend s2', 'Spend s3', 'Spend s4', 'Spend s7']],
 ] as const)('#594 F-06: keeps option seven within five slots in section %s', async (section, seventh, expected) => {
   const view = await renderScreen(<CreateMoodScreen />)
   await fireEvent.press(view.getAllByRole('button', { name: 'Tất cả' })[section])
@@ -129,4 +133,34 @@ it.each([0, 1, 2])('round 2: expands section %s inline and collapses independent
   expect(view.getAllByRole('button', { name: 'Tất cả' })).toHaveLength(2)
   await fireEvent.press(view.getByRole('button', { name: 'Thu gọn' }))
   expect(view.getAllByRole('checkbox')).toHaveLength(15)
+})
+
+
+it.each([3, 5, 7])('#594 F-07: consecutive collapsed taps keep positions with %s options', async count => {
+  mockMoodOptionCount = count
+  const view = await renderScreen(<CreateMoodScreen />)
+  const labels = ['a', 'b', 'c', 'd', 'e'].slice(0, count).map(key => `Mood ${key}`)
+  const moodRows = () => view.getAllByRole('checkbox').slice(0, labels.length)
+  expect(moodRows().map(row => row.props.accessibilityLabel)).toEqual(labels)
+  await fireEvent.press(moodRows()[1])
+  expect(useRoomStore.getState().moodKeys).toEqual(['b'])
+  expect(moodRows().map(row => row.props.accessibilityLabel)).toEqual(labels)
+  expect(moodRows()[1].props.accessibilityState.checked).toBe(true)
+  await fireEvent.press(moodRows()[1])
+  expect(useRoomStore.getState().moodKeys).toEqual([])
+  expect(moodRows().map(row => row.props.accessibilityLabel)).toEqual(labels)
+  expect(moodRows()[1].props.accessibilityState.checked).toBe(false)
+})
+
+it('#594 F-07: replaces only unselected base tails for multiple overflow selections', async () => {
+  useRoomStore.getState().patchDraft({ moodKeys: ['e', 'f', 'g'] })
+  const view = await renderScreen(<CreateMoodScreen />)
+  const labels = () => view.getAllByRole('checkbox').slice(0, 5).map(row => row.props.accessibilityLabel)
+  expect(view.getAllByRole('checkbox')).toHaveLength(15)
+  expect(labels()).toEqual(['Mood a', 'Mood b', 'Mood e', 'Mood f', 'Mood g'])
+  await fireEvent.press(view.getByRole('checkbox', { name: 'Mood f' }))
+  expect(labels()).toEqual(['Mood a', 'Mood b', 'Mood c', 'Mood e', 'Mood g'])
+  await fireEvent.press(view.getByRole('checkbox', { name: 'Mood g' }))
+  expect(labels()).toEqual(['Mood a', 'Mood b', 'Mood c', 'Mood d', 'Mood e'])
+  expect(useRoomStore.getState().moodKeys).toEqual(['e'])
 })

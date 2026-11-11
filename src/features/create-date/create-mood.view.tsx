@@ -34,6 +34,17 @@ interface ChipOption {
   label: string
 }
 
+function collapsedVisible(options: ChipOption[], selected: Set<string>): ChipOption[] {
+  const base = options.slice(0, 5)
+  const overflowSelected = options.slice(5).filter(option => selected.has(option.key))
+  if (overflowSelected.length === 0) return base
+
+  const replaceable = new Set(base.filter(option => !selected.has(option.key))
+    .slice(-overflowSelected.length).map(option => option.key))
+  // Both slices retain their original order; overflow follows every base option.
+  return [...base.filter(option => !replaceable.has(option.key)), ...overflowSelected]
+}
+
 function ChoiceList({ title, options, selected, onToggle, max }: {
   title: string
   options: ChipOption[]
@@ -43,11 +54,7 @@ function ChoiceList({ title, options, selected, onToggle, max }: {
 }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
-  // Keep selections removable within the five collapsed slots, in taxonomy order.
-  const visible = expanded ? options : [
-    ...options.filter(option => selected.includes(option.key)),
-    ...options.filter(option => !selected.includes(option.key)),
-  ].slice(0, 5)
+  const visible = expanded ? options : collapsedVisible(options, new Set(selected))
   const atLimit = max !== undefined && selected.length >= max
   return (
     <View>
