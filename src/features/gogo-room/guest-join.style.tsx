@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   content: { flexGrow: 1, paddingTop: spacing[2], paddingHorizontal: spacing[4] },
@@ -15,15 +15,6 @@ export const styles = StyleSheet.create(theme => ({
   details: { borderRadius: radius.compact, padding: spacing[4], gap: spacing[3], marginBottom: spacing[4] },
   detailsTitle: {},
   noAccountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
-  nameInput: {
-    ...type.body,
-    height: Math.max(48, touchTarget.min),
-    lineHeight: undefined,
-    borderRadius: radius.compact,
-    paddingHorizontal: spacing[4],
-    color: theme.text.primary,
-    backgroundColor: theme.surface.low,
-  },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

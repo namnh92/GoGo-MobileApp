@@ -955,11 +955,17 @@ export const viMessages = {
   'roomManage.cancelBody': 'Phòng bị huỷ không khôi phục được. Mọi người sẽ mất quyền truy cập.',
   'roomManage.seedTitle': 'Địa điểm gợi ý',
 
-  'guestJoin.badge': 'Lời mời date',
+  'guestJoin.badge': 'Lời mời tham gia',
+  'guestJoin.badge_couple': 'Lời mời date',
+  'guestJoin.badge_group': 'Lời mời nhóm',
   // The invite lookup deliberately exposes no host name before joining — an
   // invite code carries no PII.
-  'guestJoin.title': 'Bạn được rủ chọn date',
-  'guestJoin.detailsTitle': 'Chi tiết buổi date',
+  'guestJoin.title': 'Bạn được rủ đi chơi',
+  'guestJoin.title_couple': 'Bạn được rủ chọn date',
+  'guestJoin.title_group': 'Bạn được rủ đi chơi cùng nhóm',
+  'guestJoin.detailsTitle': 'Chi tiết buổi hẹn',
+  'guestJoin.detailsTitle_couple': 'Chi tiết buổi date',
+  'guestJoin.detailsTitle_group': 'Chi tiết buổi hẹn',
   'guestJoin.join': 'Tham gia',
   'guestJoin.noAccount': 'Không cần tạo tài khoản.',
   'guestJoin.asAccount': 'Bạn sẽ vào phòng bằng tài khoản đang đăng nhập.',

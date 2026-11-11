@@ -150,3 +150,39 @@ F-05 P2 (Astra round 2 @d80f599): the per-code remount (`key={inviteCode}`) rese
 - Regression `F-05: guest join A in flight across a warm link to B` models the session generation (landing bumps it, an older request is cancelled): FAIL on d80f599 (`Expected length: 1, Received length: 2` — B started concurrently), PASS after. Logs: GoGo workspace `dev/handoffs/596-f05-before.log`, `596-f05-after.log`.
 - Signed-in test `holds invite B until late join A settles, then joins B` updated from "B may submit while A is pending" to the base behaviour.
 - Checks (local, outside sandbox): typecheck 0; `pnpm test` 1756 passed / 0 failed; `pnpm test:ui` 3499 passed; lint only the 2 pre-existing `no-undef` in `scripts/generate-brand-icons.mjs`.
+
+## Owner sim feedback 2026-11-12
+
+PR #638, baseline `ec1cd11e` (đã chứa `825f5224`), nhánh `feature/GOGO-596-redesign-g05c-invite`. Nguồn yêu cầu: owner sim check 2026-11-12, workspace `dev/policy/decisions-log.md:5`, và yêu cầu sửa trực tiếp trong phiên này. Kết quả dưới đây đo trên working tree chưa commit; không git add/commit/push.
+
+- **Typography 5.15:** label dùng `caption` + `text.secondary`; cả bốn value dùng `body`, cùng scale với `InfoRow` ở lobby “Điều kiện phòng”. Tên người mời và heading card giữ `title2`, nên value không cạnh tranh với heading. Không thêm font size/weight riêng.
+- **Schedule:** mở rộng `roomScheduleLabel` trong `room-schedule.ts` bằng tùy chọn compact; dùng lại `roomScheduleRange` cho validation/end/DST và `dayLabel` của create wizard cho ngày/weekday. Không thêm formatter riêng trong preview. VI: cùng ngày `20:00 – 22:00 · T4, 11/11/2026`; khác ngày `20:00 T4, 11/11 – 01:00 T5, 12/11/2026`; thiếu end `20:00 · T4, 11/11/2026`. EN dùng weekday, ngày/tháng và đồng hồ của locale qua Intl. Qua năm giữ cả hai năm; qua DST giữ hai timezone theo invariant cũ. Missing/invalid start ẩn fact, invalid/non-forward end bỏ end. Callers không bật compact giữ output cũ.
+- **Audience:** badge/title/details dùng i18n context từ `roomType` và `participantCount`. GROUP dùng “Lời mời nhóm”, “Bạn được rủ đi chơi cùng nhóm”, “Chi tiết buổi hẹn”; COUPLE giữ copy date cũ; có cả VI/EN. GROUP 2 người vẫn là nhóm. Chưa có preview facts thì dùng copy trung tính, không suy audience từ route. 5.18/5.19 và join-by-code được kiểm tra VI/EN: copy trung tính, không gán phòng đôi hay nhóm khi không có facts; giữ nguyên recovery/error semantics.
+- **Input 5.15/5.16:** cả ba field dùng chung `JoinInput` view/style. Shell dùng đúng surface `surface.subtle`, `radius.compact`, border `border.hairline` 1pt và outer height 48pt như room-name input của create wizard. Text dùng `type.body`, không lineHeight, padding `spacing[3]`; chiều cao input nằm trong border. Dán là trailing button size small trong shell; clear/paste, max-length, trim, disabled và submit giữ handlers cũ.
+- **Pins/registry:** thêm color-role bindings của shared input vào `stitch-color-pins.json`; registry single-line chuyển từ `join-by-code.style` sang `join-input.style`, giữ assertion fixed height/no lineHeight. Context VI/EN qua registry i18n hiện hữu; không thêm computed-key exception. Test parity so sánh trực tiếp cả hai field với tokens của create wizard, gồm chiều cao outer field và trailing button.
+
+### FAIL trên ec1cd11 / PASS sau sửa
+
+Thêm test trước khi sửa; chạy lại bộ test cuối với tám file implementation/i18n lấy đúng từ `git show ec1cd11:<path>`, sau đó khôi phục nguyên vẹn patched source bằng `finally` (byte equality xác nhận). Không đổi HEAD/index hoặc reset worktree. Chạy lại cùng regression trên patched source.
+
+| Proof | Baseline ec1cd11e | Patched working tree |
+| --- | --- | --- |
+| `pnpm test:ui --runInBand --watchman=false src/features/__tests__/invite-preview.spec.tsx src/features/__tests__/invite-code-redesign.spec.tsx -t 'Owner sim feedback 2026-11-12'` | **8 FAIL**, 6 PASS, 152 SKIP, exit 1: group copy VI/EN (3), loading copy VI/EN (2), fact typography (1), preview name tokens (1), code/name style parity (1). Couple + terminal copy đã PASS. | **14 PASS**, 152 SKIP, exit 0 |
+| `pnpm exec vitest run src/features/gogo-room/__tests__/room-schedule.test.ts -t compact` | **8 FAIL**, 14 SKIP, exit 1 | Cả **8 PASS** trong full schedule suite **22/22 PASS** |
+
+Formatter pins: VI/EN × same day / different days / missing end; invalid/missing start, invalid/reversed end; New Year; DST fallback. UI pins kiểm tra bốn fact values, header hierarchy, audience count 2/7 và shared input surface/border/height. Không thay expected để chấp nhận lỗi cũ.
+
+### Checks trên patch cuối
+
+| Check | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | **PASS**, exit 0 |
+| `pnpm test:ui invite guest join --runInBand --watchman=false` | **PASS**, 12 suites / **282 tests**, exit 0 |
+| `pnpm test:ui --runInBand --watchman=false src/features/auth/__tests__/input-line.spec.ts src/features/__tests__/i18n-keys.spec.tsx src/features/__tests__/date-format-pins.spec.tsx` | **PASS**, 3 suites / **51 tests**, exit 0 |
+| `pnpm exec vitest run src/features/gogo-room/__tests__/room-schedule.test.ts src/shared/ui/__tests__/color-roles.test.ts src/shared/ui/__tests__/type-scale.test.ts src/shared/ui/__tests__/app-header-ownership.test.ts src/shared/ui/__tests__/chip-ownership.test.ts src/shared/ui/__tests__/submit-overlay.test.ts` | **PASS**, 6 files / **137 tests**, exit 0 |
+| `pnpm exec eslint <14 touched TS/TSX files>` | **PASS**, exit 0, không warning/error |
+| `git diff --check`; staged diff | **PASS**; index rỗng |
+
+Logs: `/tmp/596-owner-sim-before-ui.log`, `/tmp/596-owner-sim-before-schedule.log`, `/tmp/596-owner-sim-after-ui.log`, `/tmp/596-owner-sim-ui.log`, `/tmp/596-owner-sim-registry.log`, `/tmp/596-owner-sim-tokens.log`, `/tmp/596-owner-sim-typecheck.log`, `/tmp/596-owner-sim-lint.log`.
+
+Không có simulator/build/native visual re-check trong lượt này; các PASS là regression/check source, không phải owner sim acceptance. Không đổi API, session flow, analytics hay persistence. `RTK.md` được AGENTS tham chiếu không có trong worktree và các ancestor đã kiểm tra; các rules workspace hiện hữu vẫn được đọc và áp dụng.

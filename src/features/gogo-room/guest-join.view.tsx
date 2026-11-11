@@ -5,8 +5,6 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, isOffline, useJoinRoom, useInvitePreview } from '@/shared/api'
@@ -21,6 +19,7 @@ import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { InviteExpired } from './invite-expired.view'
+import { JoinInput } from './join-input.view'
 import { styles } from './guest-join.style'
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -52,7 +51,6 @@ function GuestJoinInvite({ inviteCode, pending, setPending }: {
   pending: boolean
   setPending: (value: boolean) => void
 }) {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -222,8 +220,8 @@ function GuestJoinInvite({ inviteCode, pending, setPending }: {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Chip style={styles.badge} appearance="discovery" icon="heart" label={t('guestJoin.badge')} />
-        <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title')}</Text>
+        <Chip style={styles.badge} appearance="discovery" icon={preview.data?.roomType === 'group' ? 'users' : 'heart'} label={t('guestJoin.badge', { context: preview.data?.roomType, count: preview.data?.participantCount })} />
+        <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title', { context: preview.data?.roomType, count: preview.data?.participantCount })}</Text>
 
         {preview.isPending ? <InvitePreviewSkeleton /> : preview.data ? <InvitePreview data={preview.data} /> : null}
         {previewFailure ? <View style={styles.errorBox}><Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>{toMessage(previewFailure)}</Text><SecondaryBtn label={t('common.retry')} onPress={() => { void preview.refetch() }} /></View> : null}
@@ -236,14 +234,14 @@ function GuestJoinInvite({ inviteCode, pending, setPending }: {
           ) : (
             <>
               <View style={styles.hostHeading}><Text variant="title2" style={styles.factText}>{t('guestJoin.nameLabel')}</Text><Text variant="caption" color="text.secondary">{t('invitePreview.required')}</Text></View>
-              <TextInput
+              <JoinInput
+                fieldTestID="invite-name-field"
                 value={displayName}
                 onChangeText={value => {
                   setDisplayName(value)
                   if (error) setError(null)
                 }}
                 placeholder={t('guestJoin.namePlaceholder')}
-                placeholderTextColor={theme.text.secondary}
                 maxLength={MAX_DISPLAY_NAME}
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -251,7 +249,6 @@ function GuestJoinInvite({ inviteCode, pending, setPending }: {
                 onSubmitEditing={join}
                 editable={!pending}
                 accessibilityLabel={t('guestJoin.nameLabel')}
-                style={styles.nameInput}
               />
             </>
           )}

@@ -1161,7 +1161,15 @@
       "accent.soft",
       "surface.subtle"
     ],
-    "src/features/create-date/draft-plan-card.view.tsx": []
+    "src/features/create-date/draft-plan-card.view.tsx": [],
+    "src/features/gogo-room/join-input.style.tsx": [
+      "border.hairline",
+      "surface.subtle",
+      "text.primary"
+    ],
+    "src/features/gogo-room/join-input.view.tsx": [
+      "text.secondary"
+    ]
   },
   "workspace": {
     "canvas": "#121212",

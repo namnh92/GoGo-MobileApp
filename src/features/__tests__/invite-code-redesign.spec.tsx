@@ -1,8 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import '@/shared/i18n'
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
+import i18n from '@/shared/i18n'
 import { ApiError, NetworkError } from '@/shared/api/errors'
 import JoinByCodeScreen from '@/features/gogo-room/join-by-code.view'
 import * as Clipboard from 'expo-clipboard'
+import { StyleSheet } from 'react-native'
+import { styles as wizardStyles } from '@/features/create-date/create-type.style'
 const mockJoin = jest.fn()
 const mockGuest = jest.fn()
 let mockStatus = 'user'
@@ -10,7 +12,31 @@ jest.mock('expo-clipboard', () => ({ getStringAsync: jest.fn() }))
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: jest.fn(), back: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockStatus, joinAsGuest: mockGuest }) }))
 jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), useJoinRoom: () => ({ mutateAsync: mockJoin }) }))
-beforeEach(() => { jest.clearAllMocks(); mockStatus = 'user' })
+beforeEach(async () => { jest.clearAllMocks(); mockStatus = 'user'; await i18n.changeLanguage('vi') })
+it('Owner sim feedback 2026-11-12: code and name share wizard input tokens and contain paste', async () => {
+  mockStatus = 'anonymous'
+  await render(<JoinByCodeScreen />)
+  expect(StyleSheet.flatten(screen.getByLabelText('Mã mời').props.style)).toEqual(StyleSheet.flatten(screen.getByLabelText('Tên hiển thị').props.style))
+  const code = screen.getByTestId('join-code-field')
+  const name = screen.getByTestId('join-name-field')
+  const codeStyle = StyleSheet.flatten(code.props.style)
+  const nameStyle = StyleSheet.flatten(name.props.style)
+  expect(codeStyle).toEqual(nameStyle)
+  for (const key of ['backgroundColor', 'borderColor', 'borderWidth', 'borderRadius', 'minHeight'] as const) expect(codeStyle[key]).toBe(wizardStyles.nameInput[key])
+  const inputStyle = StyleSheet.flatten(screen.getByLabelText('Mã mời').props.style)
+  expect(inputStyle).toEqual(StyleSheet.flatten(screen.getByLabelText('Tên hiển thị').props.style))
+  expect(inputStyle.height + 2 * codeStyle.borderWidth).toBe(wizardStyles.nameInput.minHeight)
+  expect(screen.getByRole('button', { name: 'Dán' })).toBeTruthy()
+  // The trailing action belongs to the input shell, not a separate field.
+  expect(within(code).getByRole('button', { name: 'Dán' })).toBeTruthy()
+  expect(StyleSheet.flatten(within(code).getByRole('button', { name: 'Dán' }).props.style).minHeight).toBeLessThanOrEqual(inputStyle.height)
+})
+it.each(['vi', 'en'])('typed-code has neutral audience copy before room facts exist (%s)', async language => {
+  await i18n.changeLanguage(language)
+  await render(<JoinByCodeScreen />)
+  expect(screen.getByText(i18n.t('joinByCode.body'))).toBeTruthy()
+  expect(screen.queryAllByText(/date|buổi date|cả hai/i)).toHaveLength(0)
+})
 it('pastes and clears the full credential without joining or restricting its format', async () => {
   jest.mocked(Clipboard.getStringAsync).mockResolvedValue('Ab_c-very-long-invite-code')
   await render(<JoinByCodeScreen />)

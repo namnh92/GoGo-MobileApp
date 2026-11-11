@@ -8,9 +8,10 @@ import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text, type TextColor } from '@/shared/ui/text'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { styles } from './guest-join.style'
+import { roomScheduleLabel } from './room-schedule'
 
 function Fact({ icon, label, value, color = 'accent.primary' }: { icon: IconName; label: string; value: string; color?: TextColor }) {
-  return <View style={styles.fact}><View style={styles.factIcon}><Icon name={icon} size={20} color={color} /></View><View style={styles.factText}><Text variant="caption" color="text.secondary">{label}</Text><Text variant="title2">{value}</Text></View></View>
+  return <View style={styles.fact}><View style={styles.factIcon}><Icon name={icon} size={20} color={color} /></View><View style={styles.factText}><Text variant="caption" color="text.secondary">{label}</Text><Text variant="body">{value}</Text></View></View>
 }
 
 export function InvitePreviewSkeleton() {
@@ -20,7 +21,7 @@ export function InvitePreviewSkeleton() {
 export function InvitePreview({ data }: { data: OpResponse<'previewRoomInvite'> }) {
   const { t, i18n } = useTranslation()
   const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN'
-  const date = (value: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  const schedule = roomScheduleLabel(data.startAt, locale, { compact: true, endAt: data.endAt })
   const budget = data.budget
   const amount = budget ? new Intl.NumberFormat(locale, { style: 'currency', currency: budget.currency }).format(toMajorUnits(budget.amount, budget.currency)) : ''
   return <View style={styles.preview}>
@@ -33,9 +34,9 @@ export function InvitePreview({ data }: { data: OpResponse<'previewRoomInvite'> 
       </View>
     </Card>
     <Card padded={false} style={styles.details}>
-      <View style={styles.hostHeading}><Text variant="title2" style={styles.factText}>{t('guestJoin.detailsTitle')}</Text><Text variant="caption" color="text.secondary">{t('invitePreview.general')}</Text></View>
+      <View style={styles.hostHeading}><Text variant="title2" style={styles.factText}>{t('guestJoin.detailsTitle', { context: data.roomType, count: data.participantCount })}</Text><Text variant="caption" color="text.secondary">{t('invitePreview.general')}</Text></View>
       <Fact color="status.infoText" icon="users" label={t('invitePreview.people')} value={t(`invitePreview.${data.roomType}`, { count: data.participantCount })} />
-      {data.startAt ? <Fact icon="clock" label={t('invitePreview.time')} value={`${date(data.startAt)}${data.endAt ? ` – ${date(data.endAt)}` : ''}`} /> : null}
+      {schedule ? <Fact icon="clock" label={t('invitePreview.time')} value={schedule} /> : null}
       {data.area ? <Fact color="status.infoText" icon="mapPin" label={t('invitePreview.area')} value={[data.area.name, data.area.city].filter(Boolean).join(', ')} /> : null}
       {budget ? <Fact color="status.successText" icon="dollar" label={t('invitePreview.budget')} value={t(`invitePreview.budget.${budget.mode}`, { amount })} /> : null}
     </Card>

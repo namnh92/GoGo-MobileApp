@@ -5,8 +5,6 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { isApiError, isOffline, useJoinRoom } from '@/shared/api'
@@ -20,11 +18,11 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { styles } from './join-by-code.style'
+import { JoinInput } from './join-input.view'
 
 const MAX_NAME = 50
 
 export default function JoinByCodeScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -114,38 +112,36 @@ export default function JoinByCodeScreen() {
               <Icon name="unlock" size={20} color="accent.primary" />
               <Text variant="title2">{t('joinByCode.codeLabel')}</Text>
             </View>
-            <View style={styles.codeRow}>
-            <TextInput
+            <JoinInput
+              fieldTestID="join-code-field"
               value={code}
               onChangeText={value => {
                 setCode(value)
                 if (error) setError(null)
               }}
               placeholder={t('joinByCode.codePlaceholder')}
-              placeholderTextColor={theme.text.secondary}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!pending}
               accessibilityLabel={t('joinByCode.codeLabel')}
-              style={[styles.input, styles.codeInput]}
+              trailing={<>
+                {code ? <IconBtn accessibilityLabel={t('inviteCode.clear')} disabled={pending} onPress={() => setCode('')}><Icon name="x" /></IconBtn> : null}
+                <SecondaryBtn size="small" variant="neutralPill" label={t('inviteCode.paste')} disabled={pending} onPress={() => { void Clipboard.getStringAsync().then(value => { setCode(value); setError(null) }).catch(() => setError(t('inviteCode.pasteFailed'))) }} />
+              </>}
             />
-            {code ? <IconBtn accessibilityLabel={t('inviteCode.clear')} disabled={pending} onPress={() => setCode('')}><Icon name="x" /></IconBtn> : null}
-            <SecondaryBtn variant="neutralPill" label={t('inviteCode.paste')} disabled={pending} onPress={() => { void Clipboard.getStringAsync().then(value => { setCode(value); setError(null) }).catch(() => setError(t('inviteCode.pasteFailed'))) }} />
-            </View>
 
             {!asUser ? (
               <>
                 <Text variant="label">{t('guestJoin.nameLabel')}</Text>
-                <TextInput
+                <JoinInput
+                  fieldTestID="join-name-field"
                   value={displayName}
                   onChangeText={value => setDisplayName(value.slice(0, MAX_NAME))}
                   placeholder={t('guestJoin.namePlaceholder')}
-                  placeholderTextColor={theme.text.secondary}
                   autoCapitalize="words"
                   autoCorrect={false}
                   editable={!pending}
                   accessibilityLabel={t('guestJoin.nameLabel')}
-                  style={styles.input}
                 />
               </>
             ) : null}

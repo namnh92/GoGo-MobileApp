@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native'
 
 import { styles as accountStyles } from '@/features/account/account.style'
 import { styles as dobStyles } from '@/features/account/date-of-birth.style'
-import { styles as joinStyles } from '@/features/gogo-room/join-by-code.style'
+import { styles as joinStyles } from '@/features/gogo-room/join-input.style'
 import { styles as signInStyles } from '@/shared/ui/labelled-input.style'
 
 /**

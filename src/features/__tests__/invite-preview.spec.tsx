@@ -4,9 +4,14 @@ import { ApiError, NetworkError } from '@/shared/api/errors'
 import { api } from '@/shared/api/client'
 import GuestJoinScreen from '@/features/gogo-room/guest-join.view'
 import { InvitePreview } from '@/features/gogo-room/invite-preview.view'
+import { InviteExpired } from '@/features/gogo-room/invite-expired.view'
 import i18n from '@/shared/i18n'
 import { track } from '@/shared/analytics'
 import type { OpResponse } from '@/shared/api'
+import { StyleSheet } from 'react-native'
+import { type } from '@/shared/ui/tokens'
+import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
+import { styles as wizardStyles } from '@/features/create-date/create-type.style'
 
 const mockJoin = jest.fn()
 const mockGuest = jest.fn()
@@ -37,6 +42,58 @@ async function mount() {
   await render(<QueryClientProvider client={client}><GuestJoinScreen /></QueryClientProvider>)
   return client
 }
+
+describe('Owner sim feedback 2026-11-12', () => {
+  it.each(['vi', 'en'])('loading copy stays neutral without room facts (%s)', async language => {
+    await i18n.changeLanguage(language)
+    jest.mocked(api.post).mockReturnValue(new Promise(() => {}))
+    await mount()
+    expect(screen.getByText(i18n.t('guestJoin.title'))).toBeTruthy()
+    expect(screen.queryAllByText(/date/i)).toHaveLength(0)
+  })
+  it.each([['vi', false], ['vi', true], ['en', false], ['en', true]] as const)('terminal copy stays neutral without room facts (%s, unusable=%s)', async (language, unusable) => {
+    await i18n.changeLanguage(language)
+    await render(<InviteExpired unusable={unusable} />)
+    expect(screen.getByRole('header', { name: i18n.t(unusable ? 'inviteState.unusableTitle' : 'guestJoin.expiredTitle') })).toBeTruthy()
+    expect(screen.queryAllByText(/date|cả hai/i)).toHaveLength(0)
+  })
+  it.each([
+    ['vi', 'group', 7, 'Lời mời nhóm', 'Bạn được rủ đi chơi cùng nhóm', 'Chi tiết buổi hẹn'],
+    ['vi', 'group', 2, 'Lời mời nhóm', 'Bạn được rủ đi chơi cùng nhóm', 'Chi tiết buổi hẹn'],
+    ['vi', 'couple', 2, 'Lời mời date', 'Bạn được rủ chọn date', 'Chi tiết buổi date'],
+    ['en', 'group', 7, 'Group invite', "You're invited to go out with the group", 'Outing details'],
+    ['en', 'couple', 2, 'Date invite', "You're invited\nto pick a date", 'Date details'],
+  ] as const)('%s %s (%s people) uses room-aware copy', async (language, roomType, participantCount, badge, title, details) => {
+    await i18n.changeLanguage(language)
+    jest.mocked(api.post).mockResolvedValue({ ...facts, roomType, participantCount })
+    await mount()
+    expect(await screen.findByText('Mai')).toBeTruthy()
+    for (const text of [badge, title, details]) expect(screen.getByText(text)).toBeTruthy()
+    if (roomType === 'group') expect(screen.queryAllByText(/date/i)).toHaveLength(0)
+  })
+
+  it('keeps facts below the card heading on the existing lobby body scale', async () => {
+    await render(<InvitePreview data={{ ...facts, startAt: new Date(2026, 10, 11, 20).toISOString(), endAt: new Date(2026, 10, 11, 22).toISOString(), area: { source: 'service_area', name: 'Thảo Điền', city: 'TP.HCM' }, budget: { mode: 'total', amount: 300000, currency: 'VND' } }} />)
+    for (const label of ['Thành viên', 'Thời gian', 'Khu vực đề xuất', 'Dự kiến ngân sách']) {
+      expect(StyleSheet.flatten(screen.getByText(label).props.style)).toMatchObject(type.caption)
+    }
+    const amount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(300000)
+    for (const value of ['Nhóm · 7 người', '20:00 – 22:00 · T4, 11/11/2026', 'Thảo Điền, TP.HCM', `${amount} / nhóm`]) {
+      expect(StyleSheet.flatten(screen.getByText(value).props.style)).toMatchObject(type.body)
+    }
+    expect(StyleSheet.flatten(screen.getByText('Mai').props.style)).toMatchObject(type.title2)
+  })
+
+  it('uses the wizard input surface, border and size for the preview name', async () => {
+    mockStatus = 'anonymous'
+    jest.mocked(api.post).mockResolvedValue(facts)
+    await mount()
+    const shell = StyleSheet.flatten((screen.queryByTestId('invite-name-field') ?? screen.getByLabelText('Tên hiển thị')).props.style)
+    const wizard = wizardStyles.nameInput
+    for (const key of ['backgroundColor', 'borderColor', 'borderWidth', 'borderRadius', 'minHeight'] as const) expect(shell[key]).toBe(wizard[key])
+    expect(StyleSheet.flatten(screen.getByLabelText('Tên hiển thị').props.style)).toMatchObject({ ...type.body, lineHeight: undefined })
+  })
+})
 it('loads facts and never joins on mount; query metadata contains no code', async () => {
   jest.mocked(api.post).mockResolvedValue(facts)
   const client = await mount()
@@ -147,8 +204,7 @@ describe.each(audiences)('integrated preview: $audience', audience => {
       expect(screen.getByText('Người mời')).toBeTruthy()
       expect(screen.getByText('Đã xác minh email')).toBeTruthy()
       expect(screen.getByText('Thảo Điền, TP.HCM')).toBeTruthy()
-      const date = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-      expect(screen.getByText(`${date('2026-11-10T12:00:00Z')} – ${date('2026-11-10T14:00:00Z')}`)).toBeTruthy()
+      expect(screen.getByText(roomScheduleLabel('2026-11-10T12:00:00Z', 'vi-VN', { compact: true, endAt: '2026-11-10T14:00:00Z' })!)).toBeTruthy()
       const amount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(300000)
       expect(screen.getByText(`${amount} / ${mode === 'total' ? 'nhóm' : 'người'}`)).toBeTruthy()
       expect(screen.queryByLabelText('Tên hiển thị') !== null).toBe(status !== 'user')
@@ -163,7 +219,7 @@ describe.each(audiences)('integrated preview: $audience', audience => {
       jest.mocked(api.post).mockReturnValue(new Promise(() => {}))
       await mount()
       expect(screen.getByTestId('invite-preview-loading')).toBeTruthy()
-      expect(screen.getByText('Bạn được rủ chọn date')).toBeTruthy()
+      expect(screen.getByText('Bạn được rủ đi chơi')).toBeTruthy()
       expect(screen.queryByText('Mai')).toBeNull()
       expect(screen.getByRole('button', { name: 'Tham gia' })).toBeTruthy()
       expect(mockJoin).not.toHaveBeenCalled()
