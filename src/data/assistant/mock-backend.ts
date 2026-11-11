@@ -8,6 +8,7 @@ import type {
   AssistantProposal,
   AssistantProposalResult,
   AssistantStatus,
+  AssistantTurn,
   AssistantStreamEvent,
 } from '@/shared/api/types'
 
@@ -76,7 +77,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
 
   const conversations = new Map<string, StoredConversation>()
   const replies = new Map<string, LiveReply>()
-  const sends = new Map<string, { failedOnce: boolean; turn?: { userMessage: AssistantMessage; assistantMessage: AssistantMessage } }>()
+  const sends = new Map<string, { failedOnce: boolean; turn?: AssistantTurn }>()
   const creates = new Map<string, AssistantConversation>()
   const proposals = new Map<string, { proposal: AssistantProposal; conversationId: string }>()
   const confirms = new Map<string, AssistantProposalResult>()
@@ -143,6 +144,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
       }
       conversations.set(conversationId, {
         conversation: {
+          credits: { creditsUsed: 0, creditsReserved: 0, pendingTurns: 0, state: 'settled', asOf: now().toISOString() },
           id: conversationId,
           title: row.title,
           context: null,
@@ -197,12 +199,14 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
   const title = (text: string) => (text.length > 40 ? `${text.slice(0, 39)}…` : text)
 
   return {
+    getConversation: conversationId => later(() => { guard(); return stored(conversationId).conversation }),
     getStatus: () =>
       later(() => {
         guard()
         return {
           state,
-          creditBalance: 0,
+          creditBalance: 0, creditReserved: 0, creditAvailable: 0, creditPolicy: 'legacy_allowance_v1',
+          paidCreditsRequired: null, paidSendEnabled: false, asOf: now().toISOString(),
           dailyMessageLimit: DAILY_LIMIT,
           messagesPerMinuteLimit: PER_MINUTE_LIMIT,
           remainingToday: remaining,
@@ -239,6 +243,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
         const conversationId = id(1)
         const at = now().toISOString()
         const conversation: AssistantConversation = {
+          credits: { creditsUsed: 0, creditsReserved: 0, pendingTurns: 0, state: 'settled', asOf: now().toISOString() },
           id: conversationId,
           title: body?.title ?? null,
           context:
@@ -277,6 +282,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
         const newestFirst = [...stored(conversationId).messages].reverse()
         const start = cursor ? Number(cursor) : 0
         return {
+          conversationCredits: stored(conversationId).conversation.credits,
           items: newestFirst.slice(start, start + limit),
           nextCursor: start + limit < newestFirst.length ? String(start + limit) : null,
         }
@@ -319,6 +325,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
           id: id(2),
           conversationId,
           role: 'assistant',
+          credits: { policyKey: 'legacy_allowance_v1', fundingSource: 'free', state: 'settled', creditsCharged: 0, creditsReserved: 0, updatedAt: at },
           status: 'streaming',
           text: '',
           createdAt: at,
@@ -346,7 +353,7 @@ export function createMockAssistantBackend(options: MockAssistantOptions = {}): 
         }
         replies.set(assistantMessage.id, reply)
         run(reply, assistantMessage.id)
-        const turn = { userMessage, assistantMessage }
+        const turn = { userMessage, assistantMessage, conversationCredits: row.conversation.credits }
         sends.set(key, { failedOnce: known?.failedOnce ?? false, turn })
         return turn
       }, 260),

@@ -1,6 +1,6 @@
 import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { AssistantStatus } from '@/shared/api'
+import type { AssistantStatus, AssistantConversationCredits } from '@/shared/api'
 import { CreditBalanceRow } from '@/features/credits/credit-balance.view'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
@@ -9,8 +9,8 @@ import { styles } from './usage-footer.style'
 
 type Status = { data?: AssistantStatus; isPending: boolean; isError: boolean }
 
-/** One line beneath the composer; unavailable allowance data is never a number. */
-export function UsageFooter({ status }: { status: Status }) {
+/** Allowance and accounting beneath the composer; missing facts never become zero. */
+export function UsageFooter({ status, conversationCredits }: { status: Status; conversationCredits?: AssistantConversationCredits | null }) {
   const { t, i18n } = useTranslation()
   const data = !status.isError && status.data?.state !== 'disabled' ? status.data : undefined
   const reset = data && new Date(data.resetsAt)
@@ -31,6 +31,6 @@ export function UsageFooter({ status }: { status: Status }) {
         : status.isPending ? <View testID="assistant-usage-loading" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}><Skeleton width="80%" /></View>
           : null}
     </View>
-    <CreditBalanceRow assistant />
+    <CreditBalanceRow assistant conversationCredits={conversationCredits} assistantStatus={status.data} />
   </View>
 }

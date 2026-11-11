@@ -59,6 +59,9 @@ export type ResolveLinkResult = Schemas['ResolveLinkResult']
 export type SubmissionResult = Schemas['SubmissionResult']
 
 // GoGo AI (GoGo-BE#713 contract 2.0.0-alpha.3, GoGo-MobileApp#378).
+export type AssistantTurnCredits = Schemas['AssistantTurnCredits']
+export type AssistantConversationCredits = Schemas['AssistantConversationCredits']
+export type AssistantInsufficientCreditDetails = Schemas['AssistantInsufficientCreditDetails']
 export type AssistantStatus = Schemas['AssistantStatus']
 export type AssistantContext = Schemas['AssistantContext']
 export type AssistantContextRef = Schemas['AssistantContextRef']

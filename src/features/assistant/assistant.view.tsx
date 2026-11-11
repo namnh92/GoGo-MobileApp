@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   isForbidden,
   useAssistantMessages,
+  useAssistantConversation,
   useAssistantReply,
   useAssistantStatus,
   useOutgoingAssistantMessages,
@@ -110,6 +111,9 @@ function AssistantChat({ account }: { account: string }) {
   const status = useAssistantStatus()
   const { refetch: refetchStatus } = status
   useFocusEffect(useCallback(() => { void refetchStatus() }, [refetchStatus]))
+  const conversation = useAssistantConversation(conversationId)
+  const { refetch: refetchConversation } = conversation
+  useFocusEffect(useCallback(() => { if (conversationId) void refetchConversation() }, [conversationId, refetchConversation]))
   const messages = useAssistantMessages(conversationId)
   const outgoing = useOutgoingAssistantMessages(conversationId)
   const { send, retry } = useSendAssistantMessage(conversationId, setConversationId)
@@ -148,6 +152,8 @@ function AssistantChat({ account }: { account: string }) {
 
   const state = status.data?.state
   const limited = state === 'limit_reached'
+  const insufficient = state === 'insufficient_credit'
+  const paidUnavailable = state === 'disabled' && status.data?.paidSendEnabled === false && status.data.remainingToday === 0
   const disabledByServer = state !== undefined && state !== 'enabled'
   const sending = outgoing.some(item => item.status === 'sending')
   const sendDisabled = !online || disabledByServer || sending
@@ -156,33 +162,33 @@ function AssistantChat({ account }: { account: string }) {
   const submit = useCallback(
     (text: string) => {
       const trimmed = text.trim()
-      if (!trimmed) return
+      if (!trimmed || sendDisabled) return
       const ready = images.filter((image): image is { uri: string; uploadKey: string } => image.uploadKey !== null)
+      const sentImages = images
       void send({
         text: trimmed,
         locale,
         ...(context ? { context: { placeId: context.placeId } } : {}),
         images: ready,
       }).then(result => {
-        if (!result || result.accepted || text !== draft) return
+        if (!result?.accepted) return
         const store = useAssistantDraftStore.getState()
-        const key = result.conversationId ?? NEW_CHAT
-        // A failed send restores the exact input without replacing a newer draft.
-        if (!store.drafts[key]) store.setDraft(key, text)
+        // A 202 clears only the revision that was accepted. Refusals retain all input.
+        if (store.drafts[draftKey] === text) store.setDraft(draftKey, '')
+        if (result.conversationId && store.drafts[result.conversationId] === text) store.setDraft(result.conversationId, '')
+        setImages(current => current.filter(image => !sentImages.includes(image)))
       })
-      setImages([])
-      if (text === draft) setDraft('')
     },
-    [context, draft, images, locale, send, setDraft],
+    [context, draftKey, images, locale, send, sendDisabled],
   )
 
   // A starter question tapped on the place card is sent once, with the place attached.
   const askedFromEntry = useRef(false)
   useEffect(() => {
     const question = typeof params.question === 'string' ? params.question.trim() : ''
-    if (askedFromEntry.current || !question || !status.isSuccess || disabledByServer || !online) return
+    if (askedFromEntry.current || !question || !status.isSuccess) return
     askedFromEntry.current = true
-    submit(question)
+    if (!disabledByServer && online) submit(question)
   }, [params.question, status.isSuccess, disabledByServer, online, submit])
 
   const attach = async () => {
@@ -243,9 +249,12 @@ function AssistantChat({ account }: { account: string }) {
     <StateNotice
       kind="info"
       icon={limited ? 'clock' : 'info'}
-      title={limited ? t('assistant.notice.limit.title') : t('assistant.notice.disabled.title')}
+      title={insufficient ? t('assistant.credit.insufficient') : paidUnavailable ? t('assistant.credit.paidUnavailable') : limited ? t('assistant.notice.limit.title') : t('assistant.notice.disabled.title')}
       body={
-        limited && status.data
+        insufficient && status.data
+          ? status.data.paidCreditsRequired === null ? t('credits.unknown') : t('assistant.credit.requiredAvailable', { required: status.data.paidCreditsRequired, available: status.data.creditAvailable })
+          : paidUnavailable ? t('assistant.credit.paidUnavailableBody')
+          : limited && status.data
           ? t('assistant.notice.limit.body', { time: formatClock(status.data.resetsAt) })
           : t('assistant.notice.disabled.body')
       }
@@ -317,7 +326,7 @@ function AssistantChat({ account }: { account: string }) {
             onRemoveImage={index => setImages(current => current.filter((_, at) => at !== index))}
             context={context ? { label: context.name, onRemove: () => setContext(null) } : null}
           />
-          <UsageFooter status={status} />
+          <UsageFooter status={status} conversationCredits={conversationId === null ? null : conversation.data?.credits ?? messages.data?.pages[0]?.conversationCredits} />
         </View>
       </KeyboardAvoidingView>
     </>

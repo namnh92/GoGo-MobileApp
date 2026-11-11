@@ -17,6 +17,8 @@ export function useMyCredits(enabled: boolean) {
     queryFn: ({ signal }) => captureSessionScope(scope.generation).wait(getMyCredits(signal)),
     enabled: scope.enabled,
     staleTime: 0,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     retry: false,
   })
 }
@@ -32,6 +34,8 @@ export function useMyCreditLedger(enabled: boolean) {
     getNextPageParam: page => page.nextCursor ?? undefined,
     enabled: scope.enabled,
     staleTime: 0,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     retry: false,
   })
   const refresh = firstPageRefetch(client, key, query.refetch)

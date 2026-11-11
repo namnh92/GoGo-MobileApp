@@ -13,7 +13,7 @@ import { Skeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-import { creditEntries, creditLocale, creditSourceKey, creditsAvailable, formatCredit } from './credit-format'
+import { creditEntries, creditLocale, creditSourceKey, creditsAvailable, formatCredit, groupCreditEntries, creditEventLabel } from './credit-format'
 import { styles } from './credits.style'
 
 export default function CreditsScreen() {
@@ -33,6 +33,7 @@ export default function CreditsScreen() {
   }, [enabled, refetchSummary, refetchLedger]))
   const refresh = () => enabled ? Promise.all([summary.refetch(), ledger.refresh()]) : me.refetch()
   const entries = enabled ? creditEntries(ledger.data?.pages) : []
+  const groups = groupCreditEntries(entries)
   const skeleton = <View testID="credits-loading" style={styles.skeleton}>{[0, 1, 2].map(index => <Skeleton key={index} height={64} />)}</View>
   const retry = () => void refresh()
   const state = !user ? <EmptyState title={t('notifications.signInTitle')} action={<PrimaryBtn label={t('auth.signInCta')} onPress={() => router.push('/auth/sign-in')} />} />
@@ -43,7 +44,7 @@ export default function CreditsScreen() {
   return <Atmosphere redesign>
     <AppHeader title={t('credits.history')} showNotifications={false} onBack={() => goBackOrHome(router)} />
     <PullToRefresh enabled={user} onRefresh={async () => { await refresh() }}>
-      <FlatList testID="credits-ledger" data={entries} keyExtractor={entry => entry.id} contentContainerStyle={styles.content}
+      <FlatList testID="credits-ledger" data={groups} keyExtractor={group => group.key} contentContainerStyle={styles.content}
         ListHeaderComponent={enabled ? <View>
           <Card style={styles.card}>
             <Text variant="title2">{t('credits.title')}</Text>
@@ -57,9 +58,16 @@ export default function CreditsScreen() {
           <StaleNotice hasData={!!summary.data || !!ledger.data} error={summary.error ?? (ledger.isFetchNextPageError ? null : ledger.error)} onRetry={retry} />
         </View> : null}
         ListEmptyComponent={state}
-        renderItem={({ item }) => <View style={styles.entry}>
-          <View style={styles.row}><Text style={styles.label}>{t(creditSourceKey(item))}</Text><Text variant="title2">{formatCredit(item.delta, i18n.language, true)}</Text></View>
-          <Text variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleString(creditLocale(i18n.language))}</Text>
+        renderItem={({ item: group }) => <View>
+          {group.firstOfDay ? <Text variant="title2" style={styles.day}>{new Date(group.date).toLocaleDateString(creditLocale(i18n.language))}</Text> : null}
+          <View style={styles.entry} testID="credit-history-group">
+            <Text variant="title2">{group.conversation ? group.conversation.title?.trim() || t('credits.untitledConversation') : t(group.usage ? 'credits.deletedConversation' : 'credits.otherActivity')}</Text>
+            {group.entries.map(item => <View key={item.id}>
+              <View style={styles.row}><Text style={styles.label}>{creditEventLabel(item, i18n.language) ?? t(creditSourceKey(item))}</Text><Text variant="title2">{formatCredit(item.delta, i18n.language, true)}</Text></View>
+              <Text variant="caption" color="text.secondary">{new Date(item.createdAt).toLocaleTimeString(creditLocale(i18n.language))}</Text>
+            </View>)}
+            <Text variant="bodySmall">{t('credits.groupTotal', { total: formatCredit(group.total, i18n.language, true) })}</Text>
+          </View>
         </View>}
         ListFooterComponent={enabled && ledger.data ? <View>
           {ledger.isFetchingNextPage ? <LoadingIndicator accessibilityLabel={t('common.loading')} />

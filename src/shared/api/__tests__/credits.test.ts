@@ -4,6 +4,9 @@ import { getMyCredits, getMyCreditLedger } from '../endpoints/credits'
 import { clearSession, persistSession, getSessionGeneration } from '../session'
 import { bindSessionCaches } from '../session-query-cache'
 import { queryKeys } from '../query-keys'
+import { shouldPersistQuery } from '../persist-policy'
+import { request } from '../client'
+import { ApiError } from '../errors'
 import { firstPageRefetch } from '../queries/first-page-refetch'
 
 const facts = { balance: 49, earned: 50, spent: 1, reserved: 0, availableBalance: 49, asOf: '2026-11-10T01:00:00Z', policyKey: 'legacy_allowance_v1' }
@@ -49,4 +52,25 @@ it('late financial responses cannot cross A → B → A or repopulate a removed 
   expect(client.getQueryData(queryKeys.creditSummary('A', getSessionGeneration()))).toBeUndefined()
   expect(getSessionGeneration()).not.toBe(generation)
   client.clear()
+})
+
+it('preserves only typed insufficient-credit details across the HTTP parser', async () => {
+  const details = { creditBalance: 8, creditReserved: 5, creditAvailable: 3, requiredCredits: 12, remainingToday: 0 as const, resetsAt: '2026-11-11T17:00:00Z' }
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+    code: 'ASSISTANT_INSUFFICIENT_CREDIT', message: 'insufficient', retryable: false,
+    details: { ...details, providerSecret: 'must-not-pass' },
+  }), { status: 409, headers: { 'content-type': 'application/json' } }))
+  const error = await request({ method: 'POST', path: '/assistant/conversations/c/messages', anonymous: true }).catch(error => error)
+  expect(error).toBeInstanceOf(ApiError)
+  if (!(error instanceof ApiError)) throw new Error('Expected typed API error')
+  expect(error.details).toEqual(details)
+  expect(error.retryable).toBe(false)
+  expect(new ApiError(409, { code: 'ASSISTANT_INSUFFICIENT_CREDIT', message: '', details: { ...details, requiredCredits: 0 } }).details).toBeUndefined()
+  expect(new ApiError(500, { code: 'OTHER', message: '', details }).details).toBeUndefined()
+})
+it('never persists wallet, ledger, conversation accounting or allowance snapshots', () => {
+  for (const key of [queryKeys.creditSummary('A', 1), queryKeys.creditLedger('A', 1),
+    queryKeys.assistantStatus(), queryKeys.assistantConversation('c'), queryKeys.assistantMessages('c')]) {
+    expect(shouldPersistQuery(key)).toBe(false)
+  }
 })

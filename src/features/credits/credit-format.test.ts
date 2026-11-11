@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { creditEntries, creditSourceKey, creditsAvailable, formatCredit, type CreditEntry } from './credit-format'
+import { groupCreditEntries, creditEventLabel, creditEntries, creditSourceKey, creditsAvailable, formatCredit, type CreditEntry } from './credit-format'
 import { shouldPersistQuery } from '@/shared/api/persist-policy'
 import { queryKeys } from '@/shared/api/query-keys'
 import type { Me } from '@/shared/api'
@@ -31,4 +31,17 @@ describe('credit visibility facts', () => {
     expect(queryKeys.creditSummary('A', 1)).not.toEqual(queryKeys.creditSummary('B', 1))
     expect(queryKeys.creditSummary('A', 1)).not.toEqual(queryKeys.creditSummary('A', 3))
   })
+})
+
+it('groups across a device-local midnight and never merges a conversation across days', () => {
+  const before = new Date(2026, 10, 10, 23, 59).toISOString()
+  const after = new Date(2026, 10, 11, 0, 1).toISOString()
+  const conversation = { id: 'c', title: 'Title' }
+  const groups = groupCreditEntries([{ ...entry, id: 'a', createdAt: after, delta: -12, conversation },
+    { ...entry, id: 'b', createdAt: after, delta: 4, conversation },
+    { ...entry, id: 'c', createdAt: before, delta: -2, conversation }])
+  expect(groups.map(group => [group.firstOfDay, group.entries.length, group.total])).toEqual([[true, 2, -8], [true, 1, -2]])
+  expect(groups[0].day).not.toBe(groups[1].day)
+  expect(creditEventLabel({ ...entry, eventLabels: { vi: 'Thưởng', en: 'Reward' } }, 'en-US')).toBe('Reward')
+  expect(creditEventLabel({ ...entry, eventLabels: { vi: '', en: '' } }, 'vi')).toBeUndefined()
 })
