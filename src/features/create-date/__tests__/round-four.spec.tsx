@@ -5,11 +5,24 @@ import i18n from '@/shared/i18n'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useAppAreaStore } from '@/shared/location/app-area'
 import { readPickerScope, savePickerScope, type PickerScope } from '@/shared/location/picker-scope'
+import * as pickerScopes from '@/shared/location/picker-scope'
+import type { ChipProps } from '@/shared/ui/chip.view'
 import CreateMoodScreen from '../create-mood.view'
 import { DateTimeSheet } from '../date-time-sheet.view'
 import SearchScreen from '@/features/search/search.view'
 
 const mockPush = jest.fn()
+const mockFocus = jest.fn()
+let mockScopeSequence = 0
+jest.mock('expo-crypto', () => ({ randomUUID: () => `00000000-0000-4000-8000-${String(++mockScopeSequence).padStart(12, '0')}` }))
+let mockAddPress: () => void
+jest.mock('@/shared/ui/primitives', () => {
+  const actual = jest.requireActual('@/shared/ui/primitives')
+  return { ...actual, Chip: (props: ChipProps) => {
+    mockAddPress = props.onPress!
+    return jest.requireActual('react').createElement(actual.Chip, props)
+  } }
+})
 let mockParams: Record<string, string> = {}
 let mockResults: Record<string, unknown>[] = []
 let mockSparseDetail = mockLoaded(undefined)
@@ -25,7 +38,7 @@ jest.mock('@/shared/ui/map-canvas.view', () => ({
     return React.createElement(View, { ...props, testID: 'round-four-map' })
   },
 }))
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, back: jest.fn() }), useLocalSearchParams: () => mockParams, useFocusEffect: () => {} }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, back: jest.fn() }), useLocalSearchParams: () => mockParams, useFocusEffect: (effect: () => void) => mockFocus(effect) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { userId: 'owner' } }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -39,11 +52,45 @@ jest.mock('@/shared/api', () => ({
 }))
 
 beforeEach(async () => {
+  mockFocus.mockClear()
   mockPush.mockClear(); mockQueries.length = 0; mockPreviews.length = 0; mockResults = []; mockSearch.data = { pages: [{ results: mockResults, nextCursor: null }] }; mockParams = {}
   mockSparseDetail = mockLoaded(undefined)
   useRoomStore.getState().resetDraft()
   useAppAreaStore.setState({ area: mockGlobal, scope: { status: 'ready', source: 'selected_area', area: mockGlobal } })
   await act(async () => { await i18n.changeLanguage('vi') })
+})
+
+it.each(['area', 'gps'] as const)('F-10: synchronous Add presses open one %s picker until Mood regains focus', async source => {
+  useRoomStore.getState().patchDraft(source === 'area'
+    ? { administrativeArea: mockArea }
+    : { originLat: 10.77123, originLng: 106.71234, radiusM: 5000 })
+  const saveScope = jest.spyOn(pickerScopes, 'savePickerScope')
+  try {
+    const view = await renderScreen(<CreateMoodScreen />)
+    // Invoke the same rendered handler twice before React can render disabled state.
+    const press = mockAddPress
+    await act(async () => { press(); press() })
+    expect({ saves: saveScope.mock.calls.length, pushes: mockPush.mock.calls.length }).toEqual({ saves: 1, pushes: 1 })
+    const firstId = mockPush.mock.calls[0][0].params.pickerScope
+    expect(readPickerScope(firstId)).not.toBeNull()
+    expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeDisabled()
+
+    // An unrelated draft render must not reopen the guard while the picker is away.
+    await act(async () => useRoomStore.getState().patchDraft({ moodKeys: ['a'] }))
+    await act(async () => { mockAddPress() })
+    expect(saveScope).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledTimes(1)
+
+    // Replay the registered focus callback as navigation does when the picker returns.
+    await act(async () => { mockFocus.mock.calls.at(-1)![0]() })
+    expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeEnabled()
+    await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+    expect(saveScope).toHaveBeenCalledTimes(2)
+    expect(mockPush).toHaveBeenCalledTimes(2)
+    const nextId = mockPush.mock.calls[1][0].params.pickerScope
+    expect(nextId).not.toBe(firstId)
+    expect(readPickerScope(nextId)).not.toBeNull()
+  } finally { saveScope.mockRestore() }
 })
 
 it.each(['vi', 'en'])('round 4: shared icon-only accessible mood/calendar toggles (%s)', async locale => {

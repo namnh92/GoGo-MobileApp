@@ -447,3 +447,37 @@ Raw check logs: `/tmp/594-f08-f09-typecheck-final.log`, `/tmp/594-f08-f09-ui-fin
 Source/test snapshot: **`rs-8c693093e4fc`**, scope `src`, manifest + binary diff ở `/tmp/594-f08-f09-snapshots/mobile-594-f08-f09-rs-8c693093e4fc/`; tài liệu verification này nằm ngoài scope snapshot để tránh tự tham chiếu. Source/test không đổi sau checks; verify manifest MATCH trước khi bàn giao.
 
 Đây là component/unit regression, chưa chạy simulator/native build hoặc live API acceptance. F-08/F-09 đã sửa và có FAIL-before/PASS-after; không thay API contract hay hành vi unlimited-GPS đã ghi ở round 4. Index trống; không git add/commit/push.
+
+## Astra F-10 — 2026-11-11
+
+Basis: PR #598, HEAD `b3789a98`, worktree `mobile-594` sạch lúc bắt đầu. Áp dụng đúng DEV decision: chặn mở picker đồng thời tại CreateMood, giữ singleton scope store và cleanup hiện có.
+
+- `pickerOpening` là ref đồng bộ: set `true` trước `savePickerScope` và `router.push`; các press tiếp theo bị bỏ qua. State `isPickerOpening` chỉ điều khiển disabled visual/a11y của shared Chip, không spinner.
+- `useFocusEffect` với callback ổn định (`useCallback`, dependencies rỗng) reset ref và disabled state khi CreateMood nhận lại focus sau khi picker trả về. Render do draft thay đổi không reset guard.
+- Regression trong `round-four.spec.tsx` kiểm cả canonical area và GPS: gọi cùng handler hai lần đồng bộ trước render → đúng một scope save/một push, ID đầu vẫn đọc được, Add disabled; render draft rồi press tiếp vẫn bị chặn; gọi focus callback → Add enabled và press mới save/push lần hai với ID mới hợp lệ. Chip thật vẫn render; wrapper test chỉ giữ handler để gọi đồng bộ. UUID mock riêng trả ID khác nhau, thay vì UUID hằng của global Jest setup.
+- Bổ sung `useFocusEffect` vào router mock cũ của `round-two.spec.tsx` để các regression hiện có tiếp tục render CreateMood.
+
+### FAIL-before / PASS-after
+
+Baseline production lấy nguyên `git archive b3789a9` vào thư mục `/tmp` riêng, chỉ copy final `round-four.spec.tsx` và symlink node_modules; không checkout/reset/stash worktree. Đường dẫn baseline: `/tmp/594-f10-baseline-path.txt`. Cùng final tests và lệnh `pnpm test:ui --runInBand round-four -t F-10`:
+
+| Regression | Baseline `b3789a9` | Working-tree patch |
+| --- | --- | --- |
+| Hai press đồng bộ, canonical area | **FAIL**: 2 saves / 2 pushes | **PASS**: 1 save / 1 push; focus trở lại cho phép mở tiếp |
+| Hai press đồng bộ, GPS | **FAIL**: 2 saves / 2 pushes | **PASS**: 1 save / 1 push; focus trở lại cho phép mở tiếp |
+| **Tổng** | **2 FAIL**, exit 1 | **2 PASS**, exit 0 |
+
+Raw logs: `/tmp/594-f10-before-final.log`, `/tmp/594-f10-after-final.log`.
+
+### Checks cuối
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm test:ui create-date --runInBand` | **PASS**, 5 suites / 63 tests |
+| `pnpm typecheck` | **PASS**, exit 0; sandbox cho phép |
+| `pnpm exec eslint --no-cache src/features/create-date/create-mood.view.tsx src/features/create-date/__tests__/round-four.spec.tsx src/features/create-date/__tests__/round-two.spec.tsx` | **PASS**, exit 0, không warning |
+| `git diff --check` | **PASS** |
+
+Raw check logs: `/tmp/594-f10-ui-final.log`, `/tmp/594-f10-typecheck-final.log`, `/tmp/594-f10-lint-final.log`. UI gate có cảnh báo Node `punycode` deprecated hiện hữu; không có test failure.
+
+Đây là component regression; chưa chạy simulator/native build hoặc live API acceptance. Chỉ sửa F-10 tại CreateMood và test harness liên quan; singleton scope store/cleanup không đổi. Không git add/commit/push; index trống khi bàn giao.

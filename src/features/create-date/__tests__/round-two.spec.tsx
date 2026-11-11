@@ -9,7 +9,7 @@ import CreateTimeScreen from '../create-time.view'
 
 let mockMoodOptionCount = 7
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }) }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),

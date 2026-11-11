@@ -1,6 +1,6 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { useRouter } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 
@@ -112,6 +112,12 @@ export default function CreateMoodScreen() {
   const radiusM = useRoomStore(state => state.radiusM)
   const pickerScope = draftPickerScope({ administrativeArea, originLat, originLng, radiusM })
   const pickerScopeId = useRef<string | null>(null)
+  const pickerOpening = useRef(false)
+  const [isPickerOpening, setIsPickerOpening] = useState(false)
+  useFocusEffect(useCallback(() => {
+    pickerOpening.current = false
+    setIsPickerOpening(false)
+  }, []))
   useEffect(() => () => clearPickerScope(pickerScopeId.current), [])
   const rememberRoom = useRecentRoomsStore(state => state.remember)
 
@@ -248,8 +254,10 @@ export default function CreateMoodScreen() {
             {seedPlaces.map(place => <SeedPlaceCard key={place.placeId} seed={place} onRemove={() => removeSeedPlace(place.placeId)} />)}
           </View>
           <View style={styles.addPlace}>
-            <Chip label={t('createMood.addPlace')} variant={pickerScope ? 'default' : 'disabled'} onPress={() => {
-              if (pickerScope) {
+            <Chip label={t('createMood.addPlace')} variant={pickerScope ? 'default' : 'disabled'} disabled={isPickerOpening} onPress={() => {
+              if (pickerScope && !pickerOpening.current) {
+                pickerOpening.current = true
+                setIsPickerOpening(true)
                 pickerScopeId.current = savePickerScope(pickerScope)
                 router.push({ pathname: '/places/search', params: { picker: '1', pickerScope: pickerScopeId.current } })
               }
