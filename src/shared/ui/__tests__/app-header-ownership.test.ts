@@ -106,6 +106,20 @@ describe('application header ownership', () => {
     })
     expect(unknown).toEqual([])
   })
+  it('keeps the shared sign-in/sign-up header free of account and notification actions', () => {
+    const source = read('auth/sign-in.view.tsx')
+    const ast = ts.createSourceFile('auth.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const headers: ts.JsxAttributes[] = []
+    function visit(node: ts.Node) {
+      if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(ast) === 'AppHeader') headers.push(node.attributes)
+      ts.forEachChild(node, visit)
+    }
+    visit(ast)
+    expect(headers).toHaveLength(1)
+    expect(headers[0].getText(ast)).toContain('showNotifications={false}')
+    expect(headers[0].properties.some(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'rightAction')).toBe(false)
+    expect(owns(source, 'AvatarCircle')).toBe(false)
+  })
   it('rejects screen-owned navigation throughout features', () => {
     const found = files(features).filter(file => file.endsWith('.view.tsx')).flatMap(file => {
       return violations(file, readFileSync(file, 'utf8')).map(error => `${file}: ${error}`)
