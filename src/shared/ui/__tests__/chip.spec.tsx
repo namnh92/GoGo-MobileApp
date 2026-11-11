@@ -172,7 +172,6 @@ const chipRows = [
   ['features/tabs/profile.interests', () => jest.requireActual('@/features/tabs/profile.style').styles.interests],
   ['features/contributions/my-contributions.filters', () => jest.requireActual('@/features/contributions/my-contributions.style').styles.filters],
   ['features/review/my-reviews.filterRow', () => jest.requireActual('@/features/review/my-reviews.style').styles.filterRow],
-  ['features/matching/preference.grid', () => jest.requireActual('@/features/matching/preference.style').styles.grid],
   ['features/matching/match-result.reasonChips', () => jest.requireActual('@/features/matching/match-result.style').styles.reasonChips],
   ['features/matching/suggestion-run-notice.constraintRow', () => jest.requireActual('@/features/matching/suggestion-run-notice.style').styles.constraintRow],
   ['features/place-import/contribution-wizard.row', () => jest.requireActual('@/features/place-import/contribution-wizard.style').styles.row],
@@ -198,6 +197,14 @@ const chipRows = [
 it('backs the app-wide chip gap with the 4pt spacing token', () => {
   expect(chipRowGap).toBe(spacing[1])
   expect(chipRowGap).toBe(4)
+})
+
+it('spaces the preference checkbox list with the list spacing token in every theme', () => {
+  const { styles } = jest.requireActual<typeof import('@/features/matching/preference.style')>('@/features/matching/preference.style')
+  for (const theme of Object.values(themes)) {
+    currentTheme = theme
+    expect(StyleSheet.flatten(styles.choices).gap).toBe(spacing[2])
+  }
 })
 
 it.each(chipRows)('%s uses 4pt on both axes in every theme', (_name, getRow) => {
