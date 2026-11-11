@@ -10,8 +10,6 @@ import { loaded as mockLoaded, renderScreen } from './harness'
  */
 
 const mockDetail: { value: Record<string, unknown> } = { value: {} }
-const mockProviderPhotos: { value: unknown } = { value: undefined }
-beforeEach(() => { mockProviderPhotos.value = undefined })
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -21,7 +19,6 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   usePlaceDetail: () => mockLoaded(mockDetail.value),
-  usePlaceProviderPhotos: () => ({ data: mockProviderPhotos.value }),
   usePlaceReviews: () => mockLoaded({ pages: [{ source: 'gogo', order: 'latest', reviews: [], items: [] }], pageParams: [undefined] }),
   useMyReviewReactions: () => mockLoaded({ placeId: 'place-1', helpful: [] }),
   useToggleReviewHelpful: () => ({ mutate: jest.fn(), isPending: false, variables: undefined }),
@@ -31,25 +28,25 @@ jest.mock('@/shared/api', () => ({
 }))
 
 import PlaceDetailScreen from '@/features/date-plan/place-detail.view'
+import { api } from '@/shared/api/client'
 import { GALLERY_MARGIN } from '@/features/date-plan/place-detail.style'
 
 const PLACE = { id: 'place-1', name: 'Quán thử', photos: [] }
 
 it('F-04: opens the displayed provider photo source and each author profile beside its credit', async () => {
   const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true)
-  mockDetail.value = { ...PLACE }
-  mockProviderPhotos.value = {
-    status: 'ok', attribution: 'Google Maps', photos: [{
-      contentType: 'image/jpeg', dataBase64: 'first', googleMapsUri: 'https://maps.google.com/photo/first',
+  mockDetail.value = { ...PLACE, photos: [{
+      id: 'cover', source: 'google', url: 'https://cdn.example.com/cover.jpg', attribution: 'Google Maps', googleMapsUri: 'https://maps.google.com/photo/first',
       authorAttributions: [
         { displayName: 'Mai', uri: 'https://maps.google.com/user/mai' },
         { displayName: 'Nam', uri: 'https://maps.google.com/user/nam' },
       ],
     }, {
-      contentType: 'image/jpeg', dataBase64: 'second', googleMapsUri: 'https://maps.google.com/photo/second',
+      id: 'community', source: 'community', url: 'https://cdn.example.com/community.jpg', attribution: 'Google Maps', googleMapsUri: 'https://maps.google.com/photo/second',
       authorAttributions: [{ displayName: 'Linh', uri: null }],
     }],
   }
+  const get = jest.spyOn(api, 'get').mockResolvedValue({})
   try {
     const view = await renderScreen(<PlaceDetailScreen />)
     for (const [name, url] of [
@@ -61,6 +58,8 @@ it('F-04: opens the displayed provider photo source and each author profile besi
       await fireEvent.press(link)
       expect(openURL).toHaveBeenLastCalledWith(url)
     }
+    expect(get).not.toHaveBeenCalled()
+    expect(view.getAllByTestId('place-photo-image').map(image => image.props.source[0].uri)).toEqual(['https://cdn.example.com/cover.jpg', 'https://cdn.example.com/community.jpg'])
     const gallery = view.getByTestId('place-detail-gallery-pages')
     // Use the actual page width, as the gallery does when calculating its index.
     const pageWidth = Dimensions.get('window').width - GALLERY_MARGIN * 2
@@ -72,6 +71,7 @@ it('F-04: opens the displayed provider photo source and each author profile besi
     expect(view.queryByRole('link', { name: 'Linh' })).toBeNull()
   } finally {
     openURL.mockRestore()
+    get.mockRestore()
   }
 })
 
@@ -156,4 +156,19 @@ it('phone and website are 44pt link rows that hand off to the system; a failure 
   await fireEvent.press(site)
   expect(await view.findByText('Chưa mở được liên kết này.')).toBeTruthy()
   openURL.mockRestore()
+})
+
+it('includes approved userPhotos with uploader credit without requesting provider photos', async () => {
+  mockDetail.value = { ...PLACE,
+    photos: [{ id: 'cover', url: 'https://cdn.example.com/cover.jpg', source: 'google' }],
+    userPhotos: [{ id: 'community', url: 'https://cdn.example.com/community.jpg', source: 'community', contributor: { displayName: 'Lan' } }],
+  }
+  const get = jest.spyOn(api, 'get').mockResolvedValue({})
+  try {
+    const view = await renderScreen(<PlaceDetailScreen />)
+    expect(view.getAllByTestId('place-photo-image')).toHaveLength(2)
+    await fireEvent.scroll(view.getByTestId('place-detail-gallery-pages'), { nativeEvent: { contentOffset: { x: Dimensions.get('window').width - GALLERY_MARGIN * 2, y: 0 } } })
+    expect(view.getByText('Ảnh cộng đồng: Lan')).toBeTruthy()
+    expect(get).not.toHaveBeenCalled()
+  } finally { get.mockRestore() }
 })

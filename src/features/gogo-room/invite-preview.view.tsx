@@ -34,9 +34,9 @@ export function InvitePreview({ data }: { data: OpResponse<'previewRoomInvite'> 
     </Card>
     <Card padded={false} style={styles.details}>
       <View style={styles.hostHeading}><Text variant="title2" style={styles.factText}>{t('guestJoin.detailsTitle')}</Text><Text variant="caption" color="text.secondary">{t('invitePreview.general')}</Text></View>
-      <Fact color="redesign.violetText" icon="users" label={t('invitePreview.people')} value={t(`invitePreview.${data.roomType}`, { count: data.participantCount })} />
+      <Fact color="status.infoText" icon="users" label={t('invitePreview.people')} value={t(`invitePreview.${data.roomType}`, { count: data.participantCount })} />
       {data.startAt ? <Fact icon="clock" label={t('invitePreview.time')} value={`${date(data.startAt)}${data.endAt ? ` – ${date(data.endAt)}` : ''}`} /> : null}
-      {data.area ? <Fact color="redesign.violetText" icon="mapPin" label={t('invitePreview.area')} value={[data.area.name, data.area.city].filter(Boolean).join(', ')} /> : null}
+      {data.area ? <Fact color="status.infoText" icon="mapPin" label={t('invitePreview.area')} value={[data.area.name, data.area.city].filter(Boolean).join(', ')} /> : null}
       {budget ? <Fact color="status.successText" icon="dollar" label={t('invitePreview.budget')} value={t(`invitePreview.budget.${budget.mode}`, { amount })} /> : null}
     </Card>
   </View>

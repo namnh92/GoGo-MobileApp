@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { type } from '@/shared/ui/tokens'
+import { chipRowGap, spacing, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create((theme) => ({
   // Keep the three equal-width commands readable down to 320pt.
@@ -15,8 +15,9 @@ export const styles = StyleSheet.create((theme) => ({
   },
   header: { padding: 12, gap: 12, backgroundColor: theme.surface.subtle },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headingText: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 4 },
-  titleRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' },
+  headingText: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: spacing[1] },
+  // Let the 22pt title determine row height; All's hitSlop supplies its touch target.
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' },
   sectionTitle: { flex: 1, minWidth: 0 },
   seeAll: { minWidth: 44, minHeight: 22, alignItems: 'center', justifyContent: 'center' },
   stepHeading: {
@@ -72,7 +73,7 @@ export const styles = StyleSheet.create((theme) => ({
     borderWidth: 2,
     backgroundColor: theme.surface.subtle,
   },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   field: { flex: 1, minWidth: 100 },
   input: {
     ...type.bodySmall,

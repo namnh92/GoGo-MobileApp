@@ -7,7 +7,8 @@ import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 
 import { InfoRows } from './info-rows.view'
-import { doneLabel, proposalRows, type RowContext } from './proposal-rows'
+import { doneLabel, type RowContext } from './proposal-rows'
+import { useProposalRows } from './use-proposal-rows'
 import { styles } from './task-summary.style'
 
 /**
@@ -25,7 +26,7 @@ export function TaskSummary({
   onOpenRoom: (roomId: string) => void
 }) {
   const { t } = useTranslation()
-  const rows = proposalRows(result.savedValues, { ...context, t })
+  const rows = useProposalRows(result.savedValues, { ...context, t })
   const roomId = result.resource.type === 'room' ? result.resource.id : result.resource.roomId
   return (
     <View testID="assistant-task-summary" style={styles.card}>

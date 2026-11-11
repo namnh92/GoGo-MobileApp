@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native'
 import { themes } from '@/shared/ui/theme'
 import { renderScreen } from './harness'
 
-const mockRouter = { replace: jest.fn(), back: jest.fn(), canGoBack: () => false }
+const mockRouter = { replace: jest.fn(), push: jest.fn(), back: jest.fn(), canGoBack: () => false }
 const mockPermission = jest.fn(async () => undefined)
 const mockSignIn = jest.fn(async () => undefined)
 const mockSignUp = jest.fn(async () => undefined)
@@ -39,7 +39,7 @@ it('goes back one slide and keeps guest completion plus notification request', a
   expect(await AsyncStorage.getItem('gogo.onboarding.v1')).toBe('1')
   expect(mockPermission).toHaveBeenCalledTimes(1)
 })
-it('keeps recovery unavailable and shows requirements in registration only', async () => {
+it('opens recovery and shows requirements in registration only', async () => {
   await renderScreen(<SignIn />)
   const expectHeader = (title: string) => {
     const back = screen.getByRole('button', { name: 'Quay lại' })
@@ -51,11 +51,10 @@ it('keeps recovery unavailable and shows requirements in registration only', asy
   expectHeader('Đăng nhập')
   expect(screen.queryByText('Auth Phone Entry')).toBeNull()
   expect(screen.queryByTestId('password-requirements')).toBeNull()
-  const forgot = screen.getByRole('button', { name: 'Quên?' })
-  expect(forgot.props.accessibilityState.disabled).toBe(true)
-  expect(screen.getByText('Khôi phục mật khẩu chưa khả dụng.')).toBeTruthy()
+  const forgot = screen.getByRole('link', { name: 'Quên?' })
+  expect(forgot.props.accessibilityState.disabled).not.toBe(true)
   await fireEvent.press(forgot)
-  expect(mockRouter.replace).not.toHaveBeenCalled()
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/auth/forgot-password', params: {} })
   await fireEvent.press(screen.getByRole('tab', { name: 'Đăng ký' }))
   expectHeader('Đăng ký')
   expect(screen.getByTestId('password-requirements')).toBeTruthy()

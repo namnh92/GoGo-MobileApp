@@ -4,5 +4,5 @@ import { radius, spacing, touchTarget } from './tokens'
 
 export const styles = StyleSheet.create(theme => ({
   button: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
-  unreadDot: { position: 'absolute', top: spacing[1], right: spacing[1], width: spacing[2], height: spacing[2], borderRadius: radius.pill, backgroundColor: theme.redesign.primaryFill },
+  unreadDot: { position: 'absolute', top: spacing[1], right: spacing[1], width: spacing[2], height: spacing[2], borderRadius: radius.pill, backgroundColor: theme.accent.primary },
 }))

@@ -164,19 +164,6 @@ export function useContributionCredits(enabled: boolean) {
   })
 }
 
-export function usePlaceProviderPhotos(placeId: string | undefined) {
-  return useQuery({
-    queryKey: ['place-provider-photos', placeId],
-    queryFn: () => placesApi.getPlaceProviderPhotos(placeId as string),
-    enabled: Boolean(placeId),
-    gcTime: 0,
-    staleTime: Infinity,
-    retry: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-  })
-}
-
 export function useReportPlace(placeId: string) {
   const intent = useIntentKey()
   return useMutation({

@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native-unistyles'
 import { spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  field: { minHeight: 50, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.redesign.low, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  field: { minHeight: 50, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: theme.border.hairline, backgroundColor: theme.surface.low, flexDirection: 'row', alignItems: 'center', gap: 8 },
   fieldLabel: { flex: 1 },
   fieldDisabled: { opacity: 0.4 },
   communeLabel: { marginTop: 8 },

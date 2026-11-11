@@ -14,8 +14,9 @@ function files(directory: string): string[] {
 // Direct owners plus the wrappers below cover every existing application nav bar.
 // Headerless full-screen scenes, sheets and content headings are inventoried in issue-535.md.
 const direct = [
-  'account/account', 'active-date/active-date', 'assistant/assistant-header', 'auth/sign-in',
-  'contributions/my-contributions', 'create-date/wizard-step', 'date-plan/date-plan',
+  'account/account', 'active-date/active-date', 'assistant/assistant-header',
+  'auth/forgot-password', 'auth/reset-password', 'auth/sign-in',
+  'contributions/my-contributions', 'create-date/wizard-step', 'credits/credits', 'date-plan/date-plan',
   'date-plan/place-detail', 'date-plan/plan-change', 'date-plan/plan-edit',
   'gogo-room/gogo-room', 'gogo-room/guest-join', 'gogo-room/join-by-code', 'gogo-room/room-manage',
   'home/home', 'matching/preference', 'matching/swipe', 'notifications/notifications', 'notifications/notification-settings',
@@ -31,7 +32,7 @@ const wrappers: Record<string, string> = {
   'assistant/assistant': 'AssistantHeader', 'assistant/history': 'AssistantHeader',
 }
 // SettingsPage covers permissions/data, defaults and theme, including embedded settings.
-const profileHeaders = ['account/account', 'contributions/my-contributions', 'notifications/notifications', 'notifications/notification-settings', 'review/my-reviews', 'settings/settings-page']
+const profileHeaders = ['credits/credits', 'account/account', 'contributions/my-contributions', 'notifications/notifications', 'notifications/notification-settings', 'review/my-reviews', 'settings/settings-page']
 function owns(source: string, name: string) {
   const ast = ts.createSourceFile('screen.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let found = false
@@ -104,6 +105,20 @@ describe('application header ownership', () => {
       return match && !known.has(match[1]) ? [match[1]] : []
     })
     expect(unknown).toEqual([])
+  })
+  it('keeps the shared sign-in/sign-up header free of account and notification actions', () => {
+    const source = read('auth/sign-in.view.tsx')
+    const ast = ts.createSourceFile('auth.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const headers: ts.JsxAttributes[] = []
+    function visit(node: ts.Node) {
+      if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(ast) === 'AppHeader') headers.push(node.attributes)
+      ts.forEachChild(node, visit)
+    }
+    visit(ast)
+    expect(headers).toHaveLength(1)
+    expect(headers[0].getText(ast)).toContain('showNotifications={false}')
+    expect(headers[0].properties.some(prop => ts.isJsxAttribute(prop) && prop.name.getText(ast) === 'rightAction')).toBe(false)
+    expect(owns(source, 'AvatarCircle')).toBe(false)
   })
   it('rejects screen-owned navigation throughout features', () => {
     const found = files(features).filter(file => file.endsWith('.view.tsx')).flatMap(file => {

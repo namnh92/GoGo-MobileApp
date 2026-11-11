@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   categoryPosition: { position: 'absolute', top: spacing[3], left: spacing[3] },
@@ -62,7 +62,7 @@ export const styles = StyleSheet.create(theme => ({
 
   footer: { flex: 1, padding: spacing[3], gap: spacing[2], overflow: 'hidden' },
   titleCol: { gap: 2 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
 
   actions: {
     flexDirection: 'row',

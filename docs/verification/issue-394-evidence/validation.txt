@@ -1,0 +1,9 @@
+pnpm typecheck: PASS (exit 0)
+pnpm lint: PASS (exit 0)
+pnpm test:ui --runInBand: PASS (exit 0)
+Test Suites: 237 passed, 237 total
+Tests:       3476 passed, 3476 total
+Snapshots:   11 passed, 11 total
+Time:        211.927 s
+Source SHA-256 manifest rechecked after validation: MATCH
+Device/real DEV card acceptance: BLOCKED (CoreSimulator/ADB sandbox access)

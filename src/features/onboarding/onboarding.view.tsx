@@ -146,8 +146,8 @@ function OnboardingBody({ slide, navigate, finishing, finish, start, viewport, v
     </View>
     {isLast && <View testID="onboarding-dots" onLayout={measure('dots')} style={styles.lastDots}><ProgressDots total={3} current={slide} variant={current.dots} /></View>}
     <View testID="onboarding-narrative" onLayout={measure('narrative')} style={[styles.narrative, slide === 1 && styles.swipeNarrative]}>
-      <Text variant={slide === 1 ? 'introCompact' : 'introTitle'} color={slide === 1 ? 'redesign.mutedTitle' : 'redesign.ink'} style={styles.title}>{t(current.titleKey)}</Text>
-      <Text variant={slide > 0 ? 'introRelaxed' : 'introBody'} color={slide === 1 ? 'redesign.mutedBody' : 'redesign.secondary'} style={styles.body}>{t(current.bodyKey)}</Text>
+      <Text variant={slide === 1 ? 'introCompact' : 'introTitle'} color={slide === 1 ? 'text.neutralPrimary' : 'text.primary'} style={styles.title}>{t(current.titleKey)}</Text>
+      <Text variant={slide > 0 ? 'introRelaxed' : 'introBody'} color={slide === 1 ? 'text.neutralSecondary' : 'text.secondary'} style={styles.body}>{t(current.bodyKey)}</Text>
     </View>
     {!isLast && <View testID="onboarding-dots" onLayout={measure('dots')} style={[styles.dots, slide === 1 && styles.swipeDots]}><ProgressDots total={3} current={slide} variant={current.dots} /></View>}
   </>

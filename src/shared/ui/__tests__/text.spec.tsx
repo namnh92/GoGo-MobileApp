@@ -26,7 +26,7 @@ describe('Text', () => {
 
   it('reads accent colours from the active theme', async () => {
     await render(<Text testID="t" color="accent.primary">Xem tất cả</Text>)
-    expect(flat('t').color).toBe(accents.orange.primary)
+    expect(flat('t').color).toBe(accents.orange.text)
   })
 
   it('resolves every status label colour to its *Text token, never the fill', async () => {

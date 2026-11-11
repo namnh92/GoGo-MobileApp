@@ -70,7 +70,7 @@ const selections = [
   ['search/search-empty.view.tsx', ['PlaceCardSmall']],
   ['place-import/existing-place-result.view.tsx', ['PlaceCardSmall']],
   ['place-import/import.view.tsx', ['PlaceCardLarge', 'PlaceCardSmall']],
-  ['assistant/result-card.view.tsx', ['PlaceCardLarge']],
+  ['assistant/result-card.view.tsx', ['PlaceCardSmall']],
   ['date-plan/date-plan.view.tsx', ['PlaceCardLarge']],
   ['date-plan/plan-edit.view.tsx', ['PlaceCardSmall']],
   ['active-date/active-date.view.tsx', ['PlaceCardLarge', 'PlaceCardSmall']],
@@ -82,6 +82,23 @@ const selections = [
 ] as const
 
 describe('#564 exactly two common place-card components', () => {
+  it('AI and the add-place result sheet use the same small-card component and exact props shape', () => {
+    const selections = ['assistant/result-card.view.tsx', 'place-import/existing-place-result.view.tsx'].map(path => {
+      const file = ts.createSourceFile(path, readFileSync(join(root, path), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+      const cards: { component: string; props: string[] }[] = []
+      function visit(node: ts.Node) {
+        if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && node.tagName.getText(file) === 'PlaceCardSmall') {
+          cards.push({ component: node.tagName.getText(file), props: node.attributes.properties.map(prop => ts.isJsxAttribute(prop) ? prop.name.getText(file) : 'spread').sort() })
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(file)
+      expect(file.statements.some(node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === '@/shared/ui/place-card-small.view')).toBe(true)
+      return cards
+    })
+    expect(selections[0]).toEqual(selections[1])
+    expect(selections[0]).toEqual([{ component: 'PlaceCardSmall', props: ['onPress', 'place'] }])
+  })
   it.each(selections)('%s selects the common composition', (path, components) => {
     const source = readFileSync(join(root, path), 'utf8')
     const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)

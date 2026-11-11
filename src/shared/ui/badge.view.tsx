@@ -36,8 +36,8 @@ export function Badge({ label, tone = 'accent', accessibilityLabel, style, appea
   const solidColor = tone === 'accent' ? 'accent.onAccent' : theme.mode === 'dark' ? LABEL[tone] : 'text.inverse'
   return (
     <View style={[styles.badge, styles[tone], appearance !== 'default' && styles.stitchBadge, appearance === 'solid' && styles.solid(tone), appearance !== 'default' && appearance !== 'solid' && styles[appearance], style]}>
-      {icon && <MaterialIcon name={icon} size={14} color={appearance === 'solid' ? solidColor : appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'redesign.violetInk' : appearance === 'stitchGreen' ? 'redesign.white' : 'redesign.greenText'} />}
-      <Text style={appearance !== 'default' ? styles.stitchLabel : undefined} variant={appearance === 'default' ? 'caption' : 'introCaption'} color={appearance === 'solid' ? solidColor : appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'redesign.violetInk' : appearance === 'stitchGreen' ? 'redesign.white' : 'redesign.secondary'} numberOfLines={appearance === 'default' || appearance === 'solid' ? 1 : undefined} accessibilityLabel={accessibilityLabel}>
+      {icon && <MaterialIcon name={icon} size={14} color={appearance === 'solid' ? solidColor : appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'status.infoInk' : appearance === 'stitchGreen' ? 'text.inverse' : 'status.successText'} />}
+      <Text style={appearance !== 'default' ? styles.stitchLabel : undefined} variant={appearance === 'default' ? 'caption' : 'introCaption'} color={appearance === 'solid' ? solidColor : appearance === 'default' ? LABEL[tone] : appearance === 'stitchViolet' ? 'status.infoInk' : appearance === 'stitchGreen' ? 'text.inverse' : 'text.secondary'} numberOfLines={appearance === 'default' || appearance === 'solid' ? 1 : undefined} accessibilityLabel={accessibilityLabel}>
         {label}
       </Text>
     </View>

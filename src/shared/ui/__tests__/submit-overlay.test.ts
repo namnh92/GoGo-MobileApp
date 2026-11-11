@@ -3,12 +3,15 @@ import { fileURLToPath, URL } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { themes } from '../theme'
-import { motion, overlay } from '../tokens'
+import { darkSurface, motion, overlay } from '../tokens'
 
 // Audited form owners, including forms inside sheets. Keep this inventory when
 // adding a submit/save/send flow; local-only wizard navigation has no mutation.
+// Owner #625: AI chat sends are not form submissions; their pending state stays in chat.
 const submitScreens = {
-  'auth/sign-in': 'pending', // sign-in + sign-up; recovery is unavailable
+  'auth/sign-in': 'pending', // sign-in + sign-up
+  'auth/forgot-password': 'pending',
+  'auth/reset-password': 'complete.isPending',
   'tabs/profile': 'signingOut',
   'account/account': "saving || avatarStep === 'removing' || busy !== null",
   'account/avatar-editor': 'busy',
@@ -38,7 +41,6 @@ const submitScreens = {
   'notifications/notification-settings': 'save.isPending',
   'notifications/notification-switch': 'save.isPending',
   'tabs/saved-link': 'pending',
-  'assistant/assistant': 'sending', // POST acknowledgement, not the reply stream/Stop
   'assistant/history': 'saving',
   'assistant/assistant-reply': 'confirm.isPending || dismiss.isPending',
 } as const
@@ -64,10 +66,10 @@ describe('submit overlay coverage', () => {
     expect(bindings).toContain(pending)
   })
 
-  it.each(Object.entries(themes))('%s submit backdrop is the canvas at exactly 85 percent', (_name, theme) => {
-    const channels = theme.surface.canvas.slice(1).match(/../g)!.map(channel => parseInt(channel, 16))
+  it.each(Object.entries(themes))('%s submit backdrop is the dark canvas at exactly 85 percent', (_name, theme) => {
+    const channels = darkSurface.canvas.slice(1).match(/../g)!.map(channel => parseInt(channel, 16))
     expect(theme.overlay.submit).toBe(`rgba(${channels.join(',')},0.85)`)
-    expect(theme.overlay.submit).toBe(theme.mode === 'dark' ? overlay.submitDark : overlay.submitLight)
+    expect(theme.overlay.submit).toBe(overlay.submit)
   })
 
   it('keeps overlay paint in a theme role and the approved animation periods', () => {

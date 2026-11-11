@@ -14,7 +14,7 @@ import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
  */
 
 const mockRouter = { back: jest.fn(), push: jest.fn(), replace: jest.fn(), canGoBack: () => true }
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(),
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
   Redirect: () => null,
@@ -75,7 +75,7 @@ it('before the status has caught up, the refused message names the reset from re
   const backend = spyOn({
     ...mock,
     // The status still says `enabled` (it refetches after the send).
-    getStatus: async () => ({ creditBalance: 0, state: 'enabled', dailyMessageLimit: 30, remainingToday: 0, resetsAt, messagesPerMinuteLimit: 5 }),
+    getStatus: async () => ({ creditReserved: 0, creditAvailable: 0, creditPolicy: 'legacy_allowance_v1', paidCreditsRequired: null, paidSendEnabled: false, asOf: '2026-11-11T00:00:00Z', creditBalance: 0, state: 'enabled', dailyMessageLimit: 30, remainingToday: 0, resetsAt, messagesPerMinuteLimit: 5 }),
     sendMessage: async () => {
       // A Retry-After one hour out — another time than the reset.
       throw new ApiError(429, { code: 'ASSISTANT_DAILY_LIMIT', message: 'Daily limit reached' }, '3600')
@@ -112,7 +112,7 @@ it('the mock refuses with a Retry-After that points at resetsAt (midnight Asia/H
 it('on Welcome the limit notice scrolls with the content, above the starting points it explains', async () => {
   const backend = spyOn({
     ...createMockAssistantBackend({ speed: 0, actor: () => 'user' }),
-    getStatus: async () => ({ creditBalance: 0, state: 'limit_reached', dailyMessageLimit: 30, remainingToday: 0, resetsAt: '2026-10-27T17:00:00Z' }),
+    getStatus: async () => ({ creditReserved: 0, creditAvailable: 0, creditPolicy: 'legacy_allowance_v1', paidCreditsRequired: null, paidSendEnabled: false, asOf: '2026-11-11T00:00:00Z', creditBalance: 0, state: 'limit_reached', dailyMessageLimit: 30, remainingToday: 0, resetsAt: '2026-10-27T17:00:00Z' }),
   })
   setAssistantBackend(backend)
   const view = await renderAssistant(<AssistantRoute />)

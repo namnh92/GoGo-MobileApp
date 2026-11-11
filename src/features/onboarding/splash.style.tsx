@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native-unistyles'
 export const styles = StyleSheet.create(theme => ({
   root: {
     flex: 1,
-    backgroundColor: theme.redesign.canvas,
+    backgroundColor: theme.surface.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -64,6 +64,6 @@ export const styles = StyleSheet.create(theme => ({
     top: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.redesign.canvas,
+    backgroundColor: theme.surface.canvas,
   },
 }))

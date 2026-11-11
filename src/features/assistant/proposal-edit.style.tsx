@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
+import { chipRowGap } from '@/shared/ui/tokens'
 
 
 export const styles = StyleSheet.create(theme => ({
@@ -14,6 +15,6 @@ export const styles = StyleSheet.create(theme => ({
     paddingHorizontal: theme.spacing[4],
     color: theme.text.primary,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   actions: { gap: theme.spacing[2] },
 }))

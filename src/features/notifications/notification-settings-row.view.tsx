@@ -29,8 +29,8 @@ export function NotificationSettingsRow() {
     <View style={styles.icon}><Icon name="bell" size={20} color="accent.onSoft" /></View>
     <View style={styles.text}>
       <Text variant="introHeading">{t('notificationSettings.switchLabel')}</Text>
-      <Text variant="introCaption" color="redesign.secondary" accessibilityLiveRegion="polite">{t(statusKey)}</Text>
+      <Text variant="introCaption" color="text.secondary" accessibilityLiveRegion="polite">{t(statusKey)}</Text>
     </View>
-    <Icon name="chevronRight" size={20} color="redesign.secondary" />
+    <Icon name="chevronRight" size={20} color="text.secondary" />
   </Pressable>
 }

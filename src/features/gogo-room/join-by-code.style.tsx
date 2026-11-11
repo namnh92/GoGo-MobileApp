@@ -4,10 +4,10 @@ import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   content: { flexGrow: 1, paddingHorizontal: spacing[4] },
-  codeRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.redesign.container, borderRadius: 8, paddingRight: spacing[2] },
-  codeInput: { flex: 1, minWidth: 0, backgroundColor: theme.redesign.container, height: 56 },
+  codeRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface.container, borderRadius: 8, paddingRight: spacing[2] },
+  codeInput: { flex: 1, minWidth: 0, backgroundColor: theme.surface.container, height: 56 },
   actions: { marginTop: spacing[6], gap: spacing[3] },
-  tip: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: theme.redesign.low, padding: spacing[3], borderRadius: radius.compact, marginTop: spacing[4] },
+  tip: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: theme.surface.low, padding: spacing[3], borderRadius: radius.compact, marginTop: spacing[4] },
   tipText: { flex: 1 },
   body: { marginBottom: spacing[4], marginTop: spacing[4], textAlign: 'center' },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
@@ -20,7 +20,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.compact,
     paddingHorizontal: spacing[4],
     color: theme.text.primary,
-    backgroundColor: theme.redesign.low,
+    backgroundColor: theme.surface.low,
   },
   errorBox: {
     flexDirection: 'row',

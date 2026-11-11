@@ -20,3 +20,9 @@ export const signUpSchema = z.object({
 
 export type SignInValues = z.infer<typeof signInSchema>
 export type SignUpValues = z.infer<typeof signUpSchema>
+
+export const recoveryEmailSchema = signInSchema.pick({ email: true }).extend({ email: z.string().trim().pipe(signInSchema.shape.email) })
+export const recoveryPasswordSchema = signUpSchema.pick({ password: true }).extend({
+  confirmPassword: z.string().min(1).max(128),
+}).refine(values => values.password === values.confirmPassword, { path: ['confirmPassword'], message: 'passwordMismatch' })
+export type RecoveryPasswordValues = z.infer<typeof recoveryPasswordSchema>

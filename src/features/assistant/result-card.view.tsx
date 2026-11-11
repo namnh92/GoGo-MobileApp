@@ -5,7 +5,7 @@ import type { AssistantPlaceCard, AssistantPlanCard, AssistantResultCard } from 
 import { Badge } from '@/shared/ui/badge.view'
 import { SecondaryBtn } from '@/shared/ui/button.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
-import { PlaceCardLarge } from '@/shared/ui/place-card-large.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Text } from '@/shared/ui/text'
 
 import { formatWhen } from './format'
@@ -15,9 +15,8 @@ import { styles } from './result-card.style'
  * Design system `ResultCard` (GoGo-MobileApp#378): a place or a plan the
  * assistant found. Every fact on it is what the server read from verified
  * GoGo data (contract `AssistantPlaceCard.facts`), never model text; a place
- * that is no longer usable says so and offers nothing to do. One
- * secondary action, the likely next step: a thread can hold several cards,
- * and the screen keeps one filled primary button.
+ * that is no longer usable says so and offers nothing to do. Place results
+ * use the common compact card; tapping the card opens the place detail.
  */
 export function ResultCard({
   card,
@@ -48,13 +47,15 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
   const { t } = useTranslation()
   const { facts } = card
   // The assistant contract explicitly defines these verified prices per person.
-  // No provider rating, category, distance or verification is inferred here.
+  // No rating, category, distance or verification is inferred here.
   const place = {
     id: card.placeId,
     name: facts.name,
     ...(card.available ? {
       areaKey: facts.areaKey,
       addressText: facts.addressText,
+      rating: facts.providerRating,
+      ratingCount: facts.providerRatingCount,
       gogoRating: facts.gogoRating,
       gogoRatingCount: facts.gogoRatingCount,
       openNow: facts.openNow ?? undefined,
@@ -70,15 +71,15 @@ function PlaceResult({ card, onOpen }: { card: AssistantPlaceCard; onOpen: (plac
     photoUrl: card.available ? facts.photoUrl ?? null : null,
     photoAttribution: null,
     photoSource: null,
-    ratingSource: 'google' as const,
+    ratingSource: facts.providerRatingSource ?? 'google',
   }
   return (
-    <View testID={`assistant-card-${card.placeId}`} style={styles.place}>
-      <PlaceCardLarge place={place} onPress={card.available ? () => onOpen(card.placeId) : undefined} footer={<View style={styles.placeAction}>
-        {card.available ? (
-          <SecondaryBtn size="regular" variant="neutral" label={t('assistant.card.viewPlace')} onPress={() => onOpen(card.placeId)} icon="eye" />
-        ) : <Badge tone="warning" label={t('assistant.card.unavailable')} />}
-      </View>} />
+    <View testID={`assistant-card-${card.placeId}`}>
+      <PlaceCardSmall
+        place={place}
+        onPress={card.available ? () => onOpen(card.placeId) : undefined}
+      />
+      {!card.available ? <Badge tone="warning" label={t('assistant.card.unavailable')} /> : null}
     </View>
   )
 }

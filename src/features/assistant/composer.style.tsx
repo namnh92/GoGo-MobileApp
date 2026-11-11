@@ -8,7 +8,7 @@ import { touchTarget } from '@/shared/ui/tokens'
  * lines of `body` (5 × 21) and then scrolls inside.
  */
 export const styles = StyleSheet.create(theme => ({
-  bar: { paddingHorizontal: theme.spacing[3], paddingTop: theme.spacing[2], gap: theme.spacing[2], borderTopWidth: 1, borderTopColor: theme.border.hairline },
+  bar: { paddingHorizontal: theme.spacing[3], paddingTop: theme.spacing[2], paddingBottom: theme.spacing[2], gap: theme.spacing[2], borderTopWidth: 1, borderTopColor: theme.border.hairline },
   context: { paddingHorizontal: theme.spacing[2] },
   images: { flexDirection: 'row', gap: theme.spacing[2], paddingHorizontal: theme.spacing[2] },
   image: { width: 56, height: 56, borderRadius: theme.radius.compact, overflow: 'hidden', backgroundColor: theme.surface.subtle },

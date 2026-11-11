@@ -7,4 +7,5 @@ import { StyleSheet } from 'react-native-unistyles'
 export const styles = StyleSheet.create(theme => ({
   screen: { flex: 1, backgroundColor: theme.surface.canvas },
   flex: { flex: 1 },
+  footer: (bottomInset: number) => ({ paddingBottom: bottomInset, backgroundColor: theme.surface.card }),
 }))

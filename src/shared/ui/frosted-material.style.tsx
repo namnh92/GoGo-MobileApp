@@ -3,9 +3,9 @@ import { fill } from './tokens'
 export const styles = StyleSheet.create(theme => ({
   fill: { ...fill },
   nativeFill: { flex: 1 },
-  bubble: { backgroundColor: theme.redesign.bubble },
-  panel: { backgroundColor: theme.redesign.panel },
-  header: { backgroundColor: theme.redesign.header },
-  solid: { backgroundColor: theme.redesign.card },
-  solidHeader: { backgroundColor: theme.redesign.canvas },
+  bubble: { backgroundColor: theme.glass.opaque },
+  panel: { backgroundColor: theme.glass.translucent },
+  header: { backgroundColor: theme.glass.header },
+  solid: { backgroundColor: theme.surface.card },
+  solidHeader: { backgroundColor: theme.surface.canvas },
 }))

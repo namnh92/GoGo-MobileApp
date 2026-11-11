@@ -52,7 +52,7 @@ export function GoGoLogo({ variant = 'mark', size = 32, height, animated = false
         : <G transform={compact ? 'translate(0 -20)' : undefined}>{logoPaths.stars.map((d, i) => <Path key={d} d={d} fill={brandLogo.stars[i]} opacity={i === 0 ? 0.95 : 0.9} />)}</G>}
       {animated ? <BouncingRibbon testID={`${testID}-loop`}>{ribbon}</BouncingRibbon> : ribbon}
       {/* At 32pt the compact lockup keeps 9pt lettering, as in Stitch's header example. */}
-      {wordmark ? <SvgText testID={`${testID}-text`} x={200} y={compact ? 370 : 324} textAnchor="middle" fill={theme.text.primary} fontFamily={fontFamily.extraBold} fontSize={compact ? 112.5 : 52} letterSpacing={3.5}>{t('splash.wordmark')}</SvgText> : null}
+      {wordmark ? <SvgText testID={`${testID}-text`} x={200} y={compact ? 370 : 324} textAnchor="middle" fill={theme.text.neutralPrimary} fontFamily={fontFamily.extraBold} fontSize={compact ? 112.5 : 52} letterSpacing={3.5}>{t('splash.wordmark')}</SvgText> : null}
       {variant === 'wordmark' ? brandLogo.dots.map((color, i) => animated ? <WavingDot key={color} index={i} testID={`${testID}-dot-${i}`} /> : <Circle testID={`${testID}-dot-${i}`} key={color} cx={180 + i * 20} cy={354} r={3.8} fill={color} />) : null}
     </Svg>
   </View>

@@ -11,7 +11,7 @@ import { EmptyState, ErrorState, OfflineState, StaleNotice } from '@/shared/ui/a
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
-import { Skeleton } from '@/shared/ui/skeleton.view'
+import { NotificationListSkeleton } from '@/shared/ui/skeleton.view'
 import { NotificationRow } from './notification-row.view'
 import { formatNotificationTime } from './notification-time'
 import { styles } from './system-notifications.style'
@@ -21,10 +21,10 @@ export function SystemNotificationsSection({ inbox, illustration }: Props) {
   const { t } = useTranslation()
   const items = inbox.data?.pages.flatMap(page => page.items) ?? []
   return <View testID="system-notifications-section">
-    <Text accessibilityRole="header" variant="introHeading" color="redesign.ink" style={styles.sectionTitle}>{t('g10.systemTitle')}</Text>
+    <Text accessibilityRole="header" variant="introHeading" color="text.primary" style={styles.sectionTitle}>{t('g10.systemTitle')}</Text>
     {inbox.status === 'unsupported' ? <View testID="system-notifications-unsupported" style={styles.empty}>
       <EmptyState appearance="stitch" title={t('g10.systemUnavailableTitle')} body={t('g10.systemUnavailableBody')} illustration={illustration} />
-    </View> : inbox.isPaused && !inbox.data ? <OfflineState /> : inbox.isPending ? <View testID="system-notifications-loading"><Skeleton width="100%" height={96} /></View>
+    </View> : inbox.isPaused && !inbox.data ? <OfflineState /> : inbox.isPending ? <NotificationListSkeleton testID="system-notifications-loading" />
       : inbox.isError && !inbox.data ? <ErrorState error={inbox.error} onRetry={() => void inbox.refetch()} /> : <>
         <StaleNotice hasData={!!inbox.data} error={inbox.error} onRetry={() => void inbox.refetch()} />
         {items.map(item => <SystemNotificationRow key={item.id} item={item} />)}
@@ -43,8 +43,8 @@ export function SystemNotificationRow({ item }: { item: SystemNotification }) {
   const published = parseApiDate(item.publishedAt)
   return <NotificationRow id={item.id} testID={`system-notification-${item.id}`} headingTestID={`notification-public-heading-${item.id}`}
     title={item.title} relativeTime={published ? formatNotificationTime(published, t) : null}
-    icon={<Icon name={item.kind === 'maintenance' ? 'settings' : item.kind === 'update' ? 'sparkle' : 'info'} size={24} color="redesign.secondary" />}
+    icon={<Icon name={item.kind === 'maintenance' ? 'settings' : item.kind === 'update' ? 'sparkle' : 'info'} size={24} color="text.secondary" />}
     actions={canOpen ? <SecondaryBtn size="small" variant="neutralPill" label={t('g10.viewDetails')} onPress={() => router.push(routeForAction(action))} /> : null}>
-    <Text variant="introBody" color="redesign.ink" style={styles.body}>{item.body}</Text>
+    <Text variant="introBody" color="text.primary" style={styles.body}>{item.body}</Text>
   </NotificationRow>
 }

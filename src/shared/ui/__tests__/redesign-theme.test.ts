@@ -6,12 +6,12 @@ import { motion } from '../tokens'
 
 describe('approved group 01 theme and copy', () => {
   it.each(Object.values(themes))('has complete mode-aware redesign roles ($mode)', theme => {
-    expect(Object.keys(theme.redesign).sort()).toEqual(Object.keys(themes.orange.redesign).sort())
-    expect(Object.values(theme.redesign).every(value => typeof value === 'string' && value.length > 0)).toBe(true)
-    expect(theme.redesign.canvas).toBe(theme.mode === 'dark' ? '#181715' : '#FFF8F3')
-    expect(theme.redesign.card).toBe(theme.mode === 'dark' ? '#222222' : '#FFFFFF')
-    expect(theme.redesign.ink).toBe(theme.mode === 'dark' ? '#E6E6E6' : '#1D1B18')
-    expect(theme.redesign.secondary).toBe(theme.mode === 'dark' ? '#CCCCCC' : '#5A413B')
+    expect(Object.keys(theme.surface).sort()).toEqual(Object.keys(themes.orange.surface).sort())
+    expect(Object.values(theme.surface).every(value => typeof value === 'string' && value.length > 0)).toBe(true)
+    expect(theme.surface.canvas).toBe(theme.mode === 'dark' ? '#181715' : '#FFF8F3')
+    expect(theme.surface.card).toBe(theme.mode === 'dark' ? '#222222' : '#FFFFFF')
+    expect(theme.text.primary).toBe(theme.mode === 'dark' ? '#E6E6E6' : '#1D1B18')
+    expect(theme.text.secondary).toBe(theme.mode === 'dark' ? '#CCCCCC' : '#5A413B')
   })
   it('carries owner-adjusted splash pacing and unchanged ambient timings', () => {
     expect([motion.mapReveal, motion.brandReveal, motion.markerBounce, motion.ripple, motion.ambientWarm, motion.ambientCool]).toEqual([525, 675, 600, 900, 8000, 10000])

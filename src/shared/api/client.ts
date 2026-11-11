@@ -39,6 +39,8 @@ export interface RequestOptions {
   ifNoneMatch?: string
   /** Strong resource validator returned by the BFF for conditional writes. */
   ifMatch?: string
+  /** Reject an unexpected success status before consuming its body. */
+  expectedStatus?: number
   onResponseHeaders?: (headers: Headers) => void
   revalidate?: boolean
   timeoutMs?: number
@@ -167,6 +169,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     field_errors: envelope.field_errors,
     request_id: envelope.request_id,
     retryable: envelope.retryable,
+    details: envelope.details,
   }, response.headers.get('retry-after'))
 }
 
@@ -269,7 +272,7 @@ export async function request<T>(options: RequestOptions): Promise<T> {
 
   const consume = async (response: Response): Promise<T> => {
     scope.assert()
-    if (!response.ok) throw await scope.wait(toApiError(response))
+    if (!response.ok || (options.expectedStatus !== undefined && response.status !== options.expectedStatus)) throw await scope.wait(toApiError(response))
     options.onResponseHeaders?.(response.headers)
     return scope.wait(parseBody<T>(response))
   }

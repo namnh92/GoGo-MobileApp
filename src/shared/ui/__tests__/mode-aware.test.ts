@@ -31,8 +31,8 @@ function composite(wash: string, backdrop: string): string {
 }
 
 describe('accent as text', () => {
-  it.each(ACCENTS)('%s: light text is the primary, so light is unchanged', accent => {
-    expect(accents[accent].text).toBe(accents[accent].primary)
+  it.each(ACCENTS)('%s: uses the Stitch text shade independently from the fill', accent => {
+    expect(accents[accent].text).toBe(accent === 'orange' ? '#A71E07' : accents[accent].primary)
   })
 
   it.each(ACCENTS)('%s: dark text reads at AA on every dark surface and on the dark bar', accent => {

@@ -8,7 +8,7 @@ export const styles = StyleSheet.create(theme => ({
   hostHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   avatar: { width: 56, height: 56, borderRadius: 28 },
   fact: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  factIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.redesign.container },
+  factIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface.container },
   factText: { flex: 1, minWidth: 0 },
   badge: { alignSelf: 'flex-start', backgroundColor: theme.accent.soft, borderWidth: 0 },
   title: { marginTop: spacing[4], marginBottom: spacing[4] },
@@ -22,7 +22,7 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.compact,
     paddingHorizontal: spacing[4],
     color: theme.text.primary,
-    backgroundColor: theme.redesign.low,
+    backgroundColor: theme.surface.low,
   },
   errorBox: {
     flexDirection: 'row',

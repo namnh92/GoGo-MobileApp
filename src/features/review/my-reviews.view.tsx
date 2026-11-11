@@ -1,6 +1,6 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
-import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
+import { ReviewListSkeleton } from '@/shared/ui/skeleton.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -142,7 +142,7 @@ export default function MyReviewsScreen() {
     return (
       <Atmosphere>
         {header}
-        <View testID="my-reviews-first-load-skeleton" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}><RoomMemberSkeleton /></View>
+        <View testID="my-reviews-first-load-skeleton" accessibilityRole="progressbar" accessibilityLabel={t('common.loading')}><ReviewListSkeleton /></View>
       </Atmosphere>
     )
   }

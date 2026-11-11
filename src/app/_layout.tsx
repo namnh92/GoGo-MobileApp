@@ -2,7 +2,6 @@
 import '@/shared/observability/bootstrap'
 
 import { Stack } from 'expo-router'
-import { Platform } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
 
@@ -44,12 +43,10 @@ function RootLayout() {
             contentStyle: { backgroundColor: theme.surface.canvas },
           }}
         >
-          {/* GoGo AI (#379): a page sheet over the current screen on iOS — swipe
-              down closes it — and full screen on Android. The screen under it
-              stays mounted, so closing returns to the same scroll position. */}
+          {/* A normal stack card keeps the conversation mounted beneath destinations. */}
           <Stack.Screen
             name="assistant"
-            options={{ presentation: Platform.OS === 'ios' ? 'pageSheet' : 'fullScreenModal', gestureEnabled: true }}
+            options={{ presentation: 'card', gestureEnabled: true }}
           />
         </Stack>
       </AppProviders>

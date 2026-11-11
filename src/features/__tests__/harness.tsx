@@ -1,5 +1,6 @@
+import { render } from '@/shared/ui/__tests__/query-render'
 import type { ReactElement } from 'react'
-import { render, screen } from '@testing-library/react-native'
+import {  screen } from '@testing-library/react-native'
 
 // Initialises the shared i18next instance, so assertions read the Vietnamese
 // copy a user sees rather than raw translation keys.

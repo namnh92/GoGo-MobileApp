@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { radius, spacing } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   intro: { paddingHorizontal: spacing[5], gap: spacing[1], marginBottom: spacing[4] },
@@ -19,7 +19,7 @@ export const styles = StyleSheet.create(theme => ({
   heroMetaText: { flexShrink: 1 },
   section: { marginHorizontal: spacing[5], marginTop: spacing[5] },
   reasonTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
-  reasonChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  reasonChips: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   staleWarning: {
     marginHorizontal: spacing[5],
     marginTop: spacing[3],

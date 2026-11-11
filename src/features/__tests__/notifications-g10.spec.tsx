@@ -3,6 +3,7 @@ import { AppState, Linking, StyleSheet, type AppStateStatus } from 'react-native
 import { themes, type AppTheme } from '@/shared/ui/theme'
 import { buttonSizes, spacing, fontFamily } from '@/shared/ui/tokens'
 import { renderScreen } from './harness'
+import { scriptedTime } from './scripted-time'
 import i18n from '@/shared/i18n'
 import { viMessages } from '@/shared/i18n/vi'
 
@@ -73,6 +74,8 @@ const item = { id: 'notification-1', kind: 'invite', createdAt: '2026-11-08T10:0
 const settingsData = { pushEnabled: true, source: 'explicit', updatedAt: null }
 const loadedInbox = (notifications: unknown[] = [item]) => ({ data: { pages: [{ notifications, clientFilter: false }] }, isPending: false, isError: false, refetch: mockRefetch })
 
+scriptedTime()
+
 beforeEach(() => {
   currentTheme = themes.orange
   jest.clearAllMocks()
@@ -117,7 +120,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
     // Standard text + padding + border resolve to the same 32pt visual body.
     expect(labelStyle.lineHeight + 2 * (bodyStyle.paddingVertical + bodyStyle.borderWidth)).toBe(32)
     expect(bodyStyle.backgroundColor).toBe(chip.variant === 'selected'
-      ? currentTheme.accent.primary : currentTheme.redesign.card)
+      ? currentTheme.accent.primary : currentTheme.surface.card)
   }
   let row = screen.getByText(chips[0]!.label).parent
   while (row && !row.props.horizontal) row = row.parent
@@ -126,7 +129,7 @@ it.each(['orange', 'orangeDark'] as const)('keeps inbox filters at shared Chip s
   // Without centering, Yoga stretches the bare selected chip to the siblings'
   // 44pt touch hosts, while their visual chip bodies remain 32pt.
   expect(rowStyle.alignItems).toBe('center')
-  expect(rowStyle.gap).toBe(spacing[2])
+  expect(rowStyle.gap).toBe(4)
   expect(rowStyle.paddingVertical).toBe(spacing[1])
   expect(rowStyle.paddingHorizontal ?? 0).toBe(0)
   expect(rowStyle.marginHorizontal ?? 0).toBe(0)
@@ -143,7 +146,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
     expect(StyleSheet.flatten(badge!.props.style).backgroundColor).toBe(currentTheme.accent.primary)
     expect(StyleSheet.flatten(badgeText.props.style).color).toBe(currentTheme.accent.onAccent)
     const readAll = screen.getByRole('button', { name: 'Đọc tất cả' })
-    expect(StyleSheet.flatten(readAll.props.style)).toMatchObject({ borderRadius: 999, backgroundColor: currentTheme.redesign.high })
+    expect(StyleSheet.flatten(readAll.props.style)).toMatchObject({ borderRadius: 999, backgroundColor: currentTheme.surface.high })
     expect(screen.getByTestId('material-icon-doneAll', { includeHiddenElements: true })).toBeTruthy()
     expect(StyleSheet.flatten(screen.getByTestId(`notification-heading-${item.id}`).props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'flex-start' })
     expect(StyleSheet.flatten(screen.getByTestId(`notification-heading-${item.id}`).props.style).flexWrap).toBeUndefined()
@@ -161,7 +164,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s Stitch inbox structure', mo
     if (state === 'loading') expect(screen.getByTestId('notifications-loading')).toBeTruthy()
     else {
       const surface = screen.getByTestId(state === 'error' ? 'notifications-error' : 'notifications-empty')
-      expect(StyleSheet.flatten(surface.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+      expect(StyleSheet.flatten(surface.props.style).backgroundColor).toBe(currentTheme.surface.card)
       expect(screen.queryByTestId('notifications-loading')).toBeNull()
       if (state === 'empty') {
         expect(screen.getByText(viMessages['g10.emptyTitle'])).toBeTruthy()
@@ -324,7 +327,7 @@ it.each(['orange', 'orangeDark'] as const)('settings in %s has one real master a
   expect(screen.getByTestId('notification-master').props.disabled).toBe(false)
   let card = screen.getByTestId('notification-master').parent
   while (card && !StyleSheet.flatten(card.props.style)?.backgroundColor) card = card.parent
-  expect(StyleSheet.flatten(card!.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+  expect(StyleSheet.flatten(card!.props.style).backgroundColor).toBe(currentTheme.surface.card)
   for (const control of switches.filter(control => control.props.testID !== 'notification-master')) {
     expect(control.props.disabled).toBe(true)
     expect(control.props.value).toBe(false)
@@ -512,7 +515,7 @@ it.each([
     expect(StyleSheet.flatten(rows[0].props.style).minHeight).toBeGreaterThanOrEqual(44)
     let card = rows[0].parent
     while (card && !StyleSheet.flatten(card.props.style)?.backgroundColor) card = card.parent
-    expect(StyleSheet.flatten(card!.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+    expect(StyleSheet.flatten(card!.props.style).backgroundColor).toBe(currentTheme.surface.card)
     await fireEvent.press(rows[0])
     expect(mockPush).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledWith('/settings/notifications')
@@ -522,8 +525,7 @@ it.each([
 const NotificationCard = jest.requireActual<typeof import('@/features/notifications/notification-card.view')>('@/features/notifications/notification-card.view').NotificationCard
 const fullCase = require('../../../test/fixtures/notifications-full-case.json') as { notifications: import('@/shared/api').Notification[] }
 describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture', mode => {
-  beforeEach(() => { jest.useFakeTimers(); currentTheme = themes[mode]; mockInbox = loadedInbox(fullCase.notifications) })
-  afterEach(async () => { await act(async () => { jest.runOnlyPendingTimers() }); jest.useRealTimers() })
+  beforeEach(() => { currentTheme = themes[mode]; mockInbox = loadedInbox(fullCase.notifications) })
   it('taps every chip, uses selected weight/highlight/a11y and restores all rows', async () => {
     const screen = await renderScreen(<NotificationsScreen />)
     for (const [label, kinds] of [
@@ -549,8 +551,8 @@ describe.each(['orange', 'orangeDark'] as const)('%s full notification fixture',
   it.each(fullCase.notifications)('renders $kind facts, semantic tile role, read state, time and supported actions', async row => {
       const screen = await renderScreen(<NotificationCard item={row} index={0} busy={false} reading={false} onOpen={mockResolve} onLater={mockRead} />)
       const tile = StyleSheet.flatten(screen.getByTestId(`notification-icon-${row.id}`).props.style)
-      expect(tile.backgroundColor).toBe(row.kind === 'invite' || row.kind === 'preference_reminder' ? currentTheme.redesign.violetSoft
-        : row.kind === 'plan_ready' ? currentTheme.redesign.greenSoft : currentTheme.redesign.high)
+      expect(tile.backgroundColor).toBe(row.kind === 'invite' || row.kind === 'preference_reminder' ? currentTheme.status.infoSoft
+        : row.kind === 'plan_ready' ? currentTheme.status.successSoft : currentTheme.surface.high)
       expect(!!screen.queryByTestId(`notification-unread-${row.id}`)).toBe(!row.readAt)
       expect(screen.getByTestId(`notification-heading-${row.id}`)).toBeTruthy()
       if (row.kind === 'invite') expect(screen.getByRole('button', { name: 'Xem phòng' })).toBeTruthy()
@@ -764,7 +766,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s unified inbox', mode => {
     const screen = await renderScreen(<NotificationsScreen />)
     for (const row of screen.getAllByTestId(/^system-notification-/)) {
       expect(within(row).queryByTestId(/^notification-unread-/)).toBeNull()
-      expect(StyleSheet.flatten(row.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+      expect(StyleSheet.flatten(row.props.style).backgroundColor).toBe(currentTheme.surface.card)
     }
     expect(screen.getByText('32 mới')).toBeTruthy()
     await fireEvent.press(within(screen.getByTestId('system-notification-new')).getByRole('button', { name: 'Xem chi tiết' }))
@@ -864,7 +866,7 @@ describe.each(['orange', 'orangeDark'] as const)('%s inbox error regression', mo
     mockSummary = { isError: true, error: new Error('503'), refetch: mockRefetch }
     const screen = await renderScreen(<NotificationsScreen />)
     const card = screen.getByTestId('notifications-error')
-    expect(StyleSheet.flatten(card.props.style).backgroundColor).toBe(currentTheme.redesign.card)
+    expect(StyleSheet.flatten(card.props.style).backgroundColor).toBe(currentTheme.surface.card)
     expect(screen.getByText(viMessages['common.errorTitle'])).toBeTruthy()
     expect(screen.queryByText(viMessages['g10.emptyTitle'])).toBeNull()
     expect(screen.queryByText(viMessages['common.staleError'])).toBeNull()

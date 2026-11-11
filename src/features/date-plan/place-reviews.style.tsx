@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   section: { marginTop: spacing[6] },
@@ -18,7 +18,7 @@ export const styles = StyleSheet.create(theme => ({
   orderRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing[2],
+    gap: chipRowGap,
     marginTop: spacing[3],
     alignSelf: 'flex-start',
     padding: spacing[1],

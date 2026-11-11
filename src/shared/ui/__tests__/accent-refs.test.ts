@@ -2,7 +2,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { colors, glass } from '../tokens'
+import * as tokens from '../tokens'
+import { glass } from '../tokens'
 
 /**
  * GoGo-MobileApp#297 (#293 §6). The accent is a theme role: a screen that
@@ -38,7 +39,7 @@ describe('accent references (#297)', () => {
   })
 
   it('the palette no longer carries a coral to reach for', () => {
-    expect(Object.keys(colors.brand).filter(key => key.startsWith('coral'))).toEqual([])
+    expect(tokens).not.toHaveProperty('colors')
     expect(glass.tint).not.toHaveProperty('coral')
   })
 })

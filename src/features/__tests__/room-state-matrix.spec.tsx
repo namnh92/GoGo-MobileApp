@@ -88,6 +88,8 @@ describe('room hub × state', () => {
     const view = await renderScreen(<GoGoRoomScreen />)
     expect(view.toJSON()).not.toBeNull()
     expect(view.queryAllByText(START_MATCHING)).toHaveLength(0)
+    expect(view.getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
+    expect(view.queryByTestId('loading-indicator')).toBeNull()
   })
 
   it('renders an error state with a retry, not a blank screen', async () => {

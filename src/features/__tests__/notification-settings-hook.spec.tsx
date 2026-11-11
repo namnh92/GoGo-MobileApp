@@ -134,9 +134,8 @@ it('enable all is one atomic category-only PATCH while the master stays off', as
   expect(client.getQueryData(queryKeys.notificationSettings())).toMatchObject({ pushEnabled: false, categories: all })
 })
 
-it('rolls back refused choices and reuses the original key and validator after an ambiguous failure', async () => {
+it.each([{ categories: { invite: true } }, { quietHours: { enabled: true, timezone: 'Asia/Ho_Chi_Minh' } }])('rolls back refused choices and reuses the original key and validator after an ambiguous failure (%j)', async body => {
   client.setQueryData(queryKeys.notificationSettings(), resource)
-  const body = { categories: { invite: true } }
   mockPatch.mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce({ ...resource, categories: { ...categories, invite: true } })
   const { result } = await renderHook(() => useSetNotificationSettings(), { wrapper })
   await act(async () => { await result.current.mutateAsync(body).catch(() => undefined) })
@@ -147,9 +146,8 @@ it('rolls back refused choices and reuses the original key and validator after a
   expect(mockPatch.mock.calls[1]).toEqual(mockPatch.mock.calls[0])
 })
 
-it('refetches after 412, then uses a fresh validator and idempotency key for the next intent', async () => {
+it.each([{ categories: { invite: true } }, { quietHours: { enabled: true, timezone: 'Asia/Ho_Chi_Minh' } }])('refetches after 412, then uses a fresh validator and idempotency key for the next intent (%j)', async body => {
   client.setQueryData(queryKeys.notificationSettings(), resource)
-  const body = { categories: { invite: true } }
   mockPatch.mockRejectedValueOnce(new ApiError(412, { code: 'NOTIFICATION_SETTINGS_VERSION_MISMATCH', message: 'changed' }))
     .mockResolvedValueOnce({ ...resource, categories: { ...categories, invite: true } })
   const invalidate = jest.spyOn(client, 'invalidateQueries')
@@ -183,4 +181,43 @@ it.each(['success', 'error'] as const)('an account A %s cannot overwrite account
   })
   expect(client.getQueryData(queryKeys.notificationSettings())).toEqual(second)
   await clearSession()
+})
+
+// #612: quiet-hour writes share the conditional mutation lifecycle.
+it.each(['success', 'error'] as const)('optimistically enables quiet hours then handles %s without touching inbox or other choices', async outcome => {
+  const before = { ...resource, quietHours: { enabled: false, timezone: null } }
+  client.setQueryData(queryKeys.notificationSettings(), before)
+  let finish!: (value: unknown) => void
+  let fail!: (error: Error) => void
+  mockPatch.mockReturnValue(new Promise((resolve, reject) => { finish = resolve; fail = reject }))
+  const { result } = await renderHook(() => [useSetNotificationSettings(), useSetNotificationSettings()], { wrapper })
+  const body = { quietHours: { enabled: true, timezone: 'Asia/Ho_Chi_Minh' } }
+  let pending!: Promise<unknown>
+  await act(async () => { pending = result.current[0].mutateAsync(body).catch(() => undefined) })
+  expect(client.getQueryData(queryKeys.notificationSettings())).toEqual({ ...before, quietHours: body.quietHours })
+  expect(result.current[1].isPending).toBe(true)
+  expect(mockPatch).toHaveBeenCalledWith(body, before.etag, expect.any(String), getSessionGeneration())
+  expect(mockSet).not.toHaveBeenCalled()
+  const stored = { ...before, quietHours: body.quietHours, version: '9007199254740994', etag: '"quiet-v13"' }
+  await act(async () => {
+    if (outcome === 'success') finish(stored)
+    else fail(new Error('offline'))
+    await pending
+  })
+  expect(client.getQueryData(queryKeys.notificationSettings())).toEqual(outcome === 'success' ? stored : before)
+  expect(client.getQueryData(queryKeys.notifications())).toBe(inbox)
+  expect(result.current[1].isPending).toBe(false)
+})
+
+it('disables quiet hours without losing the stored timezone', async () => {
+  const before = { ...resource, quietHours: { enabled: true, timezone: 'Asia/Ho_Chi_Minh' } }
+  client.setQueryData(queryKeys.notificationSettings(), before)
+  let finish!: (value: unknown) => void
+  mockPatch.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const { result } = await renderHook(() => useSetNotificationSettings(), { wrapper })
+  let pending!: Promise<unknown>
+  await act(async () => { pending = result.current.mutateAsync({ quietHours: { enabled: false } }) })
+  const stored = { ...before, quietHours: { ...before.quietHours, enabled: false } }
+  expect(client.getQueryData(queryKeys.notificationSettings())).toEqual(stored)
+  await act(async () => { finish(stored); await pending })
 })

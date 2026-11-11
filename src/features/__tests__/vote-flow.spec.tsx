@@ -24,7 +24,7 @@ jest.mock('expo-router', () => ({
 }))
 jest.mock('@/shared/ui/place-photo.view', () => ({ PlacePhoto: () => null }))
 const mockMotion = { reduced: true }
-jest.mock('@/shared/ui/feedback', () => ({ haptic: jest.fn(), useReducedMotion: () => mockMotion.reduced }))
+jest.mock('@/shared/ui/feedback', () => ({ ...jest.requireActual('@/shared/ui/feedback'), haptic: jest.fn(), useReducedMotion: () => mockMotion.reduced }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockLoaded(mockState.room),

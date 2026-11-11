@@ -58,8 +58,8 @@ export function ImportPhotos({ photos, onChange }: { photos: string[]; onChange:
   return (
     <View style={styles.photoSection}>
       <View style={styles.photoHeading}>
-        <Text variant="introHeading" color="redesign.ink">{t('placeImport.photoHeading')}</Text>
-        <Text variant="introCaption" color="redesign.secondary">{photos.length}/{MAX_PHOTOS}</Text>
+        <Text variant="introHeading" color="text.primary">{t('placeImport.photoHeading')}</Text>
+        <Text variant="introCaption" color="text.secondary">{photos.length}/{MAX_PHOTOS}</Text>
       </View>
       <GhostBtn label={t('placeImport.addPhotos')} onPress={() => void pick()} loading={picking} disabled={photos.length >= MAX_PHOTOS} style={styles.photoPicker} />
       <Text variant="caption" color="text.secondary">
@@ -75,10 +75,10 @@ export function ImportPhotos({ photos, onChange }: { photos: string[]; onChange:
           <View key={uri} style={styles.localPhoto}>
             <Image
               testID="import-local-photo"
-              source={{ uri }}
+              source={{ uri, cacheKey: uri }}
               style={styles.photoFill}
               contentFit="cover"
-              cachePolicy="none"
+              cachePolicy="memory-disk"
               accessible
               accessibilityLabel={t('placeImport.localPhoto', { index: index + 1 })}
             />
