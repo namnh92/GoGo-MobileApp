@@ -1,6 +1,6 @@
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
-import { useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, View } from 'react-native'
 
@@ -15,7 +15,8 @@ import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { Icon, IconCheck, IconMapPin } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { SearchField } from '@/shared/ui/search-field.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -40,12 +41,15 @@ export default function CreateLocationScreen() {
   const { area: gpsLabel, setArea } = useRoom()
   const sharedArea = useAppAreaStore(state => state.area)
   const sharedScope = useAppAreaStore(state => state.scope)
+  const sharedManual = useAppAreaStore(state => state.manual)
   const selectArea = useAppAreaStore(state => state.setArea)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const administrativeArea = useRoomStore(state => state.administrativeArea)
   const originLat = useRoomStore(state => state.originLat)
   const { status } = useSession()
   const location = useCurrentLocation()
+  const { refresh } = location
+  useFocusEffect(useCallback(() => { void refresh() }, [refresh]))
   const version = useAdministrativeVersion()
   const [radiusM, setRadiusM] = useState<number | null>(5000)
   const [staleArea, setStaleArea] = useState(false)
@@ -61,7 +65,16 @@ export default function CreateLocationScreen() {
     homeArea !== null && homeArea.status === 'current' && administrativeArea === null && originLat === null
 
   const currentLabel = location.state.status === 'granted' ? location.state.label : gpsLabel || null
+  const devicePosition = location.state.status === 'granted' ? location.state : null
   useEffect(() => {
+    // The native fix is usable before the cosmetic area lookup finishes.
+    if (devicePosition && !sharedManual) {
+      const located = sharedScope.status === 'ready' && sharedScope.source === 'gps'
+        && sharedScope.position.lat === devicePosition.lat && sharedScope.position.lng === devicePosition.lng
+      setArea(located && sharedArea ? administrativeAreaLabel(sharedArea) : devicePosition.label ?? '')
+      patchDraft({ administrativeArea: null, originLat: devicePosition.lat, originLng: devicePosition.lng })
+      return
+    }
     if (sharedScope.status !== 'ready') return
     if (sharedScope.source === 'gps') {
       setArea(sharedArea ? administrativeAreaLabel(sharedArea) : currentLabel ?? '')
@@ -70,7 +83,7 @@ export default function CreateLocationScreen() {
       setArea('')
       patchDraft({ administrativeArea: sharedArea, originLat: null, originLng: null })
     }
-  }, [sharedArea, sharedScope, patchDraft, setArea, currentLabel])
+  }, [sharedArea, sharedScope, sharedManual, devicePosition, patchDraft, setArea, currentLabel])
 
   function chooseArea(value: AdministrativeSelection | null) {
     selectArea(value)
@@ -116,7 +129,7 @@ export default function CreateLocationScreen() {
       ? t('createLocation.locating')
       : usingCurrent
         ? gpsLabel || t('createLocation.locatedNoLabel')
-        : t('createLocation.useMyLocation')
+        : t('createLocation.manualFallback')
 
   return (
     <Atmosphere redesign>
@@ -125,8 +138,7 @@ export default function CreateLocationScreen() {
         <Text variant="discoveryTitle">{t('createLocation.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createLocation.body')}</Text>
 
-        {/* Current location — the permission is asked here, on tap, never on
-            launch, and every refusal leaves the area picker as the way on. */}
+        {/* Focus refresh is silent. Only an explicit control may ask permission. */}
         <Pressable
           onPress={useDeviceLocation}
           disabled={location.state.status === 'asking'}
@@ -186,7 +198,12 @@ export default function CreateLocationScreen() {
             />
           </View>
         ) : null}
-        <SecondaryBtn label={sharedArea ? administrativeAreaLabel(sharedArea) : t('home.chooseArea')} onPress={() => setAreaOpen(true)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setAreaOpen(true)}>
+          <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <SearchField editable={false} accessibilityLabel={t('home.chooseArea')}
+              value={administrativeArea ? administrativeAreaLabel(administrativeArea) : ''} placeholder={t('home.chooseArea')} />
+          </View>
+        </Pressable>
         {staleArea && administrativeArea && administrativeArea.datasetVersion !== version.data?.datasetVersion ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {t('administrative.changed')}

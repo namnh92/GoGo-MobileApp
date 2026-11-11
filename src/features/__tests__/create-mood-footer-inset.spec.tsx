@@ -65,8 +65,8 @@ it('renders paused offline separately from first-load skeletons', async () => {
 it('renders only API taxonomy chips and exposes their selected state', async () => {
   mockTaxonomies = loaded({ kinds: { mood: [{ key: 'chill', labels: { vi: 'Chill trò chuyện' } }], setting: [], spending_style: [] } })
   const view = await renderScreen(<CreateMoodScreen />)
-  const chip = view.getByRole('button', { name: 'Chill trò chuyện' })
+  const chip = view.getByRole('checkbox', { name: 'Chill trò chuyện' })
   await fireEvent.press(chip)
-  expect(view.getByRole('button', { name: 'Chill trò chuyện' }).props.accessibilityState.selected).toBe(true)
+  expect(view.getByRole('checkbox', { name: 'Chill trò chuyện' }).props.accessibilityState.checked).toBe(true)
   expect(view.queryByText('Cà phê acoustic')).toBeNull()
 })

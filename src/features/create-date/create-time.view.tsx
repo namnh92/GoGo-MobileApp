@@ -8,7 +8,7 @@ import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/ro
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
-import { Sheet } from '@/shared/ui/sheet.view'
+import { TimePickerSheet } from './time-picker-sheet.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
@@ -16,7 +16,6 @@ import { DateTimeSheet } from './date-time-sheet.view'
 import { dayTimeLabel, dayLabel } from './day-format'
 import { isPastSlot, parseDayKey } from './calendar'
 import { freshDay, scheduleToIso } from './schedule-day'
-import { TIME_SLOTS } from './time-slots'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-time.style'
 
@@ -102,7 +101,6 @@ export default function CreateTimeScreen() {
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
 
-  const slotOptions = startTime ? TIME_SLOTS.filter(s => s > startTime) : TIME_SLOTS
 
   return (
     <Atmosphere redesign>
@@ -116,7 +114,6 @@ export default function CreateTimeScreen() {
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
         {!dateSheet && pickerFor === null ? <DateTimeSheet
-          key={`${day}-${startTime}`}
           inline visible initialDay={day} initialTime={startTime}
           onDayChange={scheduleDay => patchDraft({ scheduleDay })}
           onClose={() => setDateSheet(false)} onDone={finishDateSheet}
@@ -210,28 +207,12 @@ export default function CreateTimeScreen() {
         onDone={finishDateSheet}
       />
 
-      {/* End time: the 30-minute slot grid. */}
-      <Sheet visible={pickerFor !== null} onClose={() => setPickerFor(null)} maxHeight="70%">
-        <Text variant="title1" style={styles.sheetTitle}>
-          {t('createTime.pickTime')} · {t('createTime.end')}
-        </Text>
-        <View style={styles.slotGrid}>
-          {slotOptions.map(slot => {
-            const active = endTime === slot
-            return (
-              <Pressable
-                key={slot}
-                onPress={() => pickSlot(slot)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.slotBtn, active && styles.slotBtnActive]}
-              >
-                <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
-              </Pressable>
-            )
-          })}
-        </View>
-      </Sheet>
+      <TimePickerSheet visible={pickerFor !== null} initialTime={endTime ?? startTime ?? '19:00'}
+        title={`${t('createTime.pickTime')} · ${t('createTime.end')}`}
+        isInvalid={slot => startTime !== null && slot <= startTime}
+        invalidHint={t('createTime.endAfterStart')}
+        onClose={() => setPickerFor(null)} onDone={pickSlot} testID="end-time-sheet" />
+
     </Atmosphere>
   )
 }

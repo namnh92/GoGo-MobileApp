@@ -54,7 +54,7 @@ jest.mock('@/shared/administrative/queries', () => ({
 import CreateLocationScreen from '@/features/create-date/create-location.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 
-const PROMPT = /Chạm để dùng vị trí của bạn/
+const PROMPT = /Chọn khu vực thủ công hoặc dùng vị trí hiện tại./
 const DENIED = /Chưa có quyền vị trí/
 const UNAVAILABLE = /Chưa lấy được vị trí/
 

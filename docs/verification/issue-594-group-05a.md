@@ -1,6 +1,6 @@
 # GoGo-MobileApp #594 — nhóm 05A Tạo kèo
 
-Ngày: 2026-11-10 (Asia/Ho_Chi_Minh). Nhánh: `feature/GOGO-594-redesign-g05a-create`; base `c48d501`. UI-only; không commit/push.
+Ngày: 2026-11-10 (Asia/Ho_Chi_Minh). Nhánh: `feature/GOGO-594-redesign-g05a-create`; base `c48d501`. UI-only, ngoại lệ location prefetch theo owner 2026-11-11; không commit/push.
 
 **Trạng thái: đã sửa UI, chưa đạt acceptance “Khớp Stitch 100%”.** Đã đọc HTML và ảnh bằng Stitch MCP cho 9/9 màn. Chưa có ảnh app đối chiếu: `xcrun simctl list devices booted` thất bại vì CoreSimulatorService/notification subscription bị sandbox từ chối. Số màn so ảnh app cạnh Stitch ở cả hai theme: **0/9**. Không suy ra pixel parity từ component tests.
 
@@ -15,11 +15,11 @@ Project `17315762413421369447`. Round 1 đã gọi `get_screen` và `download_fi
 | 5.1 Tạo phòng hẹn | `11616575349645775674` | Chỉ tham chiếu visual cho bước hiện hữu; not built as a screen — owner 2026-11-10. | Không dựng màn riêng; phần tử dùng chung dùng AppToken Light/Dark toàn app (owner 2026-11-10); chưa so ảnh. |
 | 5.2 Đối tượng | `12897203841795461814` | Tiêu đề, mô tả, hai thẻ icon + trạng thái chọn, input tên và counter, CTA dùng chung. Giữ maxLength 80. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng copy/layout; chưa so ảnh. |
 | 5.3 Chế độ nhóm | `6534318264704160088` | Tiêu đề, mô tả, lưới bốn chip quy mô, bộ đếm chính xác, nội dung cuộn. Giữ 3–12 người và hai lựa chọn budgetMode hiện hữu. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng copy/layout; chưa so ảnh. |
-| 5.4 Địa điểm | `10366405716754660736` | Tiêu đề, mô tả, thẻ GPS, chip bán kính dùng chung, chọn khu vực qua sheet hiện hữu, CTA. Giữ permission/fallback/prefill/version validation. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng trạng thái GPS/khu vực; chưa so ảnh. |
-| 5.5 Thời gian | `14694142646341612511` | Lịch nội tuyến, shortcut ngày, đổi tháng, giờ bắt đầu và giờ khác dùng lại component của 5.6. Dòng tổng kết vẫn mở sheet chọn tạm; giữ giờ kết thúc và duration preset. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng lịch/ngày giờ được tính lúc chạy; chưa so ảnh. |
-| 5.6 Chọn ngày giờ | `6910860286766835350` | Sheet hiện hữu có lịch, shortcut, giờ, summary. Huỷ trái/Xong phải dùng `SheetActions`; Huỷ giữ nguyên draft trước khi mở. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng validation/past-slot state; chưa so ảnh. |
-| 5.7 Ngân sách | `9352497074123873706` | Thẻ tier, scope ngân sách chỉ đọc, số tiền VND đầy đủ, đơn vị trên từng mức và profile prefill, chọn có check. Không thay tier/default/amount. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng scope và đơn vị; chưa so ảnh. |
-| 5.8 Mood & Tạo phòng | `7359368928226437041` | Tiêu đề, chip taxonomy theo API có highlight, seed chỉ hiện tên thật và nút bỏ, thêm địa điểm qua route cũ. Skeleton/error/offline/empty rõ ràng; CTA/loading dùng chung. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng dữ liệu và trạng thái; chưa so ảnh. |
+| 5.4 Địa điểm | `10366405716754660736` | Tiêu đề, mô tả, thẻ GPS, chip bán kính dùng chung, chọn khu vực qua sheet hiện hữu, CTA. GPS prefill từ startup và silent refresh mỗi focus; shared SearchField mở sheet khu vực; giữ permission/fallback/version validation (owner 2026-11-11). | AppToken Light/Dark toàn app (owner 2026-11-10), cùng trạng thái GPS/khu vực; chưa so ảnh. |
+| 5.5 Thời gian | `14694142646341612511` | Lịch nội tuyến tuần/tháng, đổi tháng, giờ bắt đầu và wheel giờ khác (owner 2026-11-11). Dòng tổng kết vẫn mở sheet chọn tạm; giữ giờ kết thúc và duration preset. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng lịch/ngày giờ được tính lúc chạy; chưa so ảnh. |
+| 5.6 Chọn ngày giờ | `6910860286766835350` | Sheet hiện hữu có lịch tuần/tháng, giờ, summary và wheel giờ khác (owner 2026-11-11). Huỷ trái/Xong phải dùng `SheetActions`; Huỷ giữ nguyên draft trước khi mở. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng validation/past-slot state; chưa so ảnh. |
+| 5.7 Ngân sách | `9352497074123873706` | Thẻ tier, scope chỉ còn trong subtitle (owner 2026-11-11), số tiền VND đầy đủ, đơn vị trên từng mức và profile prefill, chọn có check. Không thay tier/default/amount. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng scope và đơn vị; chưa so ảnh. |
+| 5.8 Mood & Tạo phòng | `7359368928226437041` | Tiêu đề, checkbox taxonomy theo API dùng chung với contribution wizard (owner 2026-11-11), seed chỉ hiện tên thật và nút bỏ, thêm địa điểm qua route cũ. Skeleton/error/offline/empty rõ ràng; CTA/loading dùng chung. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng dữ liệu và trạng thái; chưa so ảnh. |
 | 5.9 Thoát tạo kèo? | `18282881640925513825` | Sheet icon/tiêu đề/mô tả; đủ ba hành động dùng chung, một hàng bằng nhau, save là primary. Dùng nguyên promise/handlers của `useDialog`. | AppToken Light/Dark toàn app (owner 2026-11-10), cùng save/discard/continue; chưa so ảnh. |
 
 `AppHeader` vẫn giữ chức năng hiện hữu; save/close chuyển sang icon có nhãn truy cập, mục tiêu 48pt để chừa chỗ cho tiêu đề. Progress tính đúng 5 bước couple hoặc 6 bước group. Button sử dụng biến thể/kích thước chung; không thêm pressed highlight. Không thêm màu hex/rgba hay palette của màn; typography lấy token.
@@ -43,15 +43,12 @@ Các dòng dưới đây là phần chưa giống nguồn hoặc cần quyết �
 | Hai quận/phường, thêm/xoá nhiều khu vực | 5.1, 5.4 | RoomConstraintInput chỉ có một administrativeArea; app dùng dataset version + province/commune, không phải danh sách quận. | Giữ CurrentAreaSheet đơn chọn và fallback GPS. BE proposal: “Thiết kế multiple administrative scopes cho room constraint, validation dataset version, union/intersection semantics, compat một vùng và regression search.” |
 | Địa chỉ Nguyễn Huệ/Bến Nghé, TP.HCM, mô tả chống kẹt xe/Sài Gòn | 5.4 | Chưa có dữ liệu thật tại render và không có bảo đảm route/traffic tương ứng trong chức năng bước này. | Chỉ hiện GPS/area label thật. Owner chốt copy trung tính; không tạo địa chỉ/traffic claim. |
 | Ngày 7/11, tháng 11/2026, 19:00 cố định và ảnh “Khung giờ vàng” | 5.5–5.6 | Là sample date/time và editorial card chưa có nguồn/chức năng. | Dùng lịch thật, ngày/giờ draft và quy tắc schedule; ẩn editorial card mẫu. |
-| Dòng end-time và các duration preset ngoài lịch | 5.5 | Chức năng hiện có bắt buộc giữ; ánh xạ được thời lượng trong 5.1. | Giữ end-time/preset cùng lịch; owner duyệt bố cục kết hợp khi có ảnh. |
-| Nút Xong duy nhất | 5.6 | Task yêu cầu sheet một hàng Huỷ trái/primary phải. | Thêm Huỷ cùng hàng; X/gesture vẫn bỏ chọn tạm như trước. |
 | Tab “Tính theo người” trong couple budget | 5.7 | Couple luôn TOTAL phòng; thêm tab sẽ đổi invariant/conversion. | Chỉ hiện scope của room thật. Per_person/total vẫn do bước group-setup chọn, không thêm toggle couple. |
 | Tier mặc định/“Gợi ý nhiều nhất”, ảnh/copy menu thông minh | 5.7 | Default tier hiện là to800; tier label có thể trình bày lại nhưng không có nguồn chứng minh độ phổ biến hay gợi ý menu. | Giữ default/amount hiện hữu, không gắn badge/ảnh/claim mẫu. |
 | Giá không kèm unit | 5.7, 5.8 | Vi phạm core.md 13, kể cả range ngân sách. | Mỗi tier có `/ cả phòng (2 người)`, `/người` hoặc `tổng nhóm` theo room; unknown price không hiện. |
 | Mức chi “Đã khoá” thay cho taxonomy spending_style | 5.8 | Flow hiện có taxonomy spending_style độc lập với budget tier; thay field bằng locked amount sẽ bỏ hành vi hiện hữu. | Giữ taxonomy thật, không tạo fake locked-price row. Owner xác nhận mapping và task chức năng riêng nếu cần đổi. |
 | Seed card ảnh/verified/rating/giá/địa chỉ Mơ Concept | 5.8 | Seed draft chỉ có id/name; không được bịa metadata hoặc đổi data model để lấp thiết kế. | Chỉ hiện tên thật + bỏ chọn. Follow-up: kiểm tra tái dùng PlaceSummary/detail hiện có trước khi đề xuất BE; nếu thiếu, BE proposal “Seed place summary có verified provenance, source/sample count rating, ảnh và price+unit nullable; dùng chung PlaceCard, omit unknown.” |
 | Tối ưu vote bằng AI, “30 giây”, Zalo/Messenger | 5.8 | Không có chức năng/bảo đảm tương ứng tại bước create; không thêm auth/share/provider flow. | Không dựng claim/controls mẫu. Owner quyết định copy và chức năng sau tạo phòng ở task riêng. |
-| Check glyph trên chip | Toàn nhóm | Shared Chip/task yêu cầu selected=highlight; semantic selected state + font weight đã có. | Giữ shared Chip, không thêm check thủ công lên chip. Radio card vẫn có chỉ báo chọn. |
 | Ba action xếp dọc | 5.9 | Task yêu cầu action buttons một hàng; giữ đủ save/discard/keep. | Dùng SheetActions ngang, equal widths; nhãn truy cập đủ. Nhãn hiển thị có thể ellipsize ở chiều rộng hẹp theo shared Button; owner cần duyệt ảnh/short copy trước acceptance. |
 | Kích thước/radius/typography/spacing chưa có ảnh đối chiếu | Toàn nhóm | Chưa chạy được app trong Simulator; token/component tests không chứng minh hình học. | Còn mở: chụp các bước + hai sheet ở Light/Dark trên build chứa diff này, ghi kích thước thiết bị/build ID và sửa mọi lệch ngoài bảng. |
 
@@ -66,7 +63,7 @@ State matrix:
 | Type/group/time | Chọn/radio, count limit, lịch/duration | Không có async riêng | Không bịa start/time | Past start chặn Continue; end midnight và resume dùng helpers cũ |
 | Location | GPS/area/radius thật | LoadingIndicator khi hỏi GPS | Không có nhãn GPS thì câu fallback hiện hữu | Permission denied/unavailable; giữ fix cũ và manual area; sheet vùng dùng state handling chung |
 | Budget | Tier và prefill theo scope thật | Prefill optional không chặn nhập | Không có usualBudget thì không hiện chip | Query profile lỗi không dựng prefill; vẫn chọn tier được |
-| Mood | Chip từ API; selected state | Skeleton + footer inset | Explicit empty state; taxonomy vẫn optional như trước | ErrorState/refetch, OfflineState khi paused không cache, submit error và loading overlay cũ |
+| Mood | Checkbox từ API; checked state | Skeleton + footer inset | Explicit empty state; taxonomy vẫn optional như trước | ErrorState/refetch, OfflineState khi paused không cache, submit error và loading overlay cũ |
 | Draft exit/resume | Save/discard/keep đúng step/owner | LoadingIndicator trong overlay; action disabled | Clean draft thoát thẳng Home | Alert lỗi/save sign-in và resume validation giữ nguyên |
 
 Kết quả round 1 tại head `8f68365` (lịch sử; kết quả round 2 ghi bên dưới):
@@ -87,6 +84,41 @@ Ba lỗi unit cùng nằm trong file không thay đổi `src/shared/config/__tes
 Regression toàn repo phát hiện profile-defaults cũng dùng `createBudget.tier.*`. Copy riêng của wizard đã tách sang `createBudget.range.*`; các key tier cũ giữ nguyên. Suite profile-defaults và accent-foreground đã PASS lại trong 81 tests tập trung và trong lượt UI toàn repo cuối.
 
 Còn mở trước acceptance: chạy lại unit trong môi trường có quyền process inspection; chụp/so Light/Dark thực tế và xử lý các dòng lệch cần owner quyết định. Không có commit, push, issue mới hay thay đổi remote.
+
+## Owner sim feedback 2026-11-11
+
+Cơ sở: owner kiểm sim iOS Dark ngày 2026-11-11, quyết định có ngày tại `dev/policy/decisions-log.md:5`, ngoại lệ Stitch §0.3. Patch trên head `f640dd79` của PR #598, issue #594. Chỉ Sol sửa; không stage/commit/push. Các kết quả round 1/2 bên dưới là lịch sử, không áp cho patch mới.
+
+| # | Thay đổi và file | Bằng chứng hành vi |
+| --- | --- | --- |
+| 1 | `create-type.view/style`: bỏ pill và key `createType.selected`; viền `accent.primary`, selected title `discoveryHeading` (bold), unselected `introHeading` (semibold), cùng cỡ chữ. | Giữ `accessibilityState.selected`. Chọn viền + title đậm để màu không là tín hiệu duy nhất; không cần check glyph. Test pill vắng, border, font, đổi radio; Light/Dark × vi/en. |
+| 2 | `create-type.view/style`: dùng `KeyboardAvoidingView` iOS padding, `ScrollView` có ref/layout/content-size/scroll handlers và `useFieldVisibility` đang dùng ở auth. CTA `GlassBar` docked nằm ngoài viewport cuộn, trong KAV. | Test cấu hình tránh bàn phím, input trong scroll viewport, CTA có không gian riêng; giữ maxLength 80 và draft title. Chưa kiểm reachability native trên build chứa patch. |
+| 3 | `create-location.view`, `use-current-location.ts`, `area-controller.ts`: đọc ngay scope/position app-wide từ startup; `useFocusEffect` gọi `refresh()` im lặng. | Refresh dùng `resolve(false)` → `native-location.readCurrentLocation(false)` → `fresh-position.readFreshPosition`; không gọi permission request. Giữ manual choice và chống GPS chậm ghi đè manual. Refresh denied/unavailable giữ fix đã chọn và hiện cảnh báo/fallback. Test startup prefill không tap, focus refresh, denied/unavailable, race/dedup. |
+| 4 | `create-location.view`: thay SecondaryBtn khu vực bằng shared `SearchField` readonly kích hoạt `CurrentAreaSheet` dùng chung với Home. | Outer button có accessible label; field display không mở keyboard và không tạo accessibility target trùng. Sheet vẫn dùng `AdministrativePicker`/search thật, không free-text payload. |
+| 5 | `date-time-sheet.view/style`: mặc định một tuần chứa ngày chọn; mở rộng tháng/thu gọn tuần; bỏ ba quick chip ngày. | Test collapse/expand, selection, past disabled, month navigation, ngày xa, save/resume; không đổi helpers lịch hay mapping schedule. |
+| 6 | `date-time-sheet`, `create-time`, `time-picker-sheet.view/style`, shared `time-wheel.view/style`: “Giờ khác” cùng appearance raised với các chip giờ; wheel giờ/phút dùng ScrollView snap, 24h/60 phút, adjustable accessibility. End row dùng chung TimePickerSheet. | Không có picker thời gian trong `package.json`; không thêm dependency/native module. Inline mở bottom sheet; trong date sheet wheel thay body của chính modal để không chồng modal iOS. Huỷ trái/Xong phải qua SheetActions; chọn tạm, Xong mới ghi; past start/end trước start bị chặn như trước. |
+| 7 | `create-budget.view/style`: bỏ scope chip trùng; bỏ key scope couple không còn dùng. | Subtitle theo couple/group/mode giữ nguyên, mọi tier amount vẫn có unit; budgetAmount/budgetMode và prefill mapping không đổi. Test couple/group total/per_person. |
+| 8 | Shared `checkbox-row.view/style` được tách từ `contribution-choices`; hai call sites contribution + `create-mood` dùng cùng component. | Mood ≤3, setting ≤2, spending chọn/bỏ chọn một; giới hạn có feedback và vẫn bỏ chọn được. Taxonomy labels API vi/en, skeleton theo row; trạng thái async và submit giữ nguyên. |
+
+Permission: không có điểm xin quyền tự động mới. Startup và focus chỉ đọc quyền/position đã được cấp qua location layer hiện hữu. Người chưa cấp quyền thấy manual fallback; chỉ thao tác explicit trên control vị trí hoặc sheet khu vực hiện hữu mới đi qua `request()` như trước. Không thêm endpoint; không đổi API client/OpenAPI, store/schema, submit handlers hay request mapping. Refresh GPS là ngoại lệ UI-only đã được owner chỉ định.
+
+Các deviation về check glyph và layout end-time/sheet action đã được quyết định này giải quyết nên đã bỏ khỏi bảng lệch. Những dòng còn lại vẫn mở đúng phạm vi của chúng. Các test component không chứng minh pixel parity hoặc cảm giác cuộn native; cần owner kiểm lại Light/Dark trên build chứa patch.
+
+### Kiểm tra patch owner feedback
+
+| Check | Kết quả patch owner 2026-11-11 |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm test:ui create-date --runInBand` | PASS: 2 suites / 12 tests, gồm Light/Dark × vi/en |
+| UI affected + place-import/contribution + shared chip/sheet/i18n | PASS, exit 0: 20 suites / 305 tests |
+| `pnpm exec vitest run src/shared/location src/features/create-date/__tests__` | PASS, exit 0: 11 files / 64 tests |
+| ESLint toàn bộ TS/TSX đã chạm | PASS, exit 0; sandbox cho phép |
+| `git diff --check` | PASS, exit 0 |
+| Regression trước/sau, cùng 12 case `#594 owner` | HEAD `f640dd79`: 12 FAIL / 4 skipped; patch: 12 PASS / 4 skipped |
+
+FAIL-before chạy bằng cách giữ nguyên test mới, tạm dùng nội dung production từ `git show HEAD:<path>` rồi khôi phục toàn bộ patch trong `finally`; không checkout/stage/commit. Các lỗi baseline đúng cơ chế cũ: pill còn, thiếu KAV/SearchField/focus refresh, duplicate scope, chip thay checkbox, thiếu lịch tuần/wheel đồng bộ. Production payload/store/schema vẫn không đổi. Không chạy lại toàn unit repo hoặc `distribute-wrapper.test.ts` trong lượt này; lỗi sandbox lịch sử không được coi là kết quả patch.
+
+Danh sách lệnh, suite và SHA-256 nguồn đã test tại [issue-594-owner-feedback-checks.txt](issue-594-owner-feedback-checks.txt). Không có thay đổi stage/commit.
 
 ## Round 2 — Astra F-01/F-02/F-03
 

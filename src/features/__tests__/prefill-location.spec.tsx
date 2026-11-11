@@ -168,7 +168,7 @@ describe('position and area exclude each other', () => {
     const view = await renderScreen(<CreateLocationScreen />)
     expect(view.getByText('Khoảng cách tối đa')).toBeTruthy()
 
-    await press(view.getByText('Chọn khu vực'))
+    await press(view.getByRole('button', { name: 'Chọn khu vực' }))
     await press(view.getByText('Chọn tỉnh/thành phố'))
     await press(view.getByText('Xác nhận'))
     expect(useRoomStore.getState()).toMatchObject({ administrativeArea: AREA, originLat: null, originLng: null })
@@ -176,13 +176,13 @@ describe('position and area exclude each other', () => {
     expect(view.queryByText('Khoảng cách tối đa')).toBeNull()
 
     mockLocation.result = { status: 'granted', lat: 10.77, lng: 106.69, label: 'Quận 1, TP.HCM' }
-    await press(view.getByText('Chạm để dùng vị trí của bạn'))
+    await press(view.getByText('Chọn khu vực thủ công hoặc dùng vị trí hiện tại.'))
     expect(useRoomStore.getState()).toMatchObject({ administrativeArea: null, originLat: 10.77, originLng: 106.69 })
   })
 
   it('continues with codes only and no distance for an area', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
-    await press(view.getByText('Chọn khu vực'))
+    await press(view.getByRole('button', { name: 'Chọn khu vực' }))
     await press(view.getByText('Chọn tỉnh/thành phố'))
     await press(view.getByText('Xác nhận'))
     await press(view.getByText('Tiếp tục'))

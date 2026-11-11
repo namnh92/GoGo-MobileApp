@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { spacing } from '@/shared/ui/tokens'
+import { chipRowGap, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   content: { paddingHorizontal: spacing[4], paddingBottom: spacing[6] },
@@ -23,7 +23,7 @@ export const styles = StyleSheet.create(theme => ({
   sectionTitle: { marginTop: spacing[4], marginBottom: spacing[3] },
   distanceHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
   distanceTitle: { flex: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   locationFallback: {
     marginTop: spacing[2],
   },

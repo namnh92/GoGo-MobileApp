@@ -31,13 +31,15 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 const selected = (view: View, label: string) =>
   view.getByRole('button', { name: label }).props.accessibilityState?.selected
 const EVENING = ['17:00', '18:00', '19:00', '20:00', '21:00']
-// The start is picked in the date sheet: an evening chip, or "Giờ khác" and the slot grid.
+// The start is picked in the date sheet: an evening chip, or "Giờ khác" and the staged wheel.
 async function pickStart(view: View, slot: string) {
   await press(view.getByTestId('create-time-start-row'))
   if (EVENING.includes(slot)) await press(view.getByTestId(`date-sheet-time-${slot}`))
   else {
     await press(view.getByTestId('date-sheet-other-time'))
-    await press(view.getByText(slot))
+    await press(view.getByTestId(`date-sheet-wheel-hours-${slot.slice(0, 2)}`))
+    await press(view.getByTestId(`date-sheet-wheel-minutes-${slot.slice(3)}`))
+    await press(view.getByText('Xong'))
   }
   await press(view.getByText('Xong'))
 }
@@ -92,7 +94,9 @@ it('restores a saved length and lets a hand-picked end replace it', async () => 
   const view = await renderScreen(<CreateTimeScreen />)
   expect(selected(view, '2–3 giờ')).toBe(true)
   await press(view.getByText('Kết thúc'))
-  await press(view.getByText('21:00'))
+  await press(view.getByTestId('end-time-sheet-wheel-hours-21'))
+    await press(view.getByTestId('end-time-sheet-wheel-minutes-00'))
+    await press(view.getByText('Xong'))
   expect(selected(view, '2–3 giờ')).toBe(false)
   expect(useRoomStore.getState()).toMatchObject({ endTime: '21:00', durationPreset: null })
 })

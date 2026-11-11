@@ -41,16 +41,4 @@ export const styles = StyleSheet.create(theme => ({
   timeBoxRequired: { borderWidth: 1, borderColor: theme.accent.primary },
   estimate: { marginTop: spacing[4], textAlign: 'center' },
   requiredHint: { marginTop: spacing[2] },
-  sheetTitle: { marginBottom: spacing[3] },
-  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  slotBtn: {
-    width: '23%',
-    height: 44,
-    borderRadius: radius.compact,
-    backgroundColor: theme.surface.subtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  slotBtnActive: { backgroundColor: theme.accent.primary },
-  timeValue: { marginTop: 2 },
 }))

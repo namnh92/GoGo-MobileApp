@@ -9,19 +9,15 @@ import { Icon } from '@/shared/ui/icons'
 import { PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
-import { dayLabel, dayTimeLabel, monthLabel, weekdayShort } from './day-format'
-import { isPastSlot, monthGrid, parseDayKey, weekendDay } from './calendar'
+import { TimeWheel } from '@/shared/ui/time-wheel.view'
+import { TimePickerSheet } from './time-picker-sheet.view'
+import { dayTimeLabel, monthLabel, weekdayShort } from './day-format'
+import { isPastSlot, monthGrid, parseDayKey } from './calendar'
 import { localDayKey } from './schedule-day'
 import { EVENING_STARTS, TIME_SLOTS } from './time-slots'
 import { styles } from './date-time-sheet.style'
 
-/**
- * The start's day and time (#501). Edits are held here and only leave through
- * "Xong"; closing drops them. Past slots on today are disabled, so a start the
- * slot helpers would quietly roll to tomorrow can never be picked while the day
- * says today. "Giờ khác" swaps the body for the 30-minute grid in the same
- * sheet: iOS refuses a second modal opened over this one.
- */
+/** Calendar and evening chips share staged sheet semantics; inline edits use the existing draft callbacks. */
 export function DateTimeSheet({ inline = false, visible, initialDay, initialTime, onDayChange, onClose, onDone }: {
   inline?: boolean
   visible: boolean
@@ -37,13 +33,13 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
   const locale = i18n.language
   const now = new Date()
   const todayKey = localDayKey(now)
-  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
-  const weekend = weekendDay(now)
 
   const [day, setDay] = useState(initialDay ?? todayKey)
   const [time, setTime] = useState<string | null>(initialTime)
   const [view, setView] = useState<{ year: number; month: number }>(() => monthOf(initialDay ?? todayKey))
   const [slots, setSlots] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [wheelTime, setWheelTime] = useState(initialTime ?? '19:00')
 
   // Edits start from the draft each time the sheet opens (derived while
   // rendering, so the first frame is already the fresh one).
@@ -56,6 +52,7 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
       setTime(initialTime)
       setView(monthOf(key))
       setSlots(false)
+      setExpanded(false)
     }
   }
 
@@ -87,14 +84,11 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
     setView({ year: next.getFullYear(), month: next.getMonth() })
   }
 
-  function shortcut(id: string, key: string, label: string, date: Date) {
-    const active = day === key
-    return (
-      <Chip key={label} label={label} appearance="soft" variant={active ? 'selected' : 'default'}
-        onPress={() => chooseDay(key)} accessibilityLabel={`${label}, ${dayLabel(date, locale)}`}
-        testID={`${prefix}-shortcut-${id}`} />
-    )
-  }
+  const weeks = monthGrid(view.year, view.month)
+  const selectedWeek = weeks.find(week => week.some(date => date && localDayKey(date) === day))
+  const visibleWeeks = expanded ? weeks : [selectedWeek ?? weeks.find(week => week.some(date => date && localDayKey(date) >= todayKey)) ?? weeks[0]]
+  const wheelDefault = time ?? TIME_SLOTS.find(slot => !isPastSlot(slot, dayArg, now)) ?? '23:59'
+  function openWheel() { setWheelTime(wheelDefault); setSlots(true) }
 
   const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2026, 10, 2 + i))
 
@@ -107,40 +101,18 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
         </Pressable>
       </View> : null}
 
-      {slots ? (
+      {slots && !inline ? (
         <>
           <Text variant="title2" style={styles.sectionHead}>{t('createTime.pickTime')} · {t('createTime.start')}</Text>
-          <View style={styles.slotGrid}>
-            {TIME_SLOTS.map(slot => {
-              const off = isPastSlot(slot, dayArg, now)
-              const active = time === slot
-              return (
-                <Pressable
-                  key={slot}
-                  disabled={off}
-                  onPress={() => {
-                    chooseTime(slot)
-                    setSlots(false)
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active, disabled: off }}
-                  style={[styles.slotBtn, active && styles.slotBtnActive, off && styles.slotBtnOff]}
-                >
-                  <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
-                </Pressable>
-              )
-            })}
-          </View>
+          <TimeWheel value={wheelTime} onChange={setWheelTime} testID="date-sheet-wheel" />
+          {isPastSlot(wheelTime, dayArg, now) ? <Text color="status.dangerText" accessibilityLiveRegion="polite">{t('createTime.startPast')}</Text> : null}
+          <SheetActions><SecondaryBtn label={t('common.cancel')} onPress={() => setSlots(false)} /><PrimaryBtn
+            label={t('createTime.done')} disabled={isPastSlot(wheelTime, dayArg, now)}
+            onPress={() => { chooseTime(wheelTime); setSlots(false) }} /></SheetActions>
         </>
       ) : (
         <>
           <View style={inline ? styles.calendar : undefined}>
-          <View style={styles.shortcutRow}>
-            {shortcut('today', todayKey, t('createTime.today'), now)}
-            {shortcut('tomorrow', localDayKey(tomorrow), t('createTime.tomorrow'), tomorrow)}
-            {shortcut('weekend', weekend.key, t('createTime.weekend'), weekend.date)}
-          </View>
-
           <View style={styles.monthRow}>
             <Pressable
               onPress={() => shift(-1)}
@@ -174,8 +146,8 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
               </View>
             ))}
           </View>
-          {monthGrid(view.year, view.month).map((week, w) => (
-            <View key={w} style={styles.weekRow}>
+          {visibleWeeks.map((week, w) => (
+            <View key={w} testID={`${prefix}-week`} style={styles.weekRow}>
               {week.map((date, i) => {
                 if (!date) return <View key={i} style={styles.cellWrap} />
                 const key = localDayKey(date)
@@ -208,6 +180,10 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
             </View>
           ))}
 
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded }} accessibilityLabel={t(expanded ? 'createTime.collapseCalendar' : 'createTime.expandCalendar')}
+            testID={`${prefix}-expand`} style={styles.expand} onPress={() => setExpanded(value => !value)}>
+            <Text variant="label" color="accent.primary">{t(expanded ? 'createTime.collapseCalendar' : 'createTime.expandCalendar')}</Text>
+          </Pressable>
           </View>
           <View style={styles.sectionHead}>
             <Icon name="clock" size={18} />
@@ -222,9 +198,9 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
                   onPress={() => chooseTime(slot)} testID={`${prefix}-time-${slot}`} />
               )
             })}
-            <Chip label={t('createTime.otherTime')} icon="clock" appearance="soft"
+            <Chip label={t('createTime.otherTime')} appearance="raised"
               variant={time !== null && !(EVENING_STARTS as readonly string[]).includes(time) ? 'selected' : 'default'}
-              onPress={() => setSlots(true)} testID={`${prefix}-other-time`} />
+              onPress={openWheel} testID={`${prefix}-other-time`} />
           </ScrollView>
 
           {!inline ? <View testID="date-sheet-summary" style={[styles.summary, past && styles.summaryInvalid]}>
@@ -237,7 +213,9 @@ export function DateTimeSheet({ inline = false, visible, initialDay, initialTime
         </>
       )}
 
-      {inline && slots ? <SheetActions><SecondaryBtn label={t('common.cancel')} onPress={() => setSlots(false)} /></SheetActions> : null}
+      {inline ? <TimePickerSheet visible={slots} initialTime={wheelDefault} title={`${t('createTime.pickTime')} · ${t('createTime.start')}`}
+        isInvalid={slot => isPastSlot(slot, dayArg, new Date())} invalidHint={t('createTime.startPast')}
+        onClose={() => setSlots(false)} onDone={slot => { setSlots(false); chooseTime(slot) }} testID="start-time-sheet" /> : null}
       {slots || inline ? null : (
         <SheetActions><SecondaryBtn label={t('common.cancel')} onPress={onClose} /><PrimaryBtn
           label={t('createTime.done')}

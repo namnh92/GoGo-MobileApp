@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.vi
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
+import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -33,22 +34,27 @@ interface ChipOption {
   label: string
 }
 
-function ChipGrid({ options, selected, onToggle }: {
+function ChoiceList({ options, selected, onToggle, max }: {
   options: ChipOption[]
   selected: string[]
   onToggle: (key: string) => void
+  max?: number
 }) {
+  const { t } = useTranslation()
+  const atLimit = max !== undefined && selected.length >= max
   return (
-    <View style={styles.grid}>
+    <View style={styles.choices}>
       {options.map(option => (
-        <Chip
+        <CheckboxRow
           key={option.key}
           label={option.label}
-          appearance="soft"
-          variant={selected.includes(option.key) ? 'selected' : 'default'}
+          checked={selected.includes(option.key)}
+          disabled={atLimit && !selected.includes(option.key)}
+          accessibilityHint={atLimit && !selected.includes(option.key) ? t('placeWizard.selectionLimitHint', { max }) : undefined}
           onPress={() => onToggle(option.key)}
         />
       ))}
+      {atLimit ? <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">{t('placeWizard.selectionLimitHint', { max })}</Text> : null}
     </View>
   )
 }
@@ -154,18 +160,18 @@ export default function CreateMoodScreen() {
       {taxonomies.isPaused && !taxonomies.data ? (
         <View testID="create-mood-offline" style={[styles.errorWrap, { paddingBottom: footerInset + spacing[4] }]}><OfflineState /></View>
       ) : taxonomies.isPending ? (
-        // A grid of chips is coming; say so with its shape, not a spinner.
+        // Match the checkbox rows that follow.
         <View testID="create-mood-pending" style={[styles.pending, { paddingBottom: footerInset + spacing[4] }]}>
           <Skeleton width="55%" height={22} />
-          <View style={styles.grid}>
+          <View style={styles.choices}>
             {[0, 1, 2, 3, 4, 5].map(index => (
-              <Skeleton key={index} width={index % 3 === 0 ? 120 : 96} height={32} radius={999} />
+              <Skeleton key={index} width="100%" height={44} />
             ))}
           </View>
           <Skeleton width="40%" height={18} />
-          <View style={styles.grid}>
+          <View style={styles.choices}>
             {[0, 1, 2, 3].map(index => (
-              <Skeleton key={index} width={104} height={32} radius={999} />
+              <Skeleton key={index} width="100%" height={44} />
             ))}
           </View>
         </View>
@@ -181,13 +187,13 @@ export default function CreateMoodScreen() {
 
           {toOptions('mood').length + toOptions('setting').length + toOptions('spending_style').length === 0 ? <View testID="create-mood-empty"><EmptyState title={t('createMood.emptyTitle')} body={t('createMood.emptyBody')} /></View> : null}
           {toOptions('mood').length ? <Text variant="discoveryHeading" style={styles.moodTitle}>{t('createMood.moodTitle')}</Text> : null}
-          <ChipGrid options={toOptions('mood')} selected={moods} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
+          <ChoiceList options={toOptions('mood')} selected={moods} max={MAX_MOODS} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
 
           {toOptions('setting').length ? <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text> : null}
-          <ChipGrid options={toOptions('setting')} selected={settings} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
+          <ChoiceList options={toOptions('setting')} selected={settings} max={MAX_SETTINGS} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
 
           {toOptions('spending_style').length ? <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text> : null}
-          <ChipGrid
+          <ChoiceList
             options={toOptions('spending_style')}
             selected={spending ? [spending] : []}
             onToggle={key => setSpending(current => (current === key ? null : key))}

@@ -1,0 +1,117 @@
+GoGo-MobileApp #594 owner sim feedback 2026-11-11
+Basis: f640dd79 + uncommitted source files listed below.
+No stage/commit/push. Native simulator recheck NOT RUN for this patch.
+No API payload/schema/submit mapping changed. No dependency added.
+
+pnpm typecheck: PASS, exit 0
+pnpm exec eslint <all changed/untracked TS/TSX paths below>: PASS, exit 0
+git diff --check: PASS, exit 0
+
+create-date
+$ pnpm test:ui create-date --runInBand
+Test Suites: 2 passed, 2 total
+Tests:       12 passed, 12 total
+Time:        2.794 s
+Result: PASS, exit 0
+
+affected-ui
+$ pnpm test:ui --runInBand 'create-date|create-time|create-room-name|create-location|create-mood|prefill-budget|prefill-location|location-permission|location-module-missing|place-import|contribution-choices|i18n-keys|sheet-migration|shared/ui/__tests__/chip'
+PASS src/features/__tests__/place-import-owner.spec.tsx (10.697 s)
+PASS src/features/__tests__/place-import-resolution-token.spec.tsx
+PASS src/features/__tests__/prefill-location.spec.tsx
+PASS src/features/__tests__/create-time-day.spec.tsx
+PASS src/features/__tests__/place-import-future-opening.spec.tsx
+PASS src/features/__tests__/i18n-keys.spec.tsx
+PASS src/features/__tests__/create-time.spec.tsx
+PASS src/features/create-date/__tests__/owner-feedback.spec.tsx
+PASS src/features/__tests__/place-import-status.spec.tsx
+PASS src/features/__tests__/sheet-migration.spec.tsx
+PASS src/features/__tests__/create-location-gps-card.spec.tsx
+PASS src/features/__tests__/prefill-budget.spec.tsx
+PASS src/features/__tests__/contribution-choices.spec.tsx
+PASS src/features/create-date/__tests__/owner-theme.spec.tsx
+PASS src/shared/ui/__tests__/chip.spec.tsx
+PASS src/features/__tests__/place-import-provider-outage.spec.tsx
+PASS src/features/__tests__/location-permission.spec.tsx
+PASS src/features/__tests__/create-room-name.spec.tsx
+PASS src/features/__tests__/create-mood-footer-inset.spec.tsx
+PASS src/features/__tests__/location-module-missing.spec.tsx
+Test Suites: 20 passed, 20 total
+Tests:       305 passed, 305 total
+Time:        26.177 s
+Result: PASS, exit 0
+
+location-schedule-unit
+$ pnpm exec vitest run src/shared/location src/features/create-date/__tests__
+Test Files  11 passed (11)
+Tests  64 passed (64)
+Result: PASS, exit 0
+
+regression-after
+$ pnpm test:ui --runInBand src/features/create-date/__tests__/owner-feedback.spec.tsx src/features/__tests__/create-location-gps-card.spec.tsx -t '#594 owner'
+Test Suites: 2 passed, 2 total
+Tests:       4 skipped, 12 passed, 16 total
+Time:        2.596 s, estimated 3 s
+Result: PASS, exit 0
+
+regression-before
+Same regression-after command, original HEAD production contents plus new tests; all patched production restored in finally.
+Result: FAIL, exit 1 (expected).
+FAIL src/features/__tests__/create-location-gps-card.spec.tsx
+  ● prefills the startup position without a tap, then refreshes on entry and on focus (#594 owner)
+  ● manual selection uses SearchField and survives a later focus refresh (#594 owner)
+  ● prefills the native startup fix before its area lookup completes (#594 owner)
+  ● renders denied on entry without a tap and keeps the manual fallback (#594 owner)
+  ● renders unavailable on entry without a tap and keeps the manual fallback (#594 owner)
+FAIL src/features/create-date/__tests__/owner-feedback.spec.tsx
+  ● removes the selected pill and pairs accent border with a bold title (#594 owner 1)
+  ● uses the existing focus visibility pattern with a docked CTA outside the scroll viewport (#594 owner 2)
+  ● keeps one budget scope subtitle for couple and units on each amount (#594 owner 7)
+  ● keeps one budget scope subtitle for group-host and units on each amount (#594 owner 7)
+  ● uses shared checkboxes, enforces max 3 with feedback, and permits deselection (#594 owner 8)
+  ● shows one week, expands/collapses with selection preserved, and removes quick date chips (#594 owner 5)
+  ● aligns Other time with preset chips and stages a scroll-wheel pick until Done (#594 owner 6)
+Test Suites: 2 failed, 2 total
+Tests:       12 failed, 4 skipped, 16 total
+
+distribute-wrapper.test.ts: NOT RUN in this focused pass; known sandbox failures not treated as patch results.
+
+Changed source/test SHA-256 manifest
+0c836b7e6259af62449323395e55c5b086083f34d5b2440d93bd708f7860df02  src/features/__tests__/create-location-gps-card.spec.tsx
+9b7cb7e3624ec50cf41f2203e9e036423298009617804114aa9c6d20b938508d  src/features/__tests__/create-mood-footer-inset.spec.tsx
+135bc35685d267bd28fef9845be00acc4a9e5afd72a9cff98c89ada3acd7ded3  src/features/__tests__/create-time-day.spec.tsx
+7720b8e3ea67e00c1ce51e96f3948e5ba055135de87bbbc234a65c3bb6c0e20c  src/features/__tests__/create-time.spec.tsx
+0638c11dfa0bc428315d55bde02a618c878ee15ee32b452d7b9bebc03c6219e5  src/features/__tests__/location-module-missing.spec.tsx
+97e360ff3f3af6632c393943799c91f39ddebf12e37e607e153795ae54387fc1  src/features/__tests__/location-permission.spec.tsx
+8e33727c94b469fb7833a05823f79ebddd58e72f3c0d4cc97b79269a117971e3  src/features/__tests__/prefill-location.spec.tsx
+c4052c6e3ed6867faaa92d418fa1a3928a32410fabd64d315a5ec44779bed36d  src/features/__tests__/sheet-migration.spec.tsx
+f696bb76001bbb7e9be4b75909180212a1d3544ba10c2ccdd418dea936e876fb  src/features/create-date/__tests__/owner-feedback.spec.tsx
+59b5fd65394410f25c02fe512b63830ef5d8ebfa30b1c8c3edf5648160914a91  src/features/create-date/__tests__/owner-theme.spec.tsx
+b37d22fb10caeec71a1ded773709c07a6a33b16bc04848bf02e8d229978fd734  src/features/create-date/create-budget.style.tsx
+f173fa6393a3fcefae4f6bfd320850a6d8e9fda8b61bfaed303e8988038fcc3b  src/features/create-date/create-budget.view.tsx
+66b85988e6a5f2f1ad2585718df95aac968826d0e6bcf896b258ee906104aac6  src/features/create-date/create-location.style.tsx
+0103acb1777da9258757e7b548e540884cf00cbae19fca9998e39c7795372dc0  src/features/create-date/create-location.view.tsx
+3bdd429ad20f992e1d708388d8b800427d76499a111b485998c54aafc596e283  src/features/create-date/create-mood.style.tsx
+670f2ec00573dae2f9acf1fc65546b8d686a32d671139c6ad14b78a3e19da90c  src/features/create-date/create-mood.view.tsx
+5d913b573689b8239c6e4c385674e6a7e512ee0d8dec83fc63f1a29139d5f4ae  src/features/create-date/create-time.style.tsx
+0222cf36af44e6349dffb154334cc23e591b4fc9fc647165dff45dae1384f91c  src/features/create-date/create-time.view.tsx
+ee8b41cde5c7299ff75ba18f245e54db657610e9c6da5c4bc12aa6731301a45a  src/features/create-date/create-type.style.tsx
+03304a9db938b094a55c6fa0f3db613ec48130cb628d2f9bd3059427aae8d21b  src/features/create-date/create-type.view.tsx
+46f9383924358b632dbdb75d591899cb7f4ae0e82cd1ba6003cfba802fa15932  src/features/create-date/date-time-sheet.style.tsx
+f469d8ad6455aff8a211afe70d5dcb4c3c1b8fc1cc761f1d6ecd739a9160d960  src/features/create-date/date-time-sheet.view.tsx
+a21fc86b13663341e00af32acca49a8b943237e5ca6910a2c3b53a638c207637  src/features/create-date/time-picker-sheet.style.tsx
+ed51edbd3d58b567265cef89f12bce0dd2c5d56e04f692febc099a078a09b97a  src/features/create-date/time-picker-sheet.view.tsx
+7c1a8e04bda2848fb8ff84b24e3a2f34055a84910971a4e0733157ec9e60a109  src/features/place-import/contribution-choices.view.tsx
+66e14a07063c13e07909842557d9afde114593b099d215605a69911a03d2566e  src/features/place-import/contribution-wizard.style.tsx
+8c7a70e23a0a798d90c8cb85ab35fd5cf3599290ce28106ae106ffb229f130ad  src/shared/i18n/en.ts
+6e8a0715eb44f2a244d5b18d780e7b44bb02031ba3fcd64a52b6b9efd0447dba  src/shared/i18n/vi.ts
+a542347f49099be13f80545d01690d35e269dbae27cce345144152cc8080151d  src/shared/location/area-controller.test.ts
+07a613b0675a17c2e4073c073f479155ae73a49e5c6390e876a785d3d1e9a694  src/shared/location/area-controller.ts
+a1538bcd5f832634e8f28a8cc5f8dbb7596defacb7802a043ed685abe153ab7a  src/shared/location/use-current-location.ts
+d5adfce21ae57ae12b6516b8e5737867586431ba70c8193f487686254b7e89d3  src/shared/ui/__tests__/chip.spec.tsx
+8c663d4f1fb25367dfd4fe444ae6f5cfb2c6c2ae04ff88d64ae66679348b3f73  src/shared/ui/checkbox-row.style.tsx
+d78351594fb6b0451de3ba475ce19829d403acd67a4a064b840d0372529f3944  src/shared/ui/checkbox-row.view.tsx
+9546a6d324b281edc54353b483ab08edd4adb98f253d3ed7f28835395ce84726  src/shared/ui/time-wheel.style.tsx
+da896f7b9eed4eb38df4d4b74cb4220bc34ce9d836984a28fec9b82174b87282  src/shared/ui/time-wheel.view.tsx
+
+Manifest SHA-256: 548e219016e97dc90fd777e804b9528777969980147820422b3ba4ce583a7ede

@@ -6,6 +6,7 @@ export type { LocationState } from './native-location'
 export function useCurrentLocation() {
   const state = useAppAreaStore(state => state.location)
   const request = useCallback(() => appArea.request(), [])
+  const refresh = useCallback(() => appArea.refresh(), [])
   const reset = useCallback(() => useAppAreaStore.setState({ location: { status: 'idle' } }), [])
-  return { state, request, reset }
+  return { state, request, refresh, reset }
 }

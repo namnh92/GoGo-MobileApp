@@ -2,7 +2,6 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  scope: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], backgroundColor: theme.accent.soft, borderRadius: radius.compact, minHeight: 44, padding: spacing[3], marginBottom: spacing[5] },
   options: { gap: spacing[3] },
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing[4] },

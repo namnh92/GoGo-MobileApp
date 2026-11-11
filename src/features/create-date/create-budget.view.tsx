@@ -68,7 +68,6 @@ export default function CreateBudgetScreen() {
       >
         <Text variant="discoveryTitle">{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{subtitle}</Text>
-        <View style={styles.scope}><IconCheck color={theme.accent.onSoft} size={18} /><Text variant="introLabel" color="accent.onSoft">{roomType === 'couple' ? t('createBudget.scope.couple') : t(budgetMode === 'per_person' ? 'groupSetup.perPerson' : 'groupSetup.groupTotal')}</Text></View>
 
         {offerUsual && usualTier ? (
           <View style={styles.prefillRow}>

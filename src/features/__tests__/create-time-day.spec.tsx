@@ -35,7 +35,9 @@ async function chooseTime(view: View, slot: string) {
   if (EVENING.includes(slot)) await press(view.getByTestId(`date-sheet-time-${slot}`))
   else {
     await press(view.getByTestId('date-sheet-other-time'))
-    await press(view.getByText(slot))
+    await press(view.getByTestId(`date-sheet-wheel-hours-${slot.slice(0, 2)}`))
+    await press(view.getByTestId(`date-sheet-wheel-minutes-${slot.slice(3)}`))
+    await press(view.getByText('Xong'))
   }
 }
 async function pickStart(view: View, slot: string) {
@@ -120,26 +122,31 @@ describe('the start and end rows', () => {
     expect(windowLength()).toBe(2 * HOUR)
   })
 
-  it('Kết thúc opens the slot grid for a time', async () => {
+  it('Kết thúc opens the staged wheel for a time', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await pickStart(view, '19:00')
     await press(view.getByTestId('create-time-end-row'))
-    await press(view.getByText('21:00'))
+    await press(view.getByTestId('end-time-sheet-wheel-hours-21'))
+    await press(view.getByTestId('end-time-sheet-wheel-minutes-00'))
+    await press(view.getByText('Xong'))
     expect(view.getByText('T5, 05/11 · 21:00')).toBeTruthy()
     expect(useRoomStore.getState().endTime).toBe('21:00')
   })
 })
 
 describe('the date and time sheet', () => {
-  it('has three shortcuts, today selected with a check, and today marked', async () => {
+  it('starts with one week, expands to the month, and collapses back without date shortcuts', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    expect(state(view, 'date-sheet-shortcut-today').selected).toBe(true)
-    expect(state(view, 'date-sheet-shortcut-tomorrow').selected).toBe(false)
-    expect(view.getByText('Cuối tuần này')).toBeTruthy()
+    expect(view.getAllByTestId('date-sheet-week')).toHaveLength(1)
+    expect(view.queryByText('Cuối tuần này')).toBeNull()
+    expect(view.queryByTestId('date-sheet-shortcut-today')).toBeNull()
     expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(true)
-    expect(view.getByText('Tháng 11, 2026')).toBeTruthy()
-    expect(view.getByText('CN')).toBeTruthy()
+    await press(view.getByTestId('date-sheet-expand'))
+    expect(view.getAllByTestId('date-sheet-week')).toHaveLength(6)
+    await press(view.getByTestId('date-sheet-expand'))
+    expect(view.getAllByTestId('date-sheet-week')).toHaveLength(1)
+    expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(true)
   })
 
   it('past days are disabled, and the previous month is disabled on the current month', async () => {
@@ -156,6 +163,7 @@ describe('the date and time sheet', () => {
   it('weeks start on Monday', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
+    await press(view.getByTestId('date-sheet-expand'))
     // 1 November 2026 is a Sunday: the first week holds only that day, in the last column.
     expect(view.getByTestId('date-sheet-day-2026-11-01')).toBeTruthy()
     expect(view.getAllByText('T2').length).toBe(1)
@@ -164,7 +172,7 @@ describe('the date and time sheet', () => {
   it('tomorrow gives startAt tomorrow, even for a slot earlier than now', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-shortcut-tomorrow'))
+    await press(view.getByTestId('date-sheet-day-2026-11-06'))
     await chooseTime(view, '09:00')
     await press(view.getByText('Xong'))
     expect(view.getByText('T6, 06/11 · 09:00')).toBeTruthy()
@@ -174,26 +182,11 @@ describe('the date and time sheet', () => {
     expect(startOf().getHours()).toBe(9)
   })
 
-  it('Cuối tuần này is the coming Saturday', async () => {
-    const view = await renderScreen(<CreateTimeScreen />)
-    await openSheet(view)
-    await press(view.getByText('Cuối tuần này'))
-    expect(state(view, 'date-sheet-day-2026-11-07').selected).toBe(true)
-    expect(view.getByText('T7, 07/11 · --:--')).toBeTruthy()
-  })
-
-  it.each([[7, 'a Saturday'], [8, 'a Sunday']])('Cuối tuần này is today itself on day %i (%s)', async day => {
-    jest.setSystemTime(new Date(2026, 10, day, 10, 0, 0, 0))
-    const view = await renderScreen(<CreateTimeScreen />)
-    await openSheet(view)
-    expect(state(view, 'date-sheet-shortcut-weekend').selected).toBe(true)
-    expect(state(view, `date-sheet-day-2026-11-0${day}`).selected).toBe(true)
-  })
-
   it('a day beyond the old four-day row works', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
     await press(view.getByTestId('date-sheet-next'))
+    await press(view.getByTestId('date-sheet-expand'))
     await press(view.getByTestId('date-sheet-day-2026-12-25'))
     await chooseTime(view, '19:00')
     await press(view.getByText('Xong'))
@@ -204,15 +197,18 @@ describe('the date and time sheet', () => {
     expect(startOf().getDate()).toBe(25)
   })
 
-  it('disables past slots on today, in the chips and in the slot grid', async () => {
+  it('disables past presets and prevents confirming a past wheel time', async () => {
     fakeClock(new Date(2026, 10, 5, 18, 30, 0, 0))
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
     expect(state(view, 'date-sheet-time-18:00').disabled).toBe(true)
     expect(state(view, 'date-sheet-time-19:00').disabled).toBe(false)
     await press(view.getByTestId('date-sheet-other-time'))
-    expect(view.getByRole('button', { name: '18:00' }).props.accessibilityState.disabled).toBe(true)
-    expect(view.getByRole('button', { name: '19:00' }).props.accessibilityState.disabled).toBe(false)
+    await press(view.getByTestId('date-sheet-wheel-hours-18'))
+    await press(view.getByTestId('date-sheet-wheel-minutes-00'))
+    expect(view.getByRole('button', { name: 'Xong' }).props.accessibilityState.disabled).toBe(true)
+    await press(view.getByTestId('date-sheet-wheel-hours-19'))
+    expect(view.getByRole('button', { name: 'Xong' }).props.accessibilityState.disabled).toBe(false)
   })
 
   it('Xong is off until a time is picked, and the summary line follows the choice', async () => {
@@ -227,7 +223,7 @@ describe('the date and time sheet', () => {
   it('closing the sheet drops what was picked in it', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-shortcut-tomorrow'))
+    await press(view.getByTestId('date-sheet-day-2026-11-06'))
     await chooseTime(view, '19:00')
     await press(view.getByTestId('date-sheet-close'))
     expect(useRoomStore.getState()).toMatchObject({ scheduleDay: null, startTime: null })
@@ -246,11 +242,11 @@ describe('the date and time sheet', () => {
 describe('Stitch inline calendar (#594)', () => {
   it('keeps an inline day without a time when opening the staged sheet (#594 F-01)', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
-    await press(view.getByTestId('date-inline-shortcut-tomorrow'))
+    await press(view.getByTestId('date-inline-day-2026-11-06'))
     await openSheet(view)
     expect(state(view, 'date-sheet-day-2026-11-06').selected).toBe(true)
-    expect(state(view, 'date-sheet-shortcut-today').selected).toBe(false)
-    await press(view.getByTestId('date-sheet-shortcut-weekend'))
+    expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(false)
+    await press(view.getByTestId('date-sheet-day-2026-11-07'))
     await chooseTime(view, '20:00')
     await press(view.getByText('Huỷ'))
     expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-06', startTime: null, startAt: null })
@@ -282,7 +278,7 @@ describe('Stitch inline calendar (#594)', () => {
 
   it('uses the existing schedule path for an inline day and time', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
-    await press(view.getByTestId('date-inline-shortcut-tomorrow'))
+    await press(view.getByTestId('date-inline-day-2026-11-06'))
     await press(view.getByTestId('date-inline-time-19:00'))
     expect(useRoomStore.getState().scheduleDay).toBe('2026-11-06')
     expect(useRoomStore.getState().startTime).toBe('19:00')
@@ -295,7 +291,7 @@ describe('Stitch inline calendar (#594)', () => {
     useRoomStore.setState({ startTime: '18:00' })
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-shortcut-tomorrow'))
+    await press(view.getByTestId('date-sheet-day-2026-11-06'))
     await chooseTime(view, '20:00')
     await press(view.getByText('Huỷ'))
     expect(useRoomStore.getState().scheduleDay).toBeNull()
@@ -307,7 +303,7 @@ describe('Stitch inline calendar (#594)', () => {
 it('blocks Continue when an inline change puts the saved time in the past', async () => {
   useRoomStore.setState({ startTime: '09:00', scheduleDay: '2026-11-06' })
   const view = await renderScreen(<CreateTimeScreen />)
-  await press(view.getByTestId('date-inline-shortcut-today'))
+  await press(view.getByTestId('date-inline-day-2026-11-05'))
   expect(useRoomStore.getState().scheduleDay).toBeNull()
   expect(view.getByText('Giờ bắt đầu hôm nay đã qua — chọn giờ khác hoặc ngày khác.')).toBeTruthy()
   await press(view.getByText('Tiếp tục'))
@@ -318,6 +314,6 @@ it('returns from inline other-time slots without inventing a start', async () =>
   const view = await renderScreen(<CreateTimeScreen />)
   await press(view.getByTestId('date-inline-other-time'))
   await press(view.getByText('Huỷ'))
-  expect(view.getByTestId('date-inline-shortcut-today')).toBeTruthy()
+  expect(view.getByTestId('date-inline-day-2026-11-05')).toBeTruthy()
   expect(useRoomStore.getState().startTime).toBeNull()
 })
