@@ -140,3 +140,59 @@ Các vị trí dưới đây là working tree round 2 so với HEAD `379a5eb`; d
 | `src/features/__tests__/room-schedule-editor.spec.tsx` | 2–3, 15, 66–110: real-sheet matrix có lịch/empty/pending/error, hai theme |
 | `src/shared/ui/__tests__/submit-overlay.test.ts` | 25–29, 68–70: inventory kiểm tra cả hai overlay bindings thay vì một expression gộp |
 | `docs/verification/issue-595-group-05b.md` | Nguồn round 2, per-screen notes, deviation table, FAIL-before/PASS-after, checks và file map |
+
+## Owner sim feedback 2026-11-12
+
+Scope: PR #600, group 05B / 5.14, worktree `mobile-595`, base HEAD
+`da79832e` (includes `origin/re-design` at `825f5224`). Owner's dated instruction
+requests this focused UI correction. Results below apply to the uncommitted working
+tree, not to a new commit or a simulator build. No staging, commit, push or Stitch write.
+
+### Changes
+
+- Visible schedule labels are now `Bắt đầu` / `Kết thúc` and `Start` / `End`.
+  Both use `numberOfLines={1}` and the same `type.label.lineHeight` label box.
+  Equal-width columns use `minWidth: 0` and `spacing[2]` between label and input.
+  The optional hint (`Không bắt buộc` / `Optional`) sits below the end input, so
+  wrapping cannot move that input down. Existing full accessibility labels remain.
+- Sheet body uses `spacing[2]` after the header and `spacing[4]` between editors.
+  Editor sections remove the old `spacing[4]` card padding/bottom margin using
+  `spacing[0]`, and use `spacing[2]` for helper/field gaps. The name label/input
+  group also uses `spacing[2]`. Shared SheetActions spacing and button styles remain.
+- New layout styles live in `room-edit-sheet.style.tsx`; no existing style was moved
+  or deleted. Input typography/colors remain in `room-manage.style.tsx`, with the
+  same semantic Light/Dark tokens. No typography/ownership registry or pin needs
+  relocation. Save handlers, payloads, validation, pending guards and stale warning
+  remain unchanged.
+
+### FAIL on da79832 / PASS after
+
+Regression filter:
+`pnpm test:ui --runInBand room-schedule-editor --testNamePattern='595 owner sim layout'`.
+
+All six changed production files were temporarily loaded verbatim from
+`git show da79832:<path>`, then restored byte-for-byte in `finally`; the new specs
+were identical on both runs. HEAD/index were not changed.
+
+| Regression | Original production @da79832 | Final working tree |
+| --- | --- | --- |
+| Single-line labels, equal label height, same column gap; optional hint after the input; compact rendered section spacing (vi/en × Light/Dark) | FAIL: 4 tests; short end label absent | PASS: 4 tests, included in room UI gate |
+| Section/field token spacing without card insets | FAIL: 1 test; compact editorBody style absent | PASS: 1 test, included in room UI gate |
+
+Baseline: `/tmp/595-owner-sim/fail-before.log` (5 failed / 28 skipped).
+Final: `/tmp/595-owner-sim/ui-room.log` (all 33 schedule-editor tests included in
+252 passing room tests). Initial four-case focused PASS also recorded in
+`/tmp/595-owner-sim/pass-after.log`; final five-case evidence is the room gate.
+Jest checks rendered props/layout structure, not native pixel geometry. A new 320pt
+simulator check and visual Light/Dark acceptance were NOT RUN in this task.
+
+### Checks
+
+| Command | Result | Evidence |
+| --- | --- | --- |
+| `pnpm typecheck` | PASS, exit 0 | `/tmp/595-owner-sim/typecheck.log` |
+| `pnpm test:ui room gogo-room --runInBand` | PASS, 17 suites / 252 tests | `/tmp/595-owner-sim/ui-room.log` |
+| `pnpm test:ui --runInBand confirm-dialogs` | PASS, 1 suite / 73 tests; combined editor separate saves, validation and pending guards | `/tmp/595-owner-sim/combined-sheet.log` |
+| `pnpm exec eslint` with all seven touched TS/TSX files | PASS, exit 0, no diagnostics | `/tmp/595-owner-sim/lint.log` |
+| `pnpm test src/shared/ui/__tests__/type-scale.test.ts src/shared/ui/__tests__/submit-overlay.test.ts` | PASS, 2 files / 48 tests | `/tmp/595-owner-sim/guards.log` |
+| `git diff --check` | PASS | No whitespace errors |

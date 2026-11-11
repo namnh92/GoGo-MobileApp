@@ -33,7 +33,7 @@ export function RoomEditSheet({ label, value, children, onClose, pending = false
     </View>
     {additionalRow?.(() => setOpen(true))}
     <Sheet visible={open} onClose={close} testID="room-edit-sheet" header={<AppHeader variant="sheet" safeArea={false} title={title} onBack={close} backDisabled={pending} />}>
-      {open ? children(close) : null}
+      {open ? <View testID="room-edit-body" style={styles.editorBody}>{children(close)}</View> : null}
     </Sheet>
   </>
 }

@@ -1674,6 +1674,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'roomSchedule.format': 'Enter day/month/year and hour:minute in your device time zone.',
   'roomSchedule.start': 'Start',
   'roomSchedule.end': 'End (optional)',
+  'roomSchedule.endShort': 'End',
   'roomSchedule.placeholder': '10/09/2026 19:00',
   'roomSchedule.invalid': 'Enter a valid date and time; the end must follow the start.',
   'roomSchedule.locked': 'This plan can no longer be rescheduled.',

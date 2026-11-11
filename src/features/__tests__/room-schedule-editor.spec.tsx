@@ -1,5 +1,10 @@
-import { fireEvent, waitFor, within } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
+import i18n from '@/shared/i18n'
+import { spacing, type } from '@/shared/ui/tokens'
+import { RoomTitleEditor } from '@/features/gogo-room/room-title-editor.view'
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
+import { styles as editStyles } from '@/features/gogo-room/room-edit-sheet.style'
 import { RoomEditSheet } from '@/features/gogo-room/room-edit-sheet.view'
 import { renderScreen, roomFor, type Audience } from './harness'
 let mockPending = false
@@ -107,4 +112,46 @@ describe.each(['orange', 'orangeDark'] as const)('595 schedule through real shee
     }
     expect(view.getByText('Huỷ', { includeHiddenElements: true })).toBeTruthy()
   })
+})
+
+// Owner simulator feedback 2026-11-12: structure guarantees equal input tops;
+// Jest does not measure native text geometry or substitute for a 320pt sim check.
+describe.each(['vi', 'en'] as const)('595 owner sim layout / %s', language => {
+  afterEach(async () => { await act(async () => { await i18n.changeLanguage('vi') }) })
+  it.each(['orange', 'orangeDark'] as const)('single-line equal-height labels and compact token spacing / %s', async theme => {
+    await act(async () => { await i18n.changeLanguage(language) })
+    const view = await renderScreen(<ThemeScopeProvider name={theme}>
+      <RoomEditSheet label="edit" value="">
+        {close => <><RoomTitleEditor room={roomFor('group-host')} /><RoomScheduleEditor room={roomFor('group-host')} onCancel={close} /></>}
+      </RoomEditSheet>
+    </ThemeScopeProvider>)
+    await fireEvent.press(view.getByText(i18n.t('roomLobby.edit')))
+    const start = view.getByText(i18n.t('roomSchedule.start'))
+    const end = view.getByText(language === 'vi' ? 'Kết thúc' : 'End')
+    expect(start.props.numberOfLines).toBe(1)
+    expect(end.props.numberOfLines).toBe(1)
+    expect(StyleSheet.flatten(start.props.style).height).toBe(type.label.lineHeight)
+    expect(StyleSheet.flatten(end.props.style).height).toBe(type.label.lineHeight)
+    for (const name of ['start', 'end']) {
+      const column = view.getByTestId(`room-schedule-${name}`)
+      expect(StyleSheet.flatten(column.props.style)).toMatchObject({ flex: 1, minWidth: 0, gap: spacing[2] })
+      // The same label box and gap precede each input; optional copy follows it.
+      expect(column.children[0]).toBe(name === 'start' ? start : end)
+      expect(within(column).getByLabelText(i18n.t(`roomSchedule.${name}`))).toBeTruthy()
+    }
+    const endColumn = view.getByTestId('room-schedule-end')
+    expect(within(endColumn).getByText(i18n.t('common.optional'))).toBeTruthy()
+    expect(StyleSheet.flatten(view.getByTestId('room-edit-body').props.style)).toMatchObject({ gap: spacing[4], paddingTop: spacing[2] })
+    for (const id of ['room-title-section', 'room-schedule-section']) {
+      expect(StyleSheet.flatten(view.getByTestId(id).props.style)).toMatchObject({ gap: spacing[2], padding: spacing[0], marginBottom: spacing[0] })
+    }
+    expect(StyleSheet.flatten(view.getByTestId('room-title-field').props.style).gap).toBe(spacing[2])
+    expect(view.getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
+  })
+})
+
+it('595 owner sim layout spacing uses section and field tokens without card insets', () => {
+  expect(editStyles.editorBody).toEqual({ gap: spacing[4], paddingTop: spacing[2] })
+  expect(editStyles.editorSection).toEqual({ padding: spacing[0], marginBottom: spacing[0], gap: spacing[2] })
+  expect(editStyles.fieldGroup).toEqual({ gap: spacing[2] })
 })

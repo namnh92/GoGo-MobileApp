@@ -1657,6 +1657,7 @@ export const viMessages = {
   'roomSchedule.format': 'Nhập ngày/tháng/năm và giờ:phút theo giờ trên thiết bị.',
   'roomSchedule.start': 'Bắt đầu',
   'roomSchedule.end': 'Kết thúc (không bắt buộc)',
+  'roomSchedule.endShort': 'Kết thúc',
   'roomSchedule.placeholder': '10/09/2026 19:00',
   'roomSchedule.invalid': 'Kiểm tra ngày giờ hợp lệ; kết thúc phải sau bắt đầu.',
   'roomSchedule.locked': 'Không thể sửa lịch ở trạng thái hiện tại.',

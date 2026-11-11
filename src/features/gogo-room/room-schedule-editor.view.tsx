@@ -14,6 +14,7 @@ import { SheetActions } from '@/shared/ui/sheet-actions.view'
 
 import { isoToLocalSchedule, localScheduleToIso } from './room-schedule'
 import { styles } from './room-manage.style'
+import { styles as sheetStyles } from './room-edit-sheet.style'
 
 const scheduleSchema = z.object({ start: z.string(), end: z.string() }).superRefine((value, ctx) => {
   const start = localScheduleToIso(value.start)
@@ -86,7 +87,7 @@ export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingC
   }
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card padded={false} testID="room-schedule-section" style={sheetStyles.editorSection}>
       <BlockingLoadingOverlay visible={update.isPending} />
       <Text variant="title2">{t('roomSchedule.title')}</Text>
       <Text variant="bodySmall" color="text.secondary">{t('roomSchedule.format')}</Text>
@@ -97,8 +98,8 @@ export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingC
           control={form.control}
           name={name}
           render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-            <View style={styles.flex}>
-              <Text variant="label">{t(`roomSchedule.${name}`)}</Text>
+            <View testID={`room-schedule-${name}`} style={sheetStyles.scheduleColumn}>
+              <Text variant="label" numberOfLines={1} style={sheetStyles.scheduleLabel}>{t(name === 'end' ? 'roomSchedule.endShort' : 'roomSchedule.start')}</Text>
               <TextInput
                 accessibilityLabel={t(`roomSchedule.${name}`)}
                 style={styles.scheduleInput}
@@ -113,6 +114,7 @@ export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingC
                 autoCorrect={false}
                 placeholder={t('roomSchedule.placeholder')}
               />
+              {name === 'end' ? <Text variant="caption" color="text.secondary">{t('common.optional')}</Text> : null}
               {error ? (
                 <Text variant="caption" color="status.warningText" accessibilityLiveRegion="polite">
                   {t('roomSchedule.invalid')}

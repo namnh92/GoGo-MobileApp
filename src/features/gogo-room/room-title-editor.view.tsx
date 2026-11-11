@@ -13,6 +13,7 @@ import { Text } from '@/shared/ui/text'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 
 import { styles } from './room-manage.style'
+import { styles as sheetStyles } from './room-edit-sheet.style'
 
 /** The bounds the server applies (BE-BFF-022), checked before sending. */
 const titleSchema = z.object({ title: z.string().trim().max(80) })
@@ -57,14 +58,14 @@ export function RoomTitleEditor({ room, onCancel, blocked = false, onPendingChan
   const SaveButton = secondaryAction ? SecondaryBtn : PrimaryBtn
 
   return (
-    <Card padded={false} style={styles.card}>
+    <Card padded={false} testID="room-title-section" style={sheetStyles.editorSection}>
       <BlockingLoadingOverlay visible={rename.isPending} />
       <Text variant="bodySmall" color="text.secondary">{t('roomTitle.body')}</Text>
       <Controller
         control={form.control}
         name="title"
         render={({ field: { value, onChange, onBlur }, fieldState: { error } }) => (
-          <>
+          <View testID="room-title-field" style={sheetStyles.fieldGroup}>
             <View style={styles.labelRow}>
               <Text variant="title2">{t('roomTitle.title')}</Text>
               <Text variant="caption" color="text.secondary">{`${value.length}/80`}</Text>
@@ -84,7 +85,7 @@ export function RoomTitleEditor({ room, onCancel, blocked = false, onPendingChan
                 {t('roomTitle.tooLong')}
               </Text>
             ) : null}
-          </>
+          </View>
         )}
       />
       {canEdit ? null : <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text>}
