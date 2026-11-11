@@ -838,6 +838,8 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'createBudget.useUsual': 'Use my usual budget: {{tier}}',
   'createBudget.useUsualAction': 'Use usual budget',
 
+  'createMood.showAll': 'Show all',
+  'createMood.showLess': 'Show less',
   'createMood.title': 'What is the mood?',
   'createMood.moodTitle': 'Mood & experience',
   'createMood.body': 'Choose your atmosphere, up to {{max}} moods.',

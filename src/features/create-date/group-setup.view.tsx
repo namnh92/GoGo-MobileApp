@@ -7,7 +7,7 @@ import { useRoom, type BudgetMode } from '@/shared/store/roomStore'
 import { haptic } from '@/shared/ui/feedback'
 import { IconCheck } from '@/shared/ui/icons'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { hitSlop } from '@/shared/ui/tokens'
 
@@ -16,13 +16,6 @@ import { styles } from './group-setup.style'
 
 const MIN_PEOPLE = 3
 const MAX_PEOPLE = 12
-
-const SIZE_CHOICES = [
-  { min: 3, max: 4, count: 4 },
-  { min: 5, max: 6, count: 6 },
-  { min: 7, max: 10, count: 8 },
-  { min: 11, max: MAX_PEOPLE, count: 12 },
-] as const
 
 const BUDGET_MODES: { mode: BudgetMode; labelKey: 'groupSetup.perPerson' | 'groupSetup.groupTotal' }[] = [
   { mode: 'per_person', labelKey: 'groupSetup.perPerson' },
@@ -50,14 +43,6 @@ export default function GroupSetupScreen() {
         <Text color="text.secondary" style={styles.body}>{t('groupSetup.body')}</Text>
         <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('groupSetup.countTitle')}</Text>
 
-        <View style={styles.sizes}>
-          {SIZE_CHOICES.map(choice => <View key={choice.min} style={styles.sizeChoice}>
-            <Chip appearance="soft"
-              label={choice.min === 11 ? t('groupSetup.overTen') : t('groupSetup.range', { min: choice.min, max: choice.max })}
-              variant={participantCount >= choice.min && participantCount <= choice.max ? 'selected' : 'default'}
-              onPress={() => setParticipantCount(choice.count)} style={styles.sizeChip} />
-          </View>)}
-        </View>
         <Card padded={false} style={styles.stepper}>
           <Pressable
             onPress={() => step(-1)}

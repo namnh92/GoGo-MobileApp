@@ -12,6 +12,7 @@ import { TimePickerSheet } from './time-picker-sheet.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
+import { TIME_SLOTS } from './time-slots'
 import { DateTimeSheet } from './date-time-sheet.view'
 import { dayTimeLabel, dayLabel } from './day-format'
 import { isPastSlot, parseDayKey } from './calendar'
@@ -19,7 +20,7 @@ import { freshDay, scheduleToIso } from './schedule-day'
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-time.style'
 
-type PickerTarget = 'end' | null
+type PickerTarget = 'start' | 'end' | null
 
 /** Whole and half hours from `start` to `end` ("HH:MM"); an end at or before the start is the next day. */
 function hoursBetween(start: string, end: string): number {
@@ -42,7 +43,6 @@ export default function CreateTimeScreen() {
   const scheduleDay = useRoomStore(state => state.scheduleDay)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
-  const [dateSheet, setDateSheet] = useState(false)
 
   // No chosen day, or one that has passed, is today.
   const now = new Date()
@@ -84,16 +84,13 @@ export default function CreateTimeScreen() {
     else if (endTime && endTime <= slot) setEndTime(null)
   }
 
-  function finishDateSheet(chosenDay: string | null, slot: string) {
-    patchDraft({ scheduleDay: chosenDay })
-    applyStart(slot)
-    setDateSheet(false)
-  }
-
   function pickSlot(slot: string) {
-    setEndTime(slot)
-    // A hand-picked end replaces whatever length was chosen.
-    setDurationPreset(null)
+    if (pickerFor === 'start') applyStart(slot)
+    else {
+      setEndTime(slot)
+      // A hand-picked end replaces whatever length was chosen.
+      setDurationPreset(null)
+    }
     setPickerFor(null)
   }
 
@@ -113,16 +110,11 @@ export default function CreateTimeScreen() {
         <Text variant="discoveryTitle">{t('createTime.title', { context: roomType })}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
-        {!dateSheet && pickerFor === null ? <DateTimeSheet
-          inline visible initialDay={day} initialTime={startTime}
-          onDayChange={scheduleDay => patchDraft({ scheduleDay })}
-          onClose={() => setDateSheet(false)} onDone={finishDateSheet}
-        /> : null}
+        <DateTimeSheet initialDay={day} onDayChange={scheduleDay => patchDraft({ scheduleDay })} />
 
-        {/* Summary reopens the staged picker; optional end/duration remain available. */}
         <View style={styles.rows}>
           <Pressable
-            onPress={() => setDateSheet(true)}
+            onPress={() => setPickerFor('start')}
             accessibilityRole="button"
             accessibilityLabel={`${t('createTime.start')}: ${startTime ? dayTimeLabel(startDate, startTime, locale) : t('createTime.notSet')}`}
             testID="create-time-start-row"
@@ -199,15 +191,11 @@ export default function CreateTimeScreen() {
         <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} disabled={!canContinue} icon="arrowRight" />
       </GlassBar>
 
-      <DateTimeSheet
-        visible={dateSheet}
-        initialDay={day}
-        initialTime={startTime}
-        onClose={() => setDateSheet(false)}
-        onDone={finishDateSheet}
-      />
-
-      <TimePickerSheet visible={pickerFor !== null} initialTime={endTime ?? startTime ?? '19:00'}
+      <TimePickerSheet visible={pickerFor === 'start'} initialTime={startTime ?? TIME_SLOTS.find(slot => !isPastSlot(slot, day, now)) ?? '23:59'}
+        title={`${t('createTime.pickTime')} · ${t('createTime.start')}`}
+        isInvalid={slot => isPastSlot(slot, day, new Date())} invalidHint={t('createTime.startPast')}
+        onClose={() => setPickerFor(null)} onDone={pickSlot} testID="start-time-sheet" />
+      <TimePickerSheet visible={pickerFor === 'end'} initialTime={endTime ?? startTime ?? '19:00'}
         title={`${t('createTime.pickTime')} · ${t('createTime.end')}`}
         isInvalid={slot => startTime !== null && slot <= startTime}
         invalidHint={t('createTime.endAfterStart')}

@@ -30,17 +30,11 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 const selected = (view: View, label: string) =>
   view.getByRole('button', { name: label }).props.accessibilityState?.selected
-const EVENING = ['17:00', '18:00', '19:00', '20:00', '21:00']
-// The start is picked in the date sheet: an evening chip, or "Giờ khác" and the staged wheel.
+// Dates come from the inline calendar; the row opens a staged wheel.
 async function pickStart(view: View, slot: string) {
   await press(view.getByTestId('create-time-start-row'))
-  if (EVENING.includes(slot)) await press(view.getByTestId(`date-sheet-time-${slot}`))
-  else {
-    await press(view.getByTestId('date-sheet-other-time'))
-    await press(view.getByTestId(`date-sheet-wheel-hours-${slot.slice(0, 2)}`))
-    await press(view.getByTestId(`date-sheet-wheel-minutes-${slot.slice(3)}`))
-    await press(view.getByText('Xong'))
-  }
+  await press(view.getByTestId(`start-time-sheet-wheel-hours-${slot.slice(0, 2)}`))
+  await press(view.getByTestId(`start-time-sheet-wheel-minutes-${slot.slice(3)}`))
   await press(view.getByText('Xong'))
 }
 const windowLength = () => {

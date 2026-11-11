@@ -28,15 +28,14 @@ it('retains the 80-character contract and selected group route (#594)', async ()
   expect(mockPush).toHaveBeenCalledWith('/create/group-setup')
 })
 
-it('group size chips and the exact counter stay within the existing 3–12 limit', async () => {
+it('the exact counter stays within the existing 3–12 limit', async () => {
   useRoomStore.getState().resetDraft()
   useRoomStore.getState().setAudience('group-host')
   const view = await renderScreen(<GroupSetupScreen />)
-  await fireEvent.press(view.getByRole('button', { name: 'Trên 10 người' }))
+  for (let count = useRoomStore.getState().participantCount; count < 12; count++) await fireEvent.press(view.getByRole('button', { name: 'Thêm một người' }))
   expect(useRoomStore.getState().participantCount).toBe(12)
   expect(view.getByRole('button', { name: 'Thêm một người' }).props.accessibilityState.disabled).toBe(true)
-  await fireEvent.press(view.getByRole('button', { name: '3 – 4 người' }))
-  await fireEvent.press(view.getByRole('button', { name: 'Bớt một người' }))
+  for (let count = 12; count > 3; count--) await fireEvent.press(view.getByRole('button', { name: 'Bớt một người' }))
   expect(useRoomStore.getState().participantCount).toBe(3)
   expect(view.getByRole('button', { name: 'Bớt một người' }).props.accessibilityState.disabled).toBe(true)
 })

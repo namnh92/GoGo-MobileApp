@@ -14,7 +14,6 @@ export const styles = StyleSheet.create(theme => ({
   roomAction: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 24, backgroundColor: theme.status.info, alignItems: 'center', justifyContent: 'center' },
   nearestRoom: { marginHorizontal: 16, marginTop: tabRootSpacing.section, padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 72, borderRadius: 16, backgroundColor: theme.status.infoSoft },
   roomCopy: { flex: 1, gap: 4 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 4 },
   join: { marginHorizontal: 16, marginTop: tabRootSpacing.section, backgroundColor: theme.surface.card, borderRadius: 16, padding: 12, gap: 8 },
   joinHeading: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   joinRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

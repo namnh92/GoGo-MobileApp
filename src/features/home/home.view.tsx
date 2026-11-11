@@ -1,3 +1,4 @@
+import { LocationRow } from '@/shared/ui/location-row.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { AppHeader, AppHeaderAction } from '@/shared/ui/app-header.view'
 import { useAssistantFabScroll } from '@/features/assistant/assistant-entry'
@@ -168,11 +169,7 @@ export default function HomeScreen() {
       >
         <View style={styles.intro}>
           <View style={{ flex: 1 }}>
-            <Pressable testID="home-location" accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={chooseArea} style={styles.locationRow}>
-              <MaterialIcon name="location" size={15} color="accent.text" />
-              <Text variant="introCaptionMedium" color="text.secondary">{scopeLabel ?? t('home.chooseArea')}</Text>
-              <MaterialIcon name="expandMore" size={16} color="text.secondary" />
-            </Pressable>
+            <LocationRow testID="home-location" label={scopeLabel} onPress={chooseArea} />
             <Text variant="discoveryHeading">{me.data?.displayName?.trim() ? t('discovery.greetingName', { name: me.data.displayName.trim() }) : t('discovery.greeting')}</Text>
           </View>
         </View>

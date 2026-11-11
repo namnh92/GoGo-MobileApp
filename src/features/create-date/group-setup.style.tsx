@@ -3,9 +3,6 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  sizes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[3] },
-  sizeChoice: { width: '48%' },
-  sizeChip: { justifyContent: 'center', borderRadius: radius.compact },
   content: { paddingHorizontal: spacing[4], paddingBottom: spacing[6] },
   body: { marginTop: spacing[2] },
   title: {

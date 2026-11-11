@@ -53,7 +53,8 @@ describe('create location without the native location module', () => {
 
   it('says the location is unavailable and leaves the area picker', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(/Chọn khu vực thủ công hoặc dùng vị trí hiện tại./))
+    await fireEvent.press(view.getByTestId('create-location-row'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(/Chưa lấy được vị trí/)).length).toBeGreaterThan(0)
   })
 })

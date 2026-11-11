@@ -84,7 +84,6 @@ jest.mock('@/shared/administrative/administrative-picker.view', () => {
 import CreateLocationScreen from '@/features/create-date/create-location.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 
-const OFFER = 'Chọn khu vực thủ công hoặc dùng vị trí hiện tại.'
 async function press(element: Parameters<typeof fireEvent.press>[0]) {
   await act(async () => { await fireEvent.press(element) })
 }
@@ -101,7 +100,7 @@ it('prefills the startup position without a tap, then refreshes on entry and on 
   mockRefresh.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
   const view = await renderScreen(<CreateLocationScreen />)
   expect(useRoomStore.getState()).toMatchObject({ originLat: 21.04, originLng: 105.76 })
-  expect(view.getByRole('radio').props.accessibilityState.selected).toBe(true)
+  expect(view.getByTestId('create-location-row')).toBeTruthy()
   expect(view.getByText(FIX)).toBeTruthy()
   expect(view.queryByText('Chạm để dùng vị trí của bạn')).toBeNull()
   expect(mockRefresh).toHaveBeenCalledTimes(1)
@@ -111,19 +110,24 @@ it('prefills the startup position without a tap, then refreshes on entry and on 
   expect(useRoomStore.getState()).toMatchObject({ originLat: 21.05, originLng: 105.77 })
   expect(mockRequest).not.toHaveBeenCalled()
 })
-it('manual selection uses SearchField and survives a later focus refresh (#594 owner)', async () => {
+it('round 2: shared location row opens DiscoveryLocationSheet, manual selection and survives a later focus refresh (#594 owner)', async () => {
   const view = await renderScreen(<CreateLocationScreen />)
-  expect(view.getByPlaceholderText('Chọn khu vực', { includeHiddenElements: true }).props.editable).toBe(false)
+  expect(view.queryByPlaceholderText('Chọn khu vực', { includeHiddenElements: true })).toBeNull()
+  expect(view.queryByText('Hoặc chọn khu vực cố định')).toBeNull()
+  expect(view.getByTestId('create-location-row')).toBeTruthy()
   await press(view.getByRole('button', { name: 'Chọn khu vực' }))
+  expect(view.getByTestId('discovery-location-sheet')).toBeTruthy()
+  expect(view.getByText('Dùng vị trí hiện tại')).toBeTruthy()
   await press(view.getByText('Chọn tỉnh/thành phố'))
   await press(view.getByText('Xác nhận'))
   expect(useRoomStore.getState()).toMatchObject({ originLat: null, originLng: null, administrativeArea: { provinceCode: '01' } })
-  expect(view.getByText(OFFER)).toBeTruthy()
+  expect(view.getByText('Phường Ba Đình, Thành phố Hà Nội')).toBeTruthy()
   await act(async () => { mockFocus.current?.() })
   expect(useRoomStore.getState().originLat).toBeNull()
-  await press(view.getByRole('radio'))
+  await press(view.getByTestId('create-location-row'))
+  await press(view.getByText('Dùng vị trí hiện tại'))
   expect(view.getByText(FIX)).toBeTruthy()
-  expect(view.getByRole('radio').props.accessibilityState.selected).toBe(true)
+  expect(view.getByTestId('create-location-row')).toBeTruthy()
 })
 it('prefills the native startup fix before its area lookup completes (#594 owner)', async () => {
   mockAreaStore.setState({ scope: { status: 'resolving' } })
@@ -156,6 +160,6 @@ it.each(['denied', 'unavailable'] as const)('retains the earlier fix when focus 
   mockLocation.result = { status }
   await act(async () => { mockFocus.current?.() })
   expect(useRoomStore.getState()).toMatchObject({ originLat: 21.05, originLng: 105.77, administrativeArea: null })
-  expect(view.getByRole('radio').props.accessibilityState.selected).toBe(true)
+  expect(view.getByTestId('create-location-row')).toBeTruthy()
   expect(view.getByText(FIX)).toBeTruthy()
 })

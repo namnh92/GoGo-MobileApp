@@ -14,7 +14,7 @@ import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStor
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
@@ -34,27 +34,37 @@ interface ChipOption {
   label: string
 }
 
-function ChoiceList({ options, selected, onToggle, max }: {
+function ChoiceList({ title, options, selected, onToggle, max }: {
+  title: string
   options: ChipOption[]
   selected: string[]
   onToggle: (key: string) => void
   max?: number
 }) {
   const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  // Collapsing hides only unselected overflow, so every selection stays removable.
+  const visible = expanded ? options : options.filter((option, index) => index < 5 || selected.includes(option.key))
   const atLimit = max !== undefined && selected.length >= max
   return (
-    <View style={styles.choices}>
-      {options.map(option => (
-        <CheckboxRow
-          key={option.key}
-          label={option.label}
-          checked={selected.includes(option.key)}
-          disabled={atLimit && !selected.includes(option.key)}
-          accessibilityHint={atLimit && !selected.includes(option.key) ? t('placeWizard.selectionLimitHint', { max }) : undefined}
-          onPress={() => onToggle(option.key)}
-        />
-      ))}
-      {atLimit ? <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">{t('placeWizard.selectionLimitHint', { max })}</Text> : null}
+    <View>
+      {options.length ? <View style={styles.sectionHeader}>
+        <Text variant="discoveryHeading" style={styles.sectionHeading}>{title}</Text>
+        {options.length > 5 ? <GhostBtn label={t(expanded ? 'createMood.showLess' : 'createMood.showAll')} onPress={() => setExpanded(value => !value)} /> : null}
+      </View> : null}
+      <View style={styles.choices}>
+        {visible.map(option => (
+          <CheckboxRow
+            key={option.key}
+            label={option.label}
+            checked={selected.includes(option.key)}
+            disabled={atLimit && !selected.includes(option.key)}
+            accessibilityHint={atLimit && !selected.includes(option.key) ? t('placeWizard.selectionLimitHint', { max }) : undefined}
+            onPress={() => onToggle(option.key)}
+          />
+        ))}
+        {atLimit ? <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">{t('placeWizard.selectionLimitHint', { max })}</Text> : null}
+      </View>
     </View>
   )
 }
@@ -186,14 +196,11 @@ export default function CreateMoodScreen() {
           <Text color="text.secondary" style={styles.body}>{t('createMood.body', { max: MAX_MOODS })}</Text>
 
           {toOptions('mood').length + toOptions('setting').length + toOptions('spending_style').length === 0 ? <View testID="create-mood-empty"><EmptyState title={t('createMood.emptyTitle')} body={t('createMood.emptyBody')} /></View> : null}
-          {toOptions('mood').length ? <Text variant="discoveryHeading" style={styles.moodTitle}>{t('createMood.moodTitle')}</Text> : null}
-          <ChoiceList options={toOptions('mood')} selected={moods} max={MAX_MOODS} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
+          <ChoiceList title={t('createMood.moodTitle')} options={toOptions('mood')} selected={moods} max={MAX_MOODS} onToggle={toggleCapped(setMoods, MAX_MOODS)} />
 
-          {toOptions('setting').length ? <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.settingTitle')}</Text> : null}
-          <ChoiceList options={toOptions('setting')} selected={settings} max={MAX_SETTINGS} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
+          <ChoiceList title={t('createMood.settingTitle')} options={toOptions('setting')} selected={settings} max={MAX_SETTINGS} onToggle={toggleCapped(setSettings, MAX_SETTINGS)} />
 
-          {toOptions('spending_style').length ? <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.spendingTitle')}</Text> : null}
-          <ChoiceList
+          <ChoiceList title={t('createMood.spendingTitle')}
             options={toOptions('spending_style')}
             selected={spending ? [spending] : []}
             onToggle={key => setSpending(current => (current === key ? null : key))}

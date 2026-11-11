@@ -1,8 +1,8 @@
-import { act, fireEvent, within } from '@testing-library/react-native'
+import { act, fireEvent } from '@testing-library/react-native'
 
 import { renderScreen } from './harness'
 
-/** #501: the date-and-time sheet on the time step. */
+/** #501 / #594 round 2: inline dates and staged start/end time wheels. */
 
 const mockPush = jest.fn()
 jest.mock('expo-router', () => ({
@@ -27,18 +27,12 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
   })
 }
 const state = (view: View, testID: string) => view.getByTestId(testID).props.accessibilityState
-const EVENING = ['17:00', '18:00', '19:00', '20:00', '21:00']
 async function openSheet(view: View) {
   await press(view.getByTestId('create-time-start-row'))
 }
 async function chooseTime(view: View, slot: string) {
-  if (EVENING.includes(slot)) await press(view.getByTestId(`date-sheet-time-${slot}`))
-  else {
-    await press(view.getByTestId('date-sheet-other-time'))
-    await press(view.getByTestId(`date-sheet-wheel-hours-${slot.slice(0, 2)}`))
-    await press(view.getByTestId(`date-sheet-wheel-minutes-${slot.slice(3)}`))
-    await press(view.getByText('Xong'))
-  }
+  await press(view.getByTestId(`start-time-sheet-wheel-hours-${slot.slice(0, 2)}`))
+  await press(view.getByTestId(`start-time-sheet-wheel-minutes-${slot.slice(3)}`))
 }
 async function pickStart(view: View, slot: string) {
   await openSheet(view)
@@ -73,8 +67,8 @@ describe('the start and end rows', () => {
     expect(view.getByText('T5, 05/11 · --:--')).toBeTruthy()
     expect(view.queryByTestId('date-time-sheet')).toBeNull()
     await openSheet(view)
-    expect(view.getByTestId('date-time-sheet')).toBeTruthy()
-    expect(view.getByText('Chọn ngày và giờ')).toBeTruthy()
+    expect(view.getByTestId('start-time-sheet')).toBeTruthy()
+    expect(view.getByText('Chọn giờ · Bắt đầu')).toBeTruthy()
   })
 
   it('ignoring the day sends today, exactly as before', async () => {
@@ -107,8 +101,8 @@ describe('the start and end rows', () => {
 
   it('an end past midnight lands on the day after the chosen day, and the estimate still reads', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
+    await press(view.getByTestId('date-inline-day-2026-11-07'))
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-day-2026-11-07'))
     await chooseTime(view, '23:00')
     await press(view.getByText('Xong'))
     await press(view.getByText('1–2 giờ'))
@@ -134,26 +128,24 @@ describe('the start and end rows', () => {
   })
 })
 
-describe('the date and time sheet', () => {
+describe('the inline calendar and time wheel', () => {
   it('starts with one week, expands to the month, and collapses back without date shortcuts', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
-    await openSheet(view)
-    expect(view.getAllByTestId('date-sheet-week')).toHaveLength(1)
+    expect(view.getAllByTestId('date-inline-week')).toHaveLength(1)
     expect(view.queryByText('Cuối tuần này')).toBeNull()
     expect(view.queryByTestId('date-sheet-shortcut-today')).toBeNull()
-    expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(true)
-    await press(view.getByTestId('date-sheet-expand'))
-    expect(view.getAllByTestId('date-sheet-week')).toHaveLength(6)
-    await press(view.getByTestId('date-sheet-expand'))
-    expect(view.getAllByTestId('date-sheet-week')).toHaveLength(1)
-    expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(true)
+    expect(state(view, 'date-inline-day-2026-11-05').selected).toBe(true)
+    await press(view.getByTestId('date-inline-expand'))
+    expect(view.getAllByTestId('date-inline-week')).toHaveLength(6)
+    await press(view.getByTestId('date-inline-expand'))
+    expect(view.getAllByTestId('date-inline-week')).toHaveLength(1)
+    expect(state(view, 'date-inline-day-2026-11-05').selected).toBe(true)
   })
 
   it('past days are disabled, and the previous month is disabled on the current month', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
-    await openSheet(view)
-    expect(state(view, 'date-sheet-day-2026-11-04').disabled).toBe(true)
-    expect(state(view, 'date-sheet-day-2026-11-06').disabled).toBe(false)
+    expect(state(view, 'date-inline-day-2026-11-04').disabled).toBe(true)
+    expect(state(view, 'date-inline-day-2026-11-06').disabled).toBe(false)
     expect(state(view, 'date-sheet-prev').disabled).toBe(true)
     await press(view.getByTestId('date-sheet-next'))
     expect(view.getByText('Tháng 12, 2026')).toBeTruthy()
@@ -162,17 +154,16 @@ describe('the date and time sheet', () => {
 
   it('weeks start on Monday', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
-    await openSheet(view)
-    await press(view.getByTestId('date-sheet-expand'))
+    await press(view.getByTestId('date-inline-expand'))
     // 1 November 2026 is a Sunday: the first week holds only that day, in the last column.
-    expect(view.getByTestId('date-sheet-day-2026-11-01')).toBeTruthy()
+    expect(view.getByTestId('date-inline-day-2026-11-01')).toBeTruthy()
     expect(view.getAllByText('T2').length).toBe(1)
   })
 
   it('tomorrow gives startAt tomorrow, even for a slot earlier than now', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
+    await press(view.getByTestId('date-inline-day-2026-11-06'))
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-day-2026-11-06'))
     await chooseTime(view, '09:00')
     await press(view.getByText('Xong'))
     expect(view.getByText('T6, 06/11 · 09:00')).toBeTruthy()
@@ -184,10 +175,10 @@ describe('the date and time sheet', () => {
 
   it('a day beyond the old four-day row works', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
-    await openSheet(view)
     await press(view.getByTestId('date-sheet-next'))
-    await press(view.getByTestId('date-sheet-expand'))
-    await press(view.getByTestId('date-sheet-day-2026-12-25'))
+    await press(view.getByTestId('date-inline-expand'))
+    await press(view.getByTestId('date-inline-day-2026-12-25'))
+    await openSheet(view)
     await chooseTime(view, '19:00')
     await press(view.getByText('Xong'))
     expect(view.getByText('T6, 25/12 · 19:00')).toBeTruthy()
@@ -197,61 +188,58 @@ describe('the date and time sheet', () => {
     expect(startOf().getDate()).toBe(25)
   })
 
-  it('disables past presets and prevents confirming a past wheel time', async () => {
+  it('removes time presets and prevents confirming a past wheel time', async () => {
     fakeClock(new Date(2026, 10, 5, 18, 30, 0, 0))
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    expect(state(view, 'date-sheet-time-18:00').disabled).toBe(true)
-    expect(state(view, 'date-sheet-time-19:00').disabled).toBe(false)
-    await press(view.getByTestId('date-sheet-other-time'))
-    await press(view.getByTestId('date-sheet-wheel-hours-18'))
-    await press(view.getByTestId('date-sheet-wheel-minutes-00'))
+    expect(view.queryByTestId('date-sheet-time-18:00')).toBeNull()
+    await press(view.getByTestId('start-time-sheet-wheel-hours-18'))
+    await press(view.getByTestId('start-time-sheet-wheel-minutes-00'))
     expect(view.getByRole('button', { name: 'Xong' }).props.accessibilityState.disabled).toBe(true)
-    await press(view.getByTestId('date-sheet-wheel-hours-19'))
+    await press(view.getByTestId('start-time-sheet-wheel-hours-19'))
     expect(view.getByRole('button', { name: 'Xong' }).props.accessibilityState.disabled).toBe(false)
   })
 
-  it('Xong is off until a time is picked, and the summary line follows the choice', async () => {
+  it('stages wheel edits until Done', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    expect(view.getByText('Xong').parent?.parent?.props.accessibilityState?.disabled ?? true).toBeTruthy()
     await chooseTime(view, '20:00')
-    expect(within(view.getByTestId('date-sheet-summary')).getByText('T5, 05/11 · 20:00')).toBeTruthy()
-    expect(state(view, 'date-sheet-time-20:00').selected).toBe(true)
+    expect(useRoomStore.getState().startTime).toBeNull()
+    await press(view.getByText('Xong'))
+    expect(view.getByText('T5, 05/11 · 20:00')).toBeTruthy()
   })
 
-  it('closing the sheet drops what was picked in it', async () => {
+  it('closing the wheel drops time edits and keeps the calendar date', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
+    await press(view.getByTestId('date-inline-day-2026-11-06'))
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-day-2026-11-06'))
     await chooseTime(view, '19:00')
-    await press(view.getByTestId('date-sheet-close'))
-    expect(useRoomStore.getState()).toMatchObject({ scheduleDay: null, startTime: null })
+    await press(view.getByText('Huỷ'))
+    expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-06', startTime: null })
   })
 
-  it('a saved day that is still ahead is shown on the row and selected in the sheet', async () => {
+  it('a saved day that is still ahead is shown on the row and selected in the calendar', async () => {
     useRoomStore.setState({ scheduleDay: '2026-11-07', startTime: '19:00' })
     const view = await renderScreen(<CreateTimeScreen />)
     expect(view.getByText('T7, 07/11 · 19:00')).toBeTruthy()
     await openSheet(view)
-    expect(state(view, 'date-sheet-day-2026-11-07').selected).toBe(true)
-    expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(false)
+    expect(state(view, 'date-inline-day-2026-11-07').selected).toBe(true)
+    expect(state(view, 'date-inline-day-2026-11-05').selected).toBe(false)
   })
 })
 
 describe('Stitch inline calendar (#594)', () => {
-  it('keeps an inline day without a time when opening the staged sheet (#594 F-01)', async () => {
+  it('keeps an inline day without a time when cancelling the staged wheel (#594 F-01)', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await press(view.getByTestId('date-inline-day-2026-11-06'))
     await openSheet(view)
-    expect(state(view, 'date-sheet-day-2026-11-06').selected).toBe(true)
-    expect(state(view, 'date-sheet-day-2026-11-05').selected).toBe(false)
-    await press(view.getByTestId('date-sheet-day-2026-11-07'))
+    expect(state(view, 'date-inline-day-2026-11-06').selected).toBe(true)
+    expect(state(view, 'date-inline-day-2026-11-05').selected).toBe(false)
     await chooseTime(view, '20:00')
     await press(view.getByText('Huỷ'))
     expect(useRoomStore.getState()).toMatchObject({ scheduleDay: '2026-11-06', startTime: null, startAt: null })
     await openSheet(view)
-    expect(state(view, 'date-sheet-day-2026-11-06').selected).toBe(true)
+    expect(state(view, 'date-inline-day-2026-11-06').selected).toBe(true)
     await chooseTime(view, '19:00')
     expect(useRoomStore.getState().startTime).toBeNull()
     await press(view.getByText('Xong'))
@@ -273,13 +261,13 @@ describe('Stitch inline calendar (#594)', () => {
     await press(resumed.getByText('Tiếp tục'))
     expect(mockPush).not.toHaveBeenCalled()
     await openSheet(resumed)
-    expect(state(resumed, 'date-sheet-day-2026-11-07').selected).toBe(true)
+    expect(state(resumed, 'date-inline-day-2026-11-07').selected).toBe(true)
   })
 
   it('uses the existing schedule path for an inline day and time', async () => {
     const view = await renderScreen(<CreateTimeScreen />)
     await press(view.getByTestId('date-inline-day-2026-11-06'))
-    await press(view.getByTestId('date-inline-time-19:00'))
+    await pickStart(view, '19:00')
     expect(useRoomStore.getState().scheduleDay).toBe('2026-11-06')
     expect(useRoomStore.getState().startTime).toBe('19:00')
     await press(view.getByText('Tiếp tục'))
@@ -287,11 +275,10 @@ describe('Stitch inline calendar (#594)', () => {
     expect(mockPush).toHaveBeenCalledWith('/create/budget')
   })
 
-  it('Huỷ cancels staged sheet edits and keeps the saved start', async () => {
+  it('Huỷ cancels staged wheel edits and keeps the saved start', async () => {
     useRoomStore.setState({ startTime: '18:00' })
     const view = await renderScreen(<CreateTimeScreen />)
     await openSheet(view)
-    await press(view.getByTestId('date-sheet-day-2026-11-06'))
     await chooseTime(view, '20:00')
     await press(view.getByText('Huỷ'))
     expect(useRoomStore.getState().scheduleDay).toBeNull()
@@ -312,7 +299,7 @@ it('blocks Continue when an inline change puts the saved time in the past', asyn
 
 it('returns from inline other-time slots without inventing a start', async () => {
   const view = await renderScreen(<CreateTimeScreen />)
-  await press(view.getByTestId('date-inline-other-time'))
+  await press(view.getByTestId('create-time-start-row'))
   await press(view.getByText('Huỷ'))
   expect(view.getByTestId('date-inline-day-2026-11-05')).toBeTruthy()
   expect(useRoomStore.getState().startTime).toBeNull()

@@ -220,3 +220,39 @@ Ví dụ assertion F-04 trước sửa (UTC): expected start `2026-11-11T17:00:0
 | `git diff --check` | PASS, exit 0 |
 
 Sandbox cho phép toàn bộ checks trên. Đây là regression component/payload và unit; chưa xác nhận lại trên simulator/native build. API contract/store schema/submit mapping không đổi.
+
+
+## Owner sim feedback round 2
+
+Ngày 2026-11-11. Owner recheck simulator vòng 2 trong `dev/policy/decisions-log.md` (workspace), thắng tham chiếu Stitch cho đúng năm thay đổi này. Baseline: `ea8bdad6` / PR #598, nhánh `feature/GOGO-594-redesign-g05a-create`. Kết quả sau sửa thuộc working-tree patch trên head đó; không stage/commit/push. Không chạm nhánh/worktree `feature/GOGO-647-preference-checkbox` / `mobile-647`.
+
+| Item | Thay đổi và file | Regression |
+| --- | --- | --- |
+| 1. Thiết lập nhóm | `group-setup.view.tsx` / `.style.tsx`: bỏ toàn bộ bốn chip khoảng người và style không còn dùng; chỉ còn stepper, giữ clamp/disabled 3–12 và hai thẻ budget đọc `participantCount`. | `round-two.spec.tsx`, `create-room-name.spec.tsx`: không còn nhãn chip; min/max disabled; tăng số người đổi nội dung budget. |
+| 2. Vị trí | Tách row pin + area label + chevron của Home thành `src/shared/ui/location-row.view.tsx` / `.style.tsx`; Home và `create-location.view.tsx` dùng cùng row. Wizard mở `DiscoveryLocationSheet` (cùng alias shared sheet với Home/Discovery), bỏ thẻ GPS + heading khu vực cố định + SearchField. Giữ nguyên focus refresh, startup/native-fix prefill, lựa chọn manual, lỗi denied/unavailable, radius và payload mapping. Dùng `administrativeAreaLabel` cho area, native label/generic fix khi chưa có tên area. | `create-location-gps-card.spec.tsx`: label điền sẵn không tap; row mở sheet thật với current-location và manual picker; manual giữ qua focus; chọn lại GPS; native fix trước lookup; generic label; denied/unavailable; giữ fix cũ khi refresh lỗi. `prefill-location`, `location-permission`, `location-module-missing` cập nhật entry point và giữ payload/fallback assertions. Home/Search suites vẫn chạy. |
+| 3. Lịch | `date-time-sheet.view.tsx` / `.style.tsx`: icon-only double-chevron down/up; `material-icon.tsx` thêm hai glyph Material dùng chung. Giữ nhãn truy cập cũ vi/en và target minWidth/minHeight 44pt, expanded state; giữ tuần vắt tháng/ngày đã chọn. | `round-two.spec.tsx`: vi/en, không text link, đúng glyph theo state, target ≥44; `owner-feedback.spec.tsx` vẫn kiểm tuần/tháng và cross-month F-05. |
+| 4. Giờ | `create-time.view.tsx`: Bắt đầu mở trực tiếp `TimePickerSheet` như Giờ khác trước đây; ngày từ lịch inline, giờ được stage trong wheel đến Xong; Huỷ giữ giờ cũ. `date-time-sheet.view.tsx` chỉ còn lịch inline, bỏ hàng chip giờ và modal date/time cũ không còn caller. Kết thúc vẫn dùng sheet cũ; validation, duration và payload path không đổi. | `round-two.spec.tsx`, `owner-feedback.spec.tsx`, `create-time.spec.tsx`, `create-time-day.spec.tsx`: không time chips/Giờ khác; row mở wheel; staging/cancel; ngày + giờ đúng payload (gồm 00:00 và crossing midnight F-04); past-start, end validation, duration và save/resume. |
+| 5. Mood | `create-mood.view.tsx` / `.style.tsx`: mỗi section giữ state mở riêng, mặc định first 5, nút Ghost ở header bên phải Tất cả/Thu gọn; thêm copy vi/en tại `src/shared/i18n/{vi,en}.ts`. Khi thu gọn hiển thị first 5 **cộng các lựa chọn đã chọn ngoài first 5**: có thể hơn 5 hàng để mọi lựa chọn luôn thấy và bỏ được, không âm thầm mất lựa chọn. Giữ mood max 3, setting max 2, spending single-select. | `round-two.spec.tsx`: cap cả ba section, expand/collapse độc lập, vi/en, chọn overflow rồi collapse/deselect, restored overflow cho cả ba loại và max-3; test checkbox/limit vòng 1 giữ nguyên. |
+
+`src/shared/ui/__tests__/fixtures/stitch-color-pins.json` chuyển binding màu của row Home vào component shared; `chip.spec.tsx` bỏ registry `date-time-sheet.timeRow` đã xoá. Không thêm màu/token, không thay API/store schema/submit mapping.
+
+### FAIL-before / PASS-after
+
+Hai file regression cuối cùng được copy vào bản `git archive ea8bdad6` riêng trong `/tmp` (chỉ symlink dependencies có sẵn), không checkout/reset/stash worktree đang sửa. Cùng lệnh:
+
+`pnpm test:ui --runInBand src/features/create-date/__tests__/round-two.spec.tsx src/features/__tests__/create-location-gps-card.spec.tsx`
+
+- **FAIL-before:** exit 1, 2 suites failed; **14 failed / 4 passed / 18 tests**. Production nguyên `ea8bdad6`. Bắt đúng chip khoảng còn hiện; text toggle lịch; time chips/Giờ khác còn hiện; 21 checkbox thay vì 15 (18 khi có restored overflow); thiếu shared location row. Bốn case location fallback/native-label độc lập vẫn pass.
+- **PASS-after:** exit 0, **2 suites / 18 tests passed**, cùng hai file regression trên working-tree patch.
+- Raw log local: `/tmp/594-round2-before-final.log`, `/tmp/594-round2-after-final.log`; isolated baseline path ghi tại `/tmp/594-round2-baseline-path.txt`.
+
+### Checks
+
+- `pnpm typecheck`: PASS, exit 0.
+- `pnpm test:ui create-date home search --runInBand`: PASS, exit 0, **10 suites / 196 tests** trên patch cuối. Raw log: `/tmp/594-round2-requested-ui-final.log`.
+- `pnpm test:ui --runInBand create-date home search create-time create-location location-permission location-module-missing prefill-location create-room-name chip.spec`: PASS, exit 0, **20 suites / 324 tests**, gồm `chip.spec.tsx`, các regression trước đó và năm case bổ sung (restored overflow, en calendar, expand từng section). Raw log: `/tmp/594-round2-ui-final.log`.
+- `pnpm test src/shared/ui src/shared/i18n src/shared/location src/features/create-date/__tests__`: PASS, exit 0, **32 files / 417 tests**, gồm `color-roles.test.ts` và shared location/controller checks.
+- Touched-file `pnpm exec eslint <changed/new .ts/.tsx files>`: PASS, exit 0, không warning.
+- `git diff --check`: PASS.
+
+Sandbox cho phép các checks trên. Chưa chạy lại simulator/native build; kết quả component/unit không xác nhận visual acceptance trên simulator. Không có phần implementation nào trong năm item bị bỏ lại.

@@ -1,10 +1,10 @@
-import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
-import { CurrentAreaSheet } from '@/shared/location/current-area-sheet.view'
+import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
+import { LocationRow } from '@/shared/ui/location-row.view'
 import { useAdministrativeVersion } from '@/shared/administrative/queries'
 import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
 import { useMe } from '@/shared/api'
@@ -13,10 +13,9 @@ import { useAppAreaStore } from '@/shared/location/app-area'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
-import { Icon, IconCheck, IconMapPin } from '@/shared/ui/icons'
+import { Icon } from '@/shared/ui/icons'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Card, Chip, PrimaryBtn } from '@/shared/ui/primitives'
-import { SearchField } from '@/shared/ui/search-field.view'
+import { Atmosphere, Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
@@ -104,10 +103,6 @@ export default function CreateLocationScreen() {
     track('profile_prefill_used', { field: 'homeArea' })
   }
 
-  async function useDeviceLocation() {
-    await location.request()
-  }
-
   function next() {
     const published = version.data?.datasetVersion
     // The server refuses a replaced dataset too; saying it here keeps the user
@@ -121,15 +116,8 @@ export default function CreateLocationScreen() {
     router.push('/create/time')
   }
 
-  // The subtitle follows the draft, not the last fix: once an area replaces
-  // the position, the card is an unselected offer again (#207). The hook keeps
-  // its `granted` state after that, so it cannot decide what the card says.
-  const currentSubtitle =
-    location.state.status === 'asking'
-      ? t('createLocation.locating')
-      : usingCurrent
-        ? gpsLabel || t('createLocation.locatedNoLabel')
-        : t('createLocation.manualFallback')
+  const scopeLabel = administrativeArea ? administrativeAreaLabel(administrativeArea)
+    : usingCurrent ? gpsLabel || t('createLocation.locatedNoLabel') : null
 
   return (
     <Atmosphere redesign>
@@ -138,25 +126,7 @@ export default function CreateLocationScreen() {
         <Text variant="discoveryTitle">{t('createLocation.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createLocation.body')}</Text>
 
-        {/* Focus refresh is silent. Only an explicit control may ask permission. */}
-        <Pressable
-          onPress={useDeviceLocation}
-          disabled={location.state.status === 'asking'}
-          accessibilityRole="radio"
-          accessibilityLabel={`${t('createLocation.current')}, ${currentSubtitle}`}
-          accessibilityState={{ selected: usingCurrent, busy: location.state.status === 'asking' }}
-        >
-          <Card padded={false} style={styles.rowCard}>
-            <View style={styles.rowIcon}>
-              <IconMapPin />
-            </View>
-            <View style={styles.rowBody}>
-              <Text variant="discoveryHeading">{t('createLocation.current')}</Text>
-              <Text variant="bodySmall" color="text.secondary">{currentSubtitle}</Text>
-            </View>
-            {location.state.status === 'asking' ? <LoadingIndicator /> : usingCurrent && <IconCheck />}
-          </Card>
-        </Pressable>
+        <LocationRow testID="create-location-row" label={scopeLabel} onPress={() => setAreaOpen(true)} />
 
         {location.state.status === 'denied' || location.state.status === 'unavailable' ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
@@ -187,7 +157,6 @@ export default function CreateLocationScreen() {
           </>
         ) : null}
 
-        <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createLocation.areaTitle')}</Text>
         {offerHomeArea ? (
           <View style={styles.prefillRow}>
             <Chip
@@ -198,19 +167,13 @@ export default function CreateLocationScreen() {
             />
           </View>
         ) : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={t('home.chooseArea')} onPress={() => setAreaOpen(true)}>
-          <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <SearchField editable={false} accessibilityLabel={t('home.chooseArea')}
-              value={administrativeArea ? administrativeAreaLabel(administrativeArea) : ''} placeholder={t('home.chooseArea')} />
-          </View>
-        </Pressable>
         {staleArea && administrativeArea && administrativeArea.datasetVersion !== version.data?.datasetVersion ? (
           <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite" style={styles.locationFallback}>
             {t('administrative.changed')}
           </Text>
         ) : null}
       </ScrollView>
-      <CurrentAreaSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => setStaleArea(false)} />
+      <DiscoveryLocationSheet visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={() => setStaleArea(false)} />
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
         <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} icon="arrowRight" />
       </GlassBar>

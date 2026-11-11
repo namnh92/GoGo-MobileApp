@@ -1050,9 +1050,6 @@
       "surface.subtle"
     ],
     "src/features/home/home.view.tsx": [
-      "accent.text",
-      "text.secondary",
-      "text.secondary",
       "accent.gradientStart",
       "accent.gradientMiddle",
       "status.infoGradient",
@@ -1117,7 +1114,13 @@
     ],
     "src/features/create-date/time-picker-sheet.view.tsx": [
       "status.dangerText"
-    ]
+    ],
+    "src/shared/ui/location-row.view.tsx": [
+      "accent.text",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/shared/ui/location-row.style.tsx": []
   },
   "workspace": {
     "canvas": "#121212",

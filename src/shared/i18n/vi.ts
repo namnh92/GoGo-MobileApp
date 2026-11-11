@@ -819,6 +819,8 @@ export const viMessages = {
   'createBudget.useUsual': 'Dùng ngân sách thường dùng: {{tier}}',
   'createBudget.useUsualAction': 'Dùng mức thường dùng',
 
+  'createMood.showAll': 'Tất cả',
+  'createMood.showLess': 'Thu gọn',
   'createMood.title': 'Mood tối nay?',
   'createMood.moodTitle': 'Tâm trạng & trải nghiệm',
   'createMood.body': 'Chọn không khí mong muốn, tối đa {{max}} mood.',

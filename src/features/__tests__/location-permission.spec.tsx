@@ -54,7 +54,6 @@ jest.mock('@/shared/administrative/queries', () => ({
 import CreateLocationScreen from '@/features/create-date/create-location.view'
 import { useRoomStore } from '@/shared/store/roomStore'
 
-const PROMPT = /Chọn khu vực thủ công hoặc dùng vị trí hiện tại./
 const DENIED = /Chưa có quyền vị trí/
 const UNAVAILABLE = /Chưa lấy được vị trí/
 
@@ -70,21 +69,23 @@ beforeEach(() => {
 describe('location permission', () => {
   it('asks nothing on launch — the row invites a tap instead', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
-    expect(view.queryAllByText(PROMPT).length).toBeGreaterThan(0)
+    expect(view.getByTestId('create-location-row')).toBeTruthy()
     expect(view.queryAllByText(DENIED)).toHaveLength(0)
     expect(view.queryAllByText(UNAVAILABLE)).toHaveLength(0)
   })
 
   it('shows the resolved area once the user grants it', async () => {
     const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(PROMPT))
+    await fireEvent.press(view.getByTestId('create-location-row'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(/Thảo Điền, TP\.HCM/)).length).toBeGreaterThan(0)
   })
 
   it('explains the fallback when the user denies it', async () => {
     mockPermission.status = 'denied'
     const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(PROMPT))
+    await fireEvent.press(view.getByTestId('create-location-row'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(DENIED)).length).toBeGreaterThan(0)
   })
 
@@ -93,7 +94,8 @@ describe('location permission', () => {
   it('degrades to the picker when the location call itself fails', async () => {
     mockModuleMissing.value = true
     const view = await renderScreen(<CreateLocationScreen />)
-    await fireEvent.press(view.getByText(PROMPT))
+    await fireEvent.press(view.getByTestId('create-location-row'))
+    await fireEvent.press(view.getByText('Dùng vị trí hiện tại'))
     expect((await view.findAllByText(UNAVAILABLE)).length).toBeGreaterThan(0)
   })
 })
