@@ -4,14 +4,12 @@ import { Image } from 'expo-image'
 import { useRef } from 'react'
 import { Keyboard, Pressable, View } from 'react-native'
 import { TextInput, type TextInputRef } from '@/shared/ui/text-input'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Icon } from '@/shared/ui/icons'
-import { useKeyboardVisible } from '@/shared/ui/keyboard'
 import { Text } from '@/shared/ui/text'
-import { hitSlop, loadingIndicator, spacing } from '@/shared/ui/tokens'
+import { hitSlop, loadingIndicator } from '@/shared/ui/tokens'
 
 import { ContextChip } from './context-chip.view'
 import { styles } from './composer.style'
@@ -30,8 +28,8 @@ export interface ComposerImage {
  * to five lines with the microphone inside it, and Send — which becomes Stop
  * while a reply is being written. The only glass on the screen (#295). It
  * sits in the layout under the thread, so the keyboard-avoiding view around
- * both lifts it onto the keyboard; with the keyboard up the home-indicator
- * inset is dropped.
+ * composer and credit row lifts the footer onto the keyboard. The footer owns
+ * the home-indicator inset and drops it while the keyboard is up.
  *
  * The microphone waits for voice input (#380, its native module needs an
  * ADR): it is drawn, disabled, and named "Voice input coming soon", so the
@@ -67,8 +65,6 @@ export function Composer({
 }) {
   const { t } = useTranslation()
   const { theme } = useUnistyles()
-  const insets = useSafeAreaInsets()
-  const keyboard = useKeyboardVisible()
   const inputRef = useRef<TextInputRef>(null)
   const uploading = images.some(image => image.uploadKey === null)
   const canSend = !disabled && !uploading && value.trim().length > 0
@@ -81,7 +77,7 @@ export function Composer({
   const attachDisabled = disabled || images.length >= MAX_IMAGES
 
   return (
-    <GlassBar testID="assistant-composer" style={[styles.bar, { paddingBottom: (keyboard ? 0 : insets.bottom) + spacing[2] }]}>
+    <GlassBar testID="assistant-composer" style={styles.bar}>
       {context ? (
         <View style={styles.context}>
           <ContextChip label={context.label} onRemove={context.onRemove} />

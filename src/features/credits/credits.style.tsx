@@ -9,6 +9,6 @@ export const styles = StyleSheet.create(theme => ({
   label: { flex: 1 },
   pressed: { backgroundColor: theme.surface.container },
   account: { marginHorizontal: spacing[4], marginBottom: spacing[4], padding: spacing[4], backgroundColor: theme.surface.card, borderRadius: radius.compact },
-  assistant: { paddingHorizontal: spacing[4], paddingVertical: spacing[2], backgroundColor: theme.surface.card },
+  assistant: { paddingHorizontal: spacing[4], backgroundColor: theme.surface.card },
   skeleton: { gap: spacing[3], padding: spacing[4] },
 }))

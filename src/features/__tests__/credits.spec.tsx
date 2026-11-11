@@ -2,6 +2,7 @@ import { act, fireEvent, screen } from '@testing-library/react-native'
 import i18n from '@/shared/i18n'
 import { render } from '@/shared/ui/__tests__/query-render'
 import { StyleSheet } from 'react-native-unistyles'
+import { type, touchTarget } from '@/shared/ui/tokens'
 import { themes } from '@/shared/ui/theme'
 import { loaded, pending, failed } from './harness'
 
@@ -123,4 +124,39 @@ it('guest sees sign-in without rendering cached personal facts', async () => {
   expect(mockLedgerEnabled).toHaveBeenLastCalledWith(false)
   expect(screen.queryByText('12.345')).toBeNull()
   expect(screen.getByText(i18n.t('auth.signInCta'))).toBeTruthy()
+})
+
+it.each(['orange', 'orangeDark'] as const)('renders compact assistant credit in %s without changing available balance', async theme => {
+  StyleSheet.configure({ themes: { [theme]: themes[theme] } as unknown as typeof themes })
+  mockSummary = loaded({ ...facts, reserved: 45, availableBalance: 12300 })
+  await render(<CreditBalanceRow assistant />)
+  expect(screen.getByText('Credit GoGo')).toHaveStyle(type.bodySmall)
+  expect(screen.getByText('12.300')).toHaveStyle(type.caption)
+  expect(screen.getByText('Credit GoGo').props.numberOfLines).toBe(1)
+  expect(screen.getByText('12.300').props.numberOfLines).toBe(1)
+  expect(screen.queryByText('12.345')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Xem lịch sử credit' })).toHaveStyle({
+    flexDirection: 'row', justifyContent: 'space-between', minHeight: touchTarget.min,
+  })
+})
+
+it('preserves assistant loading, retry, offline and stale states', async () => {
+  mockSummary = pending()
+  const view = await render(<CreditBalanceRow assistant />)
+  expect(screen.getByTestId('credit-balance-loading')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Xem lịch sử credit' }).props.accessibilityState.busy).toBe(true)
+  expect(screen.queryByText('0')).toBeNull()
+  mockSummary = { ...failed(), refetch: mockRetry }
+  await view.rerender(<CreditBalanceRow assistant />)
+  expect(screen.getByText('Chưa có thông tin credit')).toHaveStyle(type.caption)
+  await act(async () => { fireEvent.press(screen.getByText('Thử lại')) })
+  expect(mockRetry).toHaveBeenCalled()
+  mockOnline = false
+  await view.rerender(<CreditBalanceRow assistant />)
+  expect(screen.getByText(i18n.t('credits.offline'))).toBeTruthy()
+  expect(screen.queryByText('Thử lại')).toBeNull()
+  mockSummary = loaded(facts)
+  await view.rerender(<CreditBalanceRow assistant />)
+  expect(screen.getByText('12.345')).toBeTruthy()
+  expect(screen.getByText(i18n.t('common.staleOffline'))).toBeTruthy()
 })
