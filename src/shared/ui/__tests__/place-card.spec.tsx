@@ -357,12 +357,18 @@ describe('#561 shared small marker card', () => {
     } finally { UnistylesStyleSheet.configure({ themes }) }
   })
 
-  it('keeps the GoGo line and placeholder while omitting unknown facts and guest save actions', async () => {
+  it('F-09: keeps the photo placeholder while omitting unknown ratings, facts and guest save actions', async () => {
     await render(<PlaceCardSmall place={fixture({ addressText: undefined, rating: undefined, ratingCount: undefined, openNow: undefined, distanceM: undefined, discovery: undefined, priceMin: null, priceMax: null })} />)
     for (const id of ['place-card-meta', 'place-google-rating', 'place-card-price', 'place-card-save', 'place-card-photo-badges']) expect(screen.queryByTestId(id)).toBeNull()
-    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá', { exact: true })
-    expect(screen.getByText('GoGo · Chưa đủ đánh giá').props.numberOfLines).toBeUndefined()
-    expect(screen.getByText('GoGo · Chưa đủ đánh giá').props.ellipsizeMode).toBeUndefined()
+    expect(screen.queryByTestId('place-gogo-rating')).toBeNull()
+    expect(screen.queryByTestId('place-card-ratings')).toBeNull()
     expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
+  })
+
+  it.each([0, 3, 4])('F-09: keeps known below-threshold GoGo review wording (%i)', async gogoRatingCount => {
+    await render(<PlaceCardSmall place={fixture({ rating: undefined, ratingCount: undefined, gogoRating: 4.9, gogoRatingCount })} />)
+    expect(screen.getByText(`GoGo · Chưa đủ đánh giá (${gogoRatingCount})`)).toBeTruthy()
+    expect(screen.queryByText(/4,9/)).toBeNull()
+    expect(screen.queryByTestId('place-google-rating')).toBeNull()
   })
 })

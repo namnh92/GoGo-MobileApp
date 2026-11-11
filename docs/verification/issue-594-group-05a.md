@@ -394,3 +394,56 @@ Raw baseline log: `/tmp/594-round4-before-final.log`; isolated baseline path: `/
 Raw logs: `/tmp/594-round4-ui-final.log`, `/tmp/594-round4-shared-final.log`, `/tmp/594-round4-shared-ui-final.log`, `/tmp/594-round4-typecheck-final.log`, `/tmp/594-round4-lint-final.log`.
 
 Đây là component/unit và contract-source verification. Chưa chạy simulator/native build hoặc live API acceptance; không tuyên bố visual/pixel acceptance. B1 unlimited-GPS vẫn BLOCKED như mô tả trên; không thay BE contract trong patch này. Index trống, không git add/commit/push.
+
+
+## Astra F-08 / F-09 — 2026-11-11
+
+Basis: PR #598, HEAD `7d511125d72902a65b3a9bbb543975c6f754f06e`, branch `feature/GOGO-594-redesign-g05a-create`, worktree `mobile-594` sạch lúc bắt đầu. Chỉ sửa hai finding P2 trên working tree; không stage/commit/push.
+
+### F-08 — scope picker chỉ nằm trong bộ nhớ
+
+- `picker-scope.ts` giữ một snapshot đã kiểm schema/copy bằng Zod trong bộ nhớ module, gắn UUID ngẫu nhiên từ `expo-crypto.randomUUID()` hiện có. Mở picker mới thay snapshot cũ; không persist dữ liệu scope. Cả GPS và canonical area dùng cùng đường xử lý.
+- Mood chỉ truyền `{ picker: '1', pickerScope: <opaque UUID> }` trong `router.push`. Tọa độ/radius/canonical area không nằm trong route param. Search đọc snapshot bằng ID, giữ nguyên GPS/radius hoặc canonical codes của wizard cho search, filter preview, nearby suggestions và map; không lấy global area thay thế.
+- Search unmount (đóng picker) hoặc Mood unmount (rời bước cuối/kết thúc wizard) xóa snapshot bằng ID. ID lạ/đã xóa, kể cả URL cũ chứa JSON, không resolve: explicit picker dùng `unavailable`, tắt search/preview và hiện `ErrorState` hiện hữu; không fallback sang scope global và không có nút retry unscoped. Picker cũ không truyền scope và ordinary Search giữ hành vi hiện có.
+- Regression assert trực tiếp toàn bộ `router.push` args chỉ có picker flag + UUID, không có tọa độ hay nội dung area; kiểm cleanup ở cả hai màn, mở lại ID đã xóa, ID không tồn tại, scope area/GPS độc lập global, preview/map vẫn giữ scope. Unit kiểm snapshot không đổi khi input bị sửa, ID mới khác ID cũ, clear ID cũ không xóa snapshot mới.
+
+### F-09 — không gán trạng thái ít đánh giá khi chưa biết count
+
+- Sửa tại shared `RatingChips` / `GoGoRatingBadge`: guard dữ liệu thiếu áp dụng cả compact. Nếu không có rating Google/GoGo và chưa biết `gogoRatingCount`, bỏ cả row; GoGo badge riêng cũng bỏ khi count chưa biết. Count có thật vẫn giữ nguyên wording/ngưỡng/điểm và Google badge.
+- Seed id/name fallback được kiểm khi detail offline hoặc failed, cùng mixed full/sparse seed list; sparse card không còn Google/GoGo badge hay row rating rỗng. Các case count 0, 3, 4 vẫn hiện `GoGo · Chưa đủ đánh giá (n)` và không hiện score dưới ngưỡng.
+- Cập nhật expectation cũ của nearby sparse card và hai snapshot minimal SMALL Light/Dark: chỉ bỏ rating row/badge chưa có dữ liệu; full-card snapshots và các case known count giữ nguyên.
+
+### FAIL-before / PASS-after
+
+Production baseline lấy từ `git archive 7d51112` vào `/tmp/594-f08-f09-baseline.q97WNr`, chỉ copy hai file test cuối (`round-four.spec.tsx`, `place-card.spec.tsx`) và symlink node_modules. Không checkout/reset/stash worktree. Cùng final tests, cùng lệnh:
+
+`pnpm test:ui --runInBand round-four place-card.spec -t 'F-08|F-09|seed places use vertical'`
+
+| Regression | Baseline `7d51112` | Working-tree patch |
+| --- | --- | --- |
+| F-08: router args chỉ có UUID, area/GPS | **2 FAIL**: nhận JSON scope, GPS có exact lat/lng | **2 PASS** |
+| F-08: đóng picker/wizard xóa snapshot, ID cũ hiện error | **2 FAIL**: scope vẫn đọc được sau khi đóng | **2 PASS** |
+| F-08: ID không tồn tại, search/preview disabled và error | **1 PASS** | **1 PASS** |
+| F-09: sparse shared card, mixed seed list, offline/failed detail | **4 FAIL**: vẫn có GoGo badge dù thiếu count | **4 PASS** |
+| F-09: known count 0/3/4 giữ wording dưới ngưỡng | **3 PASS** | **3 PASS** |
+| **Tổng** | **8 FAIL / 4 PASS**, exit 1 | **12 PASS**, exit 0 |
+
+Raw logs: `/tmp/594-f08-f09-before-final.log`, `/tmp/594-f08-f09-after-final.log`. Baseline path cũng ghi tại `/tmp/594-f08-f09-baseline-path.txt`.
+
+### Checks cuối
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | **PASS**, exit 0 |
+| `pnpm test:ui create-date search place-card --runInBand` | **PASS**, 13 suites / 343 tests / 9 snapshots |
+| `pnpm test src/shared/location/picker-scope.test.ts` | **PASS**, 1 file / 26 tests |
+| `pnpm exec eslint --no-cache <all touched .ts/.tsx files>` | **PASS**, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | **PASS** |
+
+Lint bao gồm Mood, Search, `picker-scope.ts`/`.test.ts`, `rating-chips.view.tsx`, `round-four.spec.tsx`, `design-drift-home-search.spec.tsx`, `place-card.spec.tsx`, `place-card-layout.spec.tsx`.
+
+Raw check logs: `/tmp/594-f08-f09-typecheck-final.log`, `/tmp/594-f08-f09-ui-final.log`, `/tmp/594-f08-f09-scope-unit.log`, `/tmp/594-f08-f09-lint-final.log`. UI gate còn cảnh báo Node `punycode` deprecated và thiếu i18next instance trong suite SearchField hiện hữu; không có test failure. Hai minimal snapshots đã được kiểm diff trước khi chạy lại gate cuối.
+
+Source/test snapshot: **`rs-8c693093e4fc`**, scope `src`, manifest + binary diff ở `/tmp/594-f08-f09-snapshots/mobile-594-f08-f09-rs-8c693093e4fc/`; tài liệu verification này nằm ngoài scope snapshot để tránh tự tham chiếu. Source/test không đổi sau checks; verify manifest MATCH trước khi bàn giao.
+
+Đây là component/unit regression, chưa chạy simulator/native build hoặc live API acceptance. F-08/F-09 đã sửa và có FAIL-before/PASS-after; không thay API contract hay hành vi unlimited-GPS đã ghi ở round 4. Index trống; không git add/commit/push.

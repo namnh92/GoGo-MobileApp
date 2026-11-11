@@ -19,7 +19,7 @@ import { isAssistantEntryOn } from '@/shared/config/features'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/shared/location/use-discovery-scope'
-import { readPickerScope } from '@/shared/location/picker-scope'
+import { clearPickerScope, readPickerScope } from '@/shared/location/picker-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
@@ -78,6 +78,9 @@ export default function SearchScreen() {
   if (area !== entryArea && !scopeOverridden) setScopeOverridden(true)
   const explicitPicker = isPicker && pickerScope !== undefined
   const wizardScope = useMemo(() => readPickerScope(pickerScope), [pickerScope])
+  useEffect(() => {
+    if (explicitPicker) return () => clearPickerScope(pickerScope)
+  }, [explicitPicker, pickerScope])
   const scope = useMemo<DiscoveryScope>(() => explicitPicker
     ? wizardScope ?? { status: 'unavailable', offline: false, error: new Error(t('createMood.seedScopeUnavailable')) }
     : !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope,

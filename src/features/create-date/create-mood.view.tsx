@@ -1,6 +1,6 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { useRouter } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 
@@ -20,7 +20,7 @@ import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
-import { draftPickerScope } from '@/shared/location/picker-scope'
+import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/location/picker-scope'
 import { ExpandToggle } from '@/shared/ui/expand-toggle.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { Icon } from '@/shared/ui/icons'
@@ -111,6 +111,8 @@ export default function CreateMoodScreen() {
   const originLng = useRoomStore(state => state.originLng)
   const radiusM = useRoomStore(state => state.radiusM)
   const pickerScope = draftPickerScope({ administrativeArea, originLat, originLng, radiusM })
+  const pickerScopeId = useRef<string | null>(null)
+  useEffect(() => () => clearPickerScope(pickerScopeId.current), [])
   const rememberRoom = useRecentRoomsStore(state => state.remember)
 
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KINDS })
@@ -247,7 +249,10 @@ export default function CreateMoodScreen() {
           </View>
           <View style={styles.addPlace}>
             <Chip label={t('createMood.addPlace')} variant={pickerScope ? 'default' : 'disabled'} onPress={() => {
-              if (pickerScope) router.push({ pathname: '/places/search', params: { picker: '1', pickerScope: JSON.stringify(pickerScope) } })
+              if (pickerScope) {
+                pickerScopeId.current = savePickerScope(pickerScope)
+                router.push({ pathname: '/places/search', params: { picker: '1', pickerScope: pickerScopeId.current } })
+              }
             }} />
           </View>
           {!pickerScope ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">

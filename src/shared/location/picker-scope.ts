@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { randomUUID } from 'expo-crypto'
 import type { RoomDraft } from '@/shared/store/roomStore'
 
 const code = z.string().regex(/^\d{2,5}$/)
@@ -24,10 +25,21 @@ export function draftPickerScope(draft: Pick<RoomDraft, 'administrativeArea' | '
   return parsed.success ? parsed.data : null
 }
 
-/** Malformed explicit picker data must fail closed, never search another area. */
-export function readPickerScope(value: string | undefined): PickerScope | null {
-  try {
-    const parsed = pickerScopeSchema.safeParse(JSON.parse(value ?? ''))
-    return parsed.success ? parsed.data : null
-  } catch { return null }
+// Only one wizard picker is active. Never persist this snapshot or put it in a URL.
+let activeScope: { id: string; scope: PickerScope } | null = null
+
+export function savePickerScope(scope: PickerScope): string {
+  const id = randomUUID()
+  activeScope = { id, scope: pickerScopeSchema.parse(scope) }
+  return id
+}
+
+/** Unknown/closed picker ids fail closed; serialized route scopes are not accepted. */
+export function readPickerScope(id: string | undefined): PickerScope | null {
+  return activeScope && activeScope.id === id ? activeScope.scope : null
+}
+
+/** Both the picker and its wizard owner release the transient snapshot on exit. */
+export function clearPickerScope(id: string | null | undefined): void {
+  if (activeScope?.id === id) activeScope = null
 }
