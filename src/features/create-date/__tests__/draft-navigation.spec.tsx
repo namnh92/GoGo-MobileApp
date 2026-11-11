@@ -88,13 +88,10 @@ it.each([
   }
 })
 
-it.each(['save', 'discard', 'header-save'] as const)('F-13: %s removes the entire resumed wizard', async action => {
+it.each(['save', 'discard'] as const)('F-13: Back → %s removes the entire resumed wizard', async action => {
   await open('group-host', 'budget')
-  if (action === 'header-save') await fireEvent.press(screen.getByRole('button', { name: i18n.t('draft.save') }))
-  else {
-    await fireEvent.press(screen.getByRole('button', { name: i18n.t('draft.close') }))
-    await fireEvent.press(screen.getByRole('button', { name: i18n.t(action === 'save' ? 'draft.saveExit' : 'draft.discard') }))
-  }
+  for (let count = 0; count < 4; count++) await fireEvent.press(screen.getByRole('button', { name: i18n.t('common.back') }))
+  await fireEvent.press(screen.getByRole('button', { name: i18n.t(action === 'save' ? 'draft.exitSave' : 'draft.exitDiscard') }))
   await waitFor(() => expect(rootState().routes.map(route => route.name)).toEqual(['(tabs)']))
 })
 

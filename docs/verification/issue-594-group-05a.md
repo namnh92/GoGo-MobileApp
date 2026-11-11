@@ -826,3 +826,41 @@ Logs: `/tmp/594-round9-before-final.log`, `/tmp/594-round9-after-final.log`.
 Logs: `/tmp/594-round9-typecheck-final.log`, `/tmp/594-round9-ui-final.log`, `/tmp/594-round9-lint-final.log`. Jest còn cảnh báo Node `punycode` deprecation hiện hữu.
 
 Đây là bằng chứng component/store regression; chưa chạy native build/simulator hoặc DEV acceptance. HEAD giữ `ac9b7781`, index trống.
+
+
+## Owner sim feedback round 10 — 2026-11-11
+
+Basis: PR #598, production baseline **`12d19d01`**, clean `mobile-594` at start; owner decision confirmed in shared `dev/policy/decisions-log.md` (2026-11-11, Tạo kèo vòng 10). No staging/commit; mobile-647 untouched.
+
+- Removed header Save/floppy and Close/X from the layout-owned `WizardStep` actions. Bell and Back remain. Later-step Back still pops the nested step; first-step Back and Android hardware Back still use the same exit confirmation (or leave immediately when untouched). Root/first-step swipe protection stays in place.
+- Deleted the now-unused `SaveDraftButton` and `wizard-actions.style.tsx`; removed its submit-overlay registry entry. There are no remaining runtime imports/callers. The removed handlers had no analytics events. Existing unrelated account/draft translations remain unchanged; dedicated exit-action keys give **vi: Ở lại / Bỏ nháp / Lưu nháp**, **en: Stay / Discard / Save draft**, in secondary-neutral / danger / primary order, with one dominant primary.
+- Kept the exit-save/discard overlay, `useWizardModal(leaving)`, native dismissal callbacks, recovery cancellation, error/sign-in handling and creation-pending guards. F-12 tests now enter through Back; confirmed exit-save still cancels old auto recovery even if persistence fails, while later manual recovery remains available. Updated resumed-draft navigation and F-14 schedule persistence tests to use Back → prompt → Save instead of removed header actions.
+- `SheetActions` now respects an explicit child `wrapLabel` opt-in; its default remains single-line. The three wizard buttons opt in and use tokenized 4pt horizontal padding. At 320pt: panel insets 20×2, row gaps 8×2, equal buttons 88pt wide, label space **80pt**. CoreText measurement of bundled Inter-SemiBold at the existing 15pt button size: Ở lại 31.85pt; Bỏ nháp 59.14pt; Lưu nháp 67.47pt; Stay 32.31pt; Discard 55.48pt; Save draft 73.65pt. All fit on one line at the app's default text size.
+- Buttons have no line-count cap and retain a 48pt minimum height, so constrained/enlarged labels may grow to two or more lines without ellipsis. The pill/chip single-line rule does not apply to these actions. **Existing shared Text still forces `allowFontScaling=false`; this patch does not change that app-wide typography policy.** Native accessibility-size rendering and a new simulator pass were not performed; the width evidence is font measurement plus rendered prop/style checks, not a screenshot acceptance claim.
+- No colour bindings moved or changed; the removed action stylesheet contained layout only. Submit-overlay registry updated; header/plan-card/chip ownership gates pass. The colour-pin gate has one pre-existing mismatch in untouched `create-location-fields.view.tsx`, reproduced on the exact baseline; no unrelated pin was rewritten.
+
+### FAIL before / PASS after
+
+Same final `round-ten.spec.tsx` against an isolated `git archive 12d19d0` under `/tmp` (dependencies symlinked; no checkout/reset/stash) and this working tree, using `pnpm test:ui --runInBand round-ten`:
+
+| Source | Result |
+| --- | --- |
+| `12d19d01` production + final regression file | **FAIL: 6 failed / 9 passed** — header Save/Close presence, old vi labels/row truncation, old en labels |
+| Working tree + same regression file | **PASS: 15 / 15** — no Save/Close, persistent bell, nested/first/hardware Back, all exit choices, vi/en labels and wrapping |
+
+Baseline directory recorded at `/tmp/mobile-594-round10-baseline-path.txt`. Logs: `/tmp/mobile-594-round10-before-final.log`, `/tmp/mobile-594-round10-after.log`.
+
+### Checks
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | **PASS** |
+| `pnpm test:ui create-date draft wizard-exit sheet-actions --runInBand` | **PASS: 12 suites / 160 tests**; includes requested `create-date draft` scope, F-12, F-13, F-14 and shared row defaults/opt-in |
+| Touched existing/new TS/TSX files via `pnpm exec eslint` | **PASS**, exit 0, no diagnostics |
+| Focused Vitest: submit-overlay, design-drift, mode-aware, plan-card-ownership, app-header-ownership, redesign-contrast, color-roles | **6 files pass; color-roles: 1 pre-existing failure / 7 pass** (170 passed total). Exact-head baseline `color-roles`: same **1 failure / 7 pass**, untouched location-fields binding |
+| `pnpm exec vitest run src/shared/ui/__tests__/chip-ownership.test.ts` | **PASS** |
+| `git diff --check` | **PASS** |
+
+A preliminary `pnpm test -- <files>` expanded to the full Vitest suite because `--` prevented positional filtering; stopped that unintended broader run. It reported the same three sandbox-sensitive `distribute-wrapper` process-liveness failures documented in the earlier verification section. No full-suite PASS is claimed.
+
+Check logs: `/tmp/mobile-594-round10-ui.log`, `/tmp/mobile-594-round10-typecheck.log`, `/tmp/mobile-594-round10-lint.log`, `/tmp/mobile-594-round10-registry-focused.log`, `/tmp/mobile-594-round10-pins-baseline.log`, `/tmp/mobile-594-round10-chip-registry.log`. `RTK.md` referenced by supplied AGENTS instructions was absent from this worktree and checked ancestors.

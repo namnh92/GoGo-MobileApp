@@ -32,7 +32,7 @@ export const WizardHeaderOffset = createContext(0)
 /**
  * Later steps pop: the previous step is below on the stack whether
  * the user walked here or the create entry restored the nested draft history.
- * First-step Back shares Close's existing save/discard/keep prompt.
+ * First-step Back opens the save/discard/stay prompt.
  */
 export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () => void }) {
   const { t } = useTranslation()
@@ -41,7 +41,7 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
   const index = Math.max(0, steps.indexOf(step))
   const total = steps.length
   const label = t('createWizard.step', { current: index + 1, total })
-  const { actions, close, backDisabled } = useWizardActions({ step, compact: true })
+  const { actions, close, backDisabled } = useWizardActions({ step })
   const back = useCallback(() => { if (step === 'type') void close(); else onBack() }, [step, close, onBack])
   useFocusEffect(useCallback(() => {
     if (step !== 'type') return

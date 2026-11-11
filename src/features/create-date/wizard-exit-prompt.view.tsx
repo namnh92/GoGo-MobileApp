@@ -27,9 +27,9 @@ export function WizardExitPrompt({ visible, title, message, actions, onAction, o
       {message ? <Text color="text.secondary" style={styles.text}>{message}</Text> : null}
     </View>
     <SheetActions>
-      {keep ? <SecondaryBtn label={keep.label} onPress={() => choose(keep.key)} variant="neutral" /> : null}
-      {discard ? <DangerBtn label={discard.label} onPress={() => choose(discard.key)} /> : null}
-      {save ? <PrimaryBtn label={save.label} onPress={() => choose(save.key)} /> : null}
+      {keep ? <SecondaryBtn wrapLabel style={styles.action} label={keep.label} onPress={() => choose(keep.key)} variant="neutral" /> : null}
+      {discard ? <DangerBtn wrapLabel style={styles.action} label={discard.label} onPress={() => choose(discard.key)} /> : null}
+      {save ? <PrimaryBtn wrapLabel style={styles.action} label={save.label} onPress={() => choose(save.key)} /> : null}
     </SheetActions>
   </Sheet>
 }

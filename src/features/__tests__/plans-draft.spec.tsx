@@ -1,4 +1,4 @@
-import { act, fireEvent, within } from '@testing-library/react-native'
+import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { renderScreen } from './harness'
@@ -6,8 +6,14 @@ import { restoreRoomDraft, saveRoomDraft, useSavedRoomDraft } from '@/shared/sto
 import { useRoomStore } from '@/shared/store/roomStore'
 import i18n from '@/shared/i18n'
 import { surface, text } from '@/shared/ui/tokens'
-import { SaveDraftButton } from '@/features/create-date/save-draft.view'
+import { useWizardActions } from '@/features/create-date/wizard-actions.view'
+import { GhostBtn } from '@/shared/ui/button.view'
 import { roomScheduleRange } from '@/features/gogo-room/room-schedule'
+
+function DraftExit() {
+  const { actions, close } = useWizardActions({ step: 'time' })
+  return <><GhostBtn label="Back" onPress={() => void close()} />{actions}</>
+}
 
 const mockPush = jest.fn()
 const mockDismiss = jest.fn()
@@ -61,7 +67,7 @@ it.each(['couple', 'group-host'] as const)('draft is the first shared PlanCard w
   expect(useRoomStore.getState().title).toBe('Draft dinner')
 })
 
-it.each(['vi', 'en'])('F-14: header-save after returning to time shows current inputs over stale instants (%s)', async locale => {
+it.each(['vi', 'en'])('F-14: Back exit-save after returning to time shows current inputs over stale instants (%s)', async locale => {
   await save()
   await i18n.changeLanguage(locale)
   restoreRoomDraft('owner')
@@ -70,9 +76,10 @@ it.each(['vi', 'en'])('F-14: header-save after returning to time shows current i
   useRoomStore.getState().patchDraft({ scheduleDay: '2031-01-14' })
   useRoomStore.getState().setStartTime('18:15')
   useRoomStore.getState().setEndTime('22:45')
-  const header = await renderScreen(<SaveDraftButton step="time" compact />)
-  await fireEvent.press(header.getByRole('button', { name: i18n.t('draft.save') }))
-  expect(mockDismiss).toHaveBeenCalledWith('/(tabs)')
+  const header = await renderScreen(<DraftExit />)
+  await fireEvent.press(header.getByRole('button', { name: 'Back' }))
+  await fireEvent.press(header.getByRole('button', { name: i18n.t('draft.exitSave') }))
+  await waitFor(() => expect(mockDismiss).toHaveBeenCalledWith('/(tabs)'))
   expect(useSavedRoomDraft.getState().draft!.fields.startAt).toBe(oldStart)
   await header.unmount()
   const plans = await renderScreen(<PlansScreen />)

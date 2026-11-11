@@ -59,14 +59,14 @@ it.each(['couple', 'group-host'] as const)('round 7: layout retains the same hea
   const Layout = layout()
   const view = await renderScreen(<Layout />)
   const chrome = view.getByTestId('wizard-chrome')
-  const actions = within(chrome).getByRole('button', { name: 'Đóng' })
+  const actions = within(chrome).getByTestId('app-header-bell')
   const steps = audience === 'couple' ? ['type', 'time', 'budget', 'mood'] : ['type', 'group-setup', 'time', 'budget', 'mood']
   for (const [index, step] of steps.entries()) {
     mockStep = step
     await view.rerender(<Layout />)
     expect(view.getAllByTestId('wizard-chrome')).toHaveLength(1)
     expect(view.getByTestId('wizard-chrome')).toBe(chrome)
-    expect(within(chrome).getByRole('button', { name: 'Đóng' })).toBe(actions)
+    expect(within(chrome).getByTestId('app-header-bell')).toBe(actions)
     expect(within(chrome).getByText(`Bước ${index + 1} / ${steps.length}`)).toBeTruthy()
     expect(within(view.getByTestId('nested-stack')).queryByTestId('wizard-chrome')).toBeNull()
     expect(JSON.parse(view.getByTestId('nested-stack').props.accessibilityValue.text).headerShown).toBe(false)
@@ -94,7 +94,7 @@ it('round 7: nested back pops a step, first back exits an untouched wizard', asy
   await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
   expect(mockDismiss).toHaveBeenCalledWith('/(tabs)')
 })
-it.each(['Tiếp tục sửa', 'Bỏ bản nháp', 'Lưu nháp và thoát'])('round 7: first-step back uses the exit prompt: %s', async choice => {
+it.each(['Ở lại', 'Bỏ nháp', 'Lưu nháp'])('round 7: first-step back uses the exit prompt: %s', async choice => {
   useRoomStore.getState().patchDraft({ title: 'Weekend' })
   const Layout = layout()
   const view = await renderScreen(<Layout />)
@@ -102,10 +102,10 @@ it.each(['Tiếp tục sửa', 'Bỏ bản nháp', 'Lưu nháp và thoát'])('ro
   expect(view.getByTestId('wizard-exit-prompt')).toBeTruthy()
   await fireEvent.press(view.getByRole('button', { name: choice }))
   expect(mockBack).not.toHaveBeenCalled()
-  if (choice === 'Tiếp tục sửa') expect(mockDismiss).not.toHaveBeenCalled()
+  if (choice === 'Ở lại') expect(mockDismiss).not.toHaveBeenCalled()
   else await waitFor(() => expect(mockDismiss).toHaveBeenCalledWith('/(tabs)'))
-  if (choice === 'Lưu nháp và thoát') expect(mockSave).toHaveBeenCalledWith('owner', 'type')
-  if (choice === 'Bỏ bản nháp') expect(mockClear).toHaveBeenCalled()
+  if (choice === 'Lưu nháp') expect(mockSave).toHaveBeenCalledWith('owner', 'type')
+  if (choice === 'Bỏ nháp') expect(mockClear).toHaveBeenCalled()
 })
 it('round 7: Android hardware back on step 1 uses the exit prompt', async () => {
   const listener = jest.spyOn(BackHandler, 'addEventListener')
@@ -122,12 +122,16 @@ it('round 7: direct deep links initialise a type screen for nested back', () => 
   const path = resolve(__dirname, '../../../app/create/_layout.tsx')
   expect(jest.requireActual(path).unstable_settings.initialRouteName).toBe('type')
 })
-it('round 7: the persistent Save action uses the updated route step', async () => {
+it('round 7: Back exit-save uses the first step after returning from mood', async () => {
   const Layout = layout()
   const view = await renderScreen(<Layout />)
   mockStep = 'mood'
   await view.rerender(<Layout />)
+  await act(async () => { useRoomStore.getState().patchDraft({ title: 'Weekend' }) })
+  mockStep = 'type'
+  await view.rerender(<Layout />)
+  await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
   await fireEvent.press(view.getByRole('button', { name: 'Lưu nháp' }))
   await waitFor(() => expect(mockDismiss).toHaveBeenCalledWith('/(tabs)'))
-  expect(mockSave).toHaveBeenCalledWith('owner', 'mood')
+  expect(mockSave).toHaveBeenCalledWith('owner', 'type')
 })
