@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import { Icon } from '@/shared/ui/icons'
-import { MaterialIcon } from '@/shared/ui/material-icon'
+import { ExpandToggle } from '@/shared/ui/expand-toggle.view'
 import { Text } from '@/shared/ui/text'
 import { monthLabel, weekdayShort } from './day-format'
 import { monthGrid, parseDayKey } from './calendar'
@@ -107,10 +107,8 @@ export function DateTimeSheet({ initialDay, onDayChange }: {
         </View>
       ))}
 
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded }} accessibilityLabel={t(expanded ? 'createTime.collapseCalendar' : 'createTime.expandCalendar')}
-        testID="date-inline-expand" style={styles.expand} onPress={() => setExpanded(value => !value)}>
-        <MaterialIcon name={expanded ? 'keyboardDoubleArrowUp' : 'keyboardDoubleArrowDown'} color="accent.primary" />
-      </Pressable>
+      <ExpandToggle expanded={expanded} accessibilityLabel={t(expanded ? 'createTime.collapseCalendar' : 'createTime.expandCalendar')}
+        testID="date-inline-expand" onPress={() => setExpanded(value => !value)} />
     </View>
   </View>
 }

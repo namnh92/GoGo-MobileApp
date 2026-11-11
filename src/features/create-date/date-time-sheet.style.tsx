@@ -7,7 +7,6 @@ export const styles = StyleSheet.create(theme => ({
   calendar: { borderRadius: radius.compact, backgroundColor: theme.surface.card, padding: spacing[2], marginBottom: spacing[3] },
   iconBtn: { width: touchTarget.min, height: touchTarget.min, alignItems: 'center', justifyContent: 'center' },
   iconBtnOff: { opacity: 0.35 },
-  expand: { minHeight: touchTarget.min, minWidth: touchTarget.min, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
   monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
   monthTitle: { flex: 1, textAlign: 'center' },
   weekRow: { flexDirection: 'row' },

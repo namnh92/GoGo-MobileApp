@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 
-import { isApiError, useCreateRoom, useTaxonomies } from '@/shared/api'
+import { detailToPlaceCard, isApiError, useCreateRoom, usePlaceDetail, useTaxonomies } from '@/shared/api'
 import { newIdempotencyKey } from '@/shared/api/idempotency'
 import { clearSavedRoomDraft, saveRoomDraft } from '@/shared/store/savedRoomDraft'
 import { noteAssistantPlanCreated } from '@/shared/store/assistantIntroStore'
@@ -14,11 +14,17 @@ import { toCreateRoomBody, useRoom, useRoomStore } from '@/shared/store/roomStor
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Chip, IconBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { Skeleton } from '@/shared/ui/skeleton.view'
 import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
+
+import { draftPickerScope } from '@/shared/location/picker-scope'
+import { ExpandToggle } from '@/shared/ui/expand-toggle.view'
+import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
+import { Icon } from '@/shared/ui/icons'
+import type { SeedPlaceRef } from '@/shared/store/roomStore'
 
 import { WizardStep } from './wizard-step.view'
 import { styles } from './create-mood.style'
@@ -60,7 +66,7 @@ function ChoiceList({ title, options, selected, onToggle, max }: {
     <View>
       {options.length ? <View style={styles.sectionHeader}>
         <Text variant="discoveryHeading" style={styles.sectionHeading}>{title}</Text>
-        {options.length > 5 ? <GhostBtn label={t(expanded ? 'createMood.showLess' : 'createMood.showAll')} onPress={() => setExpanded(value => !value)} /> : null}
+        {options.length > 5 ? <ExpandToggle expanded={expanded} accessibilityLabel={t(expanded ? 'createMood.showLess' : 'createMood.showAll')} onPress={() => setExpanded(value => !value)} /> : null}
       </View> : null}
       <View style={styles.choices}>
         {visible.map(option => (
@@ -79,6 +85,19 @@ function ChoiceList({ title, options, selected, onToggle, max }: {
   )
 }
 
+/** Facts stay in the query cache; restored drafts need only their id/name refs. */
+function SeedPlaceCard({ seed, onRemove }: { seed: SeedPlaceRef; onRemove: () => void }) {
+  const { t } = useTranslation()
+  const detail = usePlaceDetail(seed.placeId)
+  const place = detailToPlaceCard(detail.data ?? { id: seed.placeId, name: seed.name })
+  return <View style={styles.seedPlaceRow}>
+    <PlaceCardSmall place={place} style={styles.seedCard} />
+    <IconBtn size="regular" accessibilityLabel={t('createMood.removePlace', { name: place.name })} onPress={onRemove}>
+      <Icon name="x" size={20} />
+    </IconBtn>
+  </View>
+}
+
 export default function CreateMoodScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -87,6 +106,11 @@ export default function CreateMoodScreen() {
   const { status, session } = useSession()
   const { seedPlaces, removeSeedPlace } = useRoom()
   const patchDraft = useRoomStore(state => state.patchDraft)
+  const administrativeArea = useRoomStore(state => state.administrativeArea)
+  const originLat = useRoomStore(state => state.originLat)
+  const originLng = useRoomStore(state => state.originLng)
+  const radiusM = useRoomStore(state => state.radiusM)
+  const pickerScope = draftPickerScope({ administrativeArea, originLat, originLng, radiusM })
   const rememberRoom = useRecentRoomsStore(state => state.remember)
 
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KINDS })
@@ -218,20 +242,18 @@ export default function CreateMoodScreen() {
 
           <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createMood.seedTitle')}</Text>
           <Text variant="bodySmall" color="text.secondary" style={styles.seedHint}>{t('createMood.seedHint')}</Text>
-          <View style={styles.seedRow}>
-            {seedPlaces.map(place => (
-              <Chip
-                key={place.placeId}
-                label={place.name}
-                icon="mapPin"
-                variant="info"
-                accessibilityLabel={t('createMood.removePlace', { name: place.name })}
-                onRemove={() => removeSeedPlace(place.placeId)}
-                removeAccessibilityLabel={t('createMood.removePlace', { name: place.name })}
-              />
-            ))}
-            <Chip label={t('createMood.addPlace')} onPress={() => router.push('/places/search?picker=1')} />
+          <View testID="create-mood-seed-list" style={styles.seedList}>
+            {seedPlaces.map(place => <SeedPlaceCard key={place.placeId} seed={place} onRemove={() => removeSeedPlace(place.placeId)} />)}
           </View>
+          <View style={styles.addPlace}>
+            <Chip label={t('createMood.addPlace')} variant={pickerScope ? 'default' : 'disabled'} onPress={() => {
+              if (pickerScope) router.push({ pathname: '/places/search', params: { picker: '1', pickerScope: JSON.stringify(pickerScope) } })
+            }} />
+          </View>
+          {!pickerScope ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">
+            {t(!administrativeArea && originLat != null && originLng != null && radiusM === null
+              ? 'createMood.seedRadiusUnsupported' : 'createMood.seedScopeUnavailable')}
+          </Text> : null}
 
           {error ? (
             <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>

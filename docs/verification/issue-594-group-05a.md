@@ -335,3 +335,62 @@ Production baseline lấy bằng `git archive 9fcc4e9` trong thư mục `/tmp` �
 Evidence commands, summary và SHA-256 các file source/test tại [issue-594-round-3-checks.txt](issue-594-round-3-checks.txt). Raw logs nằm ở `/tmp/594-round3-*.log`, baseline path tại `/tmp/594-round3-baseline-path.txt`.
 
 Chưa chạy simulator/native build hoặc acceptance ảnh mới Light/Dark; Jest kiểm token/layout props/a11y và hành vi, không xác nhận pixel parity hay trải nghiệm bàn phím trên thiết bị. Không đổi API contract, payload mapping, native dependencies hay worktree nhánh stacked.
+
+
+## Owner sim feedback round 4
+
+Ngày 2026-11-11. Basis: PR #598, branch `feature/GOGO-594-redesign-g05a-create`, HEAD `1b36efb23235af0f23cd9182495a93973473120e`. Owner quyết định tại workspace `dev/policy/decisions-log.md:5-6` và yêu cầu round 4 trong phiên. Kết quả bên dưới thuộc working-tree patch trên HEAD đó; không stage/commit/push, không chạm `mobile-647`.
+
+### A. Toggle Mood và lịch
+
+- Tách calendar toggle inline thành shared `src/shared/ui/expand-toggle.view.tsx` + `.style.tsx`; Mood và `DateTimeSheet` đều dùng `ExpandToggle`. Giữ chính xác glyph Material `keyboardDoubleArrowDown` / `keyboardDoubleArrowUp`, màu `accent.primary`, target minWidth/minHeight 44pt, role button và `accessibilityState.expanded`.
+- Mood dùng lại `createMood.showAll` / `createMood.showLess` làm accessibilityLabel (vi/en), không còn chữ trong nút. Header giữ title flex 1, toggle bên phải, alignItems center. Lịch giữ nguyên accessibilityLabel/testID và hành vi tuần/tháng.
+- Không sửa `collapsedVisible`, giới hạn chọn hay state expand riêng từng section: cap 5 và quy tắc thứ tự F-07 giữ nguyên; các regression vòng 2/F-06/F-07 tiếp tục PASS.
+
+### B1. Picker dùng vị trí bước 1 — có một trường hợp bị chặn bởi contract
+
+- Mood tạo snapshot từ **draft**, qua `draftPickerScope` trong `src/shared/location/picker-scope.ts`, rồi mở `{ pathname: '/places/search', params: { picker: '1', pickerScope: JSON.stringify(scope) } }`.
+- Administrative area gửi `datasetVersion`, `provinceCode`, optional `communeCode`; không gửi lat/lng dù draft còn GPS cũ. Snapshot có cả tên area để biểu diễn scope theo kiểu dùng chung.
+- GPS gửi chính xác `originLat`/`originLng` của draft thành `lat`/`lng` cùng **radiusM đã chọn**. Không lấy global `useAppAreaStore`/`useDiscoveryScope` làm scope picker này.
+- Search chỉ áp dụng snapshot khi `picker=1` và có `pickerScope`; Zod kiểm cấu trúc, canonical-code format, tọa độ và giới hạn radius theo contract. Explicit scope sai → disable các search/preview reads, không fallback sang global. Ordinary search, Saved suggestion scope và picker cũ không mang param vẫn giữ đường xử lý cũ.
+- List, filter preview, zero-result nearby suggestions và map dùng cùng scope. Pan map trong explicit picker không đổi query thành viewport ngoài vị trí wizard. Normal map exploration không đổi. Không lọc kết quả ở client.
+- **BLOCKED — GPS + “Bất kỳ đâu” (`radiusM=null`)**: `GET /places/search` (`openapi/gogo.v1.yaml:3750-3751,3770`; generated `schema.d.ts` cùng contract) mặc định radius **10km** khi không gửi và chỉ nhận integer **100–100000m** khi gửi. Thiếu contract tìm theo GPS mà **không giới hạn khoảng cách**; không có null/unlimited radius hay cách giữ GPS chỉ để xếp hạng. Không bỏ radius để giả unlimited, không clamp 100km, không fake bằng lọc client. Với trường hợp này, “Thêm địa điểm” hiển thị disabled và lý do vi/en, hướng dẫn chọn radius ở bước 1. Thiếu/sai scope cũng disabled với lý do. Area và GPS có radius hợp lệ đã hoàn tất; unlimited cần BE contract/semantics trước khi tiếp tục sub-case này.
+
+### B2. Seed places
+
+- Danh sách dọc dùng shared `PlaceCardSmall`, mỗi card có shared `IconBtn size="regular"` (48×48pt), icon X và accessibilityLabel `createMood.removePlace`. Nút bỏ nằm cạnh card, không dùng slot header 22pt của card, tránh đè nội dung.
+- `SeedPlaceCard` đọc `usePlaceDetail(seed.placeId)` và `detailToPlaceCard`; facts nằm trong query cache, không copy server data vào Zustand/saved draft. Trong lúc chưa có detail hoặc detail không đọc được, card giữ id/name của draft, các facts chưa có được bỏ qua; rating Google có nguồn/count qua shared `RatingChips`, không bịa giá/unit/rating.
+- Bỏ lavender seed pills; “Thêm địa điểm” giữ shared Chip style của wizard trong row riêng dưới danh sách. Remove vẫn cập nhật draft bằng `removeSeedPlace` hiện có. Không đổi store schema, seed API payload hay submit mapping.
+- Color pins thêm binding `ExpandToggle` → `accent.primary`; chip-spacing registry bỏ `create-mood.seedRow` đã xoá. Không thêm màu/token hay dependency.
+
+### FAIL-before / PASS-after
+
+Final regression `src/features/create-date/__tests__/round-four.spec.tsx` chạy với production baseline nguyên `git archive 1b36efb2` trong `/tmp` riêng, chỉ copy test cuối và symlink node_modules. Không checkout/reset/stash worktree. Cùng file, cùng lệnh `pnpm test:ui --runInBand round-four`:
+
+| Trường hợp | Baseline `1b36efb2` | Working-tree patch |
+| --- | --- | --- |
+| Icon-only Mood/calendar, a11y/state/44pt/header alignment (vi/en) | 2 FAIL: Mood vẫn hiện text | 2 PASS |
+| Mở picker từ Mood, area/GPS radius, không đổi theo global area | 2 FAIL: route không mang snapshot | 2 PASS |
+| Normal search bỏ qua picker-only params/draft | 1 PASS | 1 PASS |
+| Invalid explicit scope không fallback global | 1 FAIL: vẫn search global | 1 PASS |
+| Unlimited GPS không giả radius API | 1 FAIL: add vẫn enabled | 1 PASS |
+| Shared small seed cards, sparse facts, remove 48pt | 1 FAIL: không có small cards | 1 PASS |
+| Filter preview + map pan giữ scope area/GPS | 2 FAIL: preview dùng global scope | 2 PASS |
+| **Tổng** | **9 FAIL / 1 PASS** | **10 PASS** |
+
+Raw baseline log: `/tmp/594-round4-before-final.log`; isolated baseline path: `/tmp/594-round4-baseline-path.txt`. PASS của final regression nằm trong hai UI gates cuối bên dưới. Unit `picker-scope.test.ts` thêm 25 trường hợp: province/commune, mutual exclusion, exact supported radii, missing/out-of-range position, invalid/unlimited radius và malformed route.
+
+### Checks cuối
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm test:ui create-date search place --runInBand` | PASS, 35 suites / 617 tests, 9 snapshots; gồm final round-four, lịch, F-07, ordinary search/Saved/legacy picker/map và place cards |
+| `pnpm test src/shared/location src/shared/ui src/shared/i18n` | PASS, 29 files / 414 tests; gồm scope validation, color pins, chip ownership và i18n |
+| `pnpm test:ui --runInBand round-four chip.spec app-color-roles i18n-keys` | PASS, 6 suites / 156 tests; shared chip spacing, actual accent bindings, i18n và final round-four |
+| `pnpm exec eslint --no-cache <all touched/new .ts/.tsx files>` | PASS, exit 0, không warning; sandbox cho phép |
+| `git diff --check` | PASS |
+
+Raw logs: `/tmp/594-round4-ui-final.log`, `/tmp/594-round4-shared-final.log`, `/tmp/594-round4-shared-ui-final.log`, `/tmp/594-round4-typecheck-final.log`, `/tmp/594-round4-lint-final.log`.
+
+Đây là component/unit và contract-source verification. Chưa chạy simulator/native build hoặc live API acceptance; không tuyên bố visual/pixel acceptance. B1 unlimited-GPS vẫn BLOCKED như mô tả trên; không thay BE contract trong patch này. Index trống, không git add/commit/push.

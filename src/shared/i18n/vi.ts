@@ -828,6 +828,8 @@ export const viMessages = {
   'createMood.settingTitle': 'Không gian',
   'createMood.spendingTitle': 'Mức chi',
   'createMood.seedTitle': 'Địa điểm bạn muốn gợi ý',
+  'createMood.seedRadiusUnsupported': 'Tìm địa điểm chưa hỗ trợ khoảng cách “Bất kỳ đâu”. Hãy chọn bán kính ở bước 1 để thêm địa điểm.',
+  'createMood.seedScopeUnavailable': 'Hãy chọn khu vực hoặc vị trí và bán kính hợp lệ ở bước 1 để thêm địa điểm.',
   'createMood.seedHint': 'Không bắt buộc — GoGo sẽ ưu tiên đưa vào phương án.',
   'createMood.addPlace': '＋ Thêm địa điểm',
   'createMood.removePlace': 'Bỏ {{name}} khỏi danh sách',

@@ -172,7 +172,6 @@ const chipRows = [
   ['features/tabs/profile.interests', () => jest.requireActual('@/features/tabs/profile.style').styles.interests],
   ['features/contributions/my-contributions.filters', () => jest.requireActual('@/features/contributions/my-contributions.style').styles.filters],
   ['features/review/my-reviews.filterRow', () => jest.requireActual('@/features/review/my-reviews.style').styles.filterRow],
-  ['features/create-date/create-mood.seedRow', () => jest.requireActual('@/features/create-date/create-mood.style').styles.seedRow],
   ['features/matching/preference.grid', () => jest.requireActual('@/features/matching/preference.style').styles.grid],
   ['features/matching/match-result.reasonChips', () => jest.requireActual('@/features/matching/match-result.style').styles.reasonChips],
   ['features/matching/suggestion-run-notice.constraintRow', () => jest.requireActual('@/features/matching/suggestion-run-notice.style').styles.constraintRow],

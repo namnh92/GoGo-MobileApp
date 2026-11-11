@@ -1136,6 +1136,9 @@
       "text.secondary",
       "accent.primary",
       "status.warningText"
+    ],
+    "src/shared/ui/expand-toggle.view.tsx": [
+      "accent.primary"
     ]
   },
   "workspace": {
