@@ -44,7 +44,10 @@ jest.mock('react-native', () => {
   return mockRN
 })
 // Delayed native dismissal: a second Modal cannot present until the first closes.
-const mockPresenter = { presented: new Set<number>(), refused: [] as number[] }
+const mockPresenter = {
+  presented: new Set<number>(), refused: [] as number[],
+  holdDismissals: false, dismissals: new Map<number, () => void>(),
+}
 jest.mock('react-native/Libraries/Modal/Modal', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const View = jest.requireActual('react-native/Libraries/Components/View/View').default
@@ -59,7 +62,12 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
         if (mockPresenter.presented.size) { mockPresenter.refused.push(id); return }
         mockPresenter.presented.add(id); setShown(true); onShow?.()
       } else if (!visible && shown) {
-        const timer = setTimeout(() => { mockPresenter.presented.delete(id); setShown(false); dismissed.current?.() }, 5)
+        const dismiss = () => { mockPresenter.presented.delete(id); setShown(false); dismissed.current?.() }
+        if (mockPresenter.holdDismissals) {
+          mockPresenter.dismissals.set(id, dismiss)
+          return () => { mockPresenter.dismissals.delete(id) }
+        }
+        const timer = setTimeout(dismiss, 5)
         return () => clearTimeout(timer)
       }
     }, [visible, shown, id, onShow])
@@ -126,6 +134,7 @@ async function press(view: Awaited<ReturnType<typeof renderScreen>>, name: strin
 beforeEach(async () => {
   mockResult.mockClear()
   mockPresenter.presented.clear(); mockPresenter.refused = []
+  mockPresenter.holdDismissals = false; mockPresenter.dismissals.clear()
   mockDismiss.mockClear(); mockSave.mockReset().mockResolvedValue(); mockClear.mockReset().mockResolvedValue()
   mockRefresh.mockReset().mockResolvedValue(undefined)
   mockRequest.mockReset().mockImplementation(async () => {
@@ -241,8 +250,18 @@ it('F-12 auto failure waits for area dismissal before the manual-choice flow', a
   expect(view.queryByText(title())).toBeNull()
   expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
   expect(mockPresenter.refused).toEqual([])
+  // Own the native dismissal boundary: an awaited press can outlast the real
+  // 5 ms timer under parallel load. Closing is not yet Sheet.onClosed.
+  mockPresenter.holdDismissals = true
   await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
+  expect(mockPresenter.dismissals.size).toBe(1)
+  expect(mockPresenter.presented.size).toBe(1)
+  expect(useWizardModalStore.getState().modals.size).toBe(1)
   expect(view.queryByText(title())).toBeNull()
+  expect(mockResult.mock.calls.some(([props]) => props.visible)).toBe(false)
+  expect(mockPresenter.refused).toEqual([])
+  mockPresenter.holdDismissals = false
+  await act(async () => { mockPresenter.dismissals.values().next().value!() })
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
   await press(view, cancel()); await press(view, confirm())
   expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
