@@ -20,7 +20,6 @@ import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { MaterialIcon } from '@/shared/ui/material-icon'
 import { PasswordRequirements } from '@/shared/ui/password-requirements.view'
 import { SegmentedControl } from '@/shared/ui/segmented-control.view'
-import { UnavailableAction } from '@/shared/ui/unavailable-action.view'
 
 import { classifyAuthFailure, type AuthFailureReason } from './auth-failure'
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from './auth-schema'
@@ -226,7 +225,7 @@ export default function SignInScreen() {
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('password').onBlur() }} placeholder={t('auth.passwordPlaceholder')}
                   autoCapitalize="none" autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
                   secureTextEntry={!showPassword} editable={!pending}
-                  accessory={mode === 'signIn' ? <UnavailableAction label={t('auth.forgot')} reason={t('auth.recoveryUnavailable')} /> : undefined}
+                  accessory={mode === 'signIn' ? <Pressable accessibilityRole="link" accessibilityLabel={t('auth.forgot')} disabled={pending} accessibilityState={{ disabled: pending }} style={styles.forgot} onPress={() => router.push({ pathname: '/auth/forgot-password', params: next ? { next } : {} })}><Text color="accent.primary">{t('auth.forgot')}</Text></Pressable> : undefined}
                   trailing={<Pressable testID="password-visibility" onPress={() => { setShowPassword(shown => !shown); schedule() }}
                     accessibilityRole="button" accessibilityLabel={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
                     hitSlop={6} style={styles.visibility}>

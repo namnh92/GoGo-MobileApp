@@ -9,7 +9,9 @@ import { darkSurface, motion, overlay } from '../tokens'
 // adding a submit/save/send flow; local-only wizard navigation has no mutation.
 // Owner #625: AI chat sends are not form submissions; their pending state stays in chat.
 const submitScreens = {
-  'auth/sign-in': 'pending', // sign-in + sign-up; recovery is unavailable
+  'auth/sign-in': 'pending', // sign-in + sign-up
+  'auth/forgot-password': 'pending',
+  'auth/reset-password': 'complete.isPending',
   'tabs/profile': 'signingOut',
   'account/account': "saving || avatarStep === 'removing' || busy !== null",
   'account/avatar-editor': 'busy',

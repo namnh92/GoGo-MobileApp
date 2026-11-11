@@ -14,7 +14,8 @@ function files(directory: string): string[] {
 // Direct owners plus the wrappers below cover every existing application nav bar.
 // Headerless full-screen scenes, sheets and content headings are inventoried in issue-535.md.
 const direct = [
-  'account/account', 'active-date/active-date', 'assistant/assistant-header', 'auth/sign-in',
+  'account/account', 'active-date/active-date', 'assistant/assistant-header',
+  'auth/forgot-password', 'auth/reset-password', 'auth/sign-in',
   'contributions/my-contributions', 'create-date/wizard-step', 'date-plan/date-plan',
   'date-plan/place-detail', 'date-plan/plan-change', 'date-plan/plan-edit',
   'gogo-room/gogo-room', 'gogo-room/guest-join', 'gogo-room/join-by-code', 'gogo-room/room-manage',

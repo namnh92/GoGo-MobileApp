@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { HeaderNotificationButton } from './header-notification-button.view'
 import { MaterialIcon } from './material-icon'
 import { GoGoLogo } from './gogo-logo.view'
-import { Text } from './text'
+import { Text, type TextColor } from './text'
 import { styles } from './app-header.style'
 
 export type AppHeaderProps = {
@@ -15,6 +15,8 @@ export type AppHeaderProps = {
   /** Profile sub-screens omit inbox navigation while keeping local actions. */
   showNotifications?: boolean
   title: string
+  centerTitle?: boolean
+  titleColor?: TextColor
   subtitle?: string
   subtitleTone?: 'default' | 'danger'
   onBack?: () => void
@@ -35,10 +37,10 @@ export type AppHeaderProps = {
 }
 
 /** The only application navigation bar. Screen titles are localized by callers. */
-export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
+export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, centerTitle = false, titleColor = 'text.primary', subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
-  const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" size={24} /></AppHeaderAction> : null
+  const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" color={titleColor} size={24} /></AppHeaderAction> : null
   const actions = <>{rightAction}{variant !== 'sheet' && showNotifications ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
   return <View testID={testID} style={[styles.root, variant === 'tab-root' && styles.tabRoot, variant === 'sheet' && styles.sheetRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>
@@ -46,12 +48,12 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
       <View style={[styles.identity, Boolean(titleAccessory) && titleAccessoryInteractive && styles.accessoryIdentity]}>
         <View style={variant === 'tab-root' ? styles.brandRow : undefined}>
           {variant === 'tab-root' ? <><GoGoLogo variant="compact" size={32} testID={`${testID}-logo`} /><View testID={`${testID}-brand-divider`} accessible={false} style={styles.brandDivider} /></> : null}
-          <Text variant="introHeading" color="text.primary" accessibilityRole="header" style={styles.title}>{title}</Text>
+          <Text variant="introHeading" color={titleColor} accessibilityRole="header" style={[styles.title, centerTitle && styles.centeredTitle]}>{title}</Text>
         </View>
         {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'text.secondary'}>{subtitle}</Text> : null}
         {titleAccessory}
       </View>
-      <View style={styles.actions}>{actions}</View>
+      <View style={[styles.actions, centerTitle && styles.balancedActions]}>{actions}</View>
     </View>
   </View>
 }

@@ -1004,8 +1004,35 @@
     "src/features/auth/sign-in.view.tsx": [
       "text.primary",
       "text.secondary",
+      "accent.primary",
       "border.outline",
       "status.dangerText"
+    ],
+    "src/features/auth/forgot-password.view.tsx": [
+      "accent.primary",
+      "text.secondary",
+      "status.dangerText",
+      "status.dangerText",
+      "status.dangerText",
+      "status.dangerText",
+      "text.secondary"
+    ],
+    "src/features/auth/reset-password.view.tsx": [
+      "accent.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary"
+    ],
+    "src/features/auth/recovery-code.view.tsx": [],
+    "src/features/auth/password-recovery.style.tsx": [
+      "border.outline",
+      "surface.card",
+      "text.primary",
+      "accent.primary",
+      "border.outline",
+      "surface.card"
     ],
     "src/features/home/quick-join.view.tsx": [
       "status.infoText",

@@ -13,6 +13,8 @@ export const styles = StyleSheet.create(theme => ({
   accessoryIdentity: { paddingVertical: spacing[4] },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   brandDivider: { width: 1, height: spacing[5], backgroundColor: theme.border.outline },
+  centeredTitle: { textAlign: 'center' },
+  balancedActions: { minWidth: touchTarget.min },
   title: { flexShrink: 1, textAlign: 'left' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   button: { minWidth: touchTarget.min, minHeight: touchTarget.min, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[2] },
