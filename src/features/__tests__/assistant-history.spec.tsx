@@ -123,6 +123,8 @@ it('opening a conversation shows its thread; New chat goes back to Welcome', asy
   })
   await waitFor(() => expect(view.getByText('Có bốn màu trong Cài đặt.')).toBeTruthy())
   expect(within(view.getByTestId('assistant-thread')).getByLabelText('Bạn: Đổi màu chủ đề ở đâu?')).toBeTruthy()
+  expect(view.queryByTestId('assistant-new-chat')).toBeNull()
+  expect(view.queryByRole('button', { name: 'Cuộc trò chuyện mới' })).toBeNull()
   await openHistory(view)
   await act(async () => {
     await fireEvent.press(view.getByTestId('assistant-history-new-chat'))

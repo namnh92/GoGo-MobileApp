@@ -264,7 +264,6 @@ function AssistantChat({ account }: { account: string }) {
         avatar={!welcome}
         subtitle={online ? t('assistant.subtitle') : t('assistant.status.offline')}
         offline={!online}
-        onNewChat={welcome ? undefined : newChat}
         onHistory={() => setView('history')}
       />
       <CreditBalanceRow assistant />

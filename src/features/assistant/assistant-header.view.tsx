@@ -15,7 +15,6 @@ export function AssistantHeader({
   offline = false,
   avatar = false,
   onHistory,
-  onNewChat,
   trailing,
 }: {
   onClose?: () => void
@@ -26,7 +25,6 @@ export function AssistantHeader({
   offline?: boolean
   avatar?: boolean
   onHistory?: () => void
-  onNewChat?: () => void
   trailing?: ReactNode
 }) {
   const { t } = useTranslation()
@@ -37,7 +35,6 @@ export function AssistantHeader({
         {avatar ? <AssistantAvatar size="md" /> : null}
       </>}
       rightAction={<>
-        {onNewChat ? <HeaderButton testID="assistant-new-chat" icon="newChat" label={t('assistant.newChat')} onPress={onNewChat} /> : null}
         {onHistory ? <HeaderButton testID="assistant-history" icon="history" label={t('assistant.history.open')} onPress={onHistory} /> : null}
         {trailing}
       </>} />
