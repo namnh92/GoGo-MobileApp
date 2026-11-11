@@ -28,7 +28,7 @@ function CreditBalanceContent({ assistant }: { assistant: boolean }) {
   useFocusEffect(useCallback(() => { void refetch() }, [refetch]))
   const title = t(assistant && (credits.data?.reserved ?? 0) > 0 ? 'credits.available' : 'credits.title')
   return <View style={assistant ? styles.assistant : styles.account} testID="credit-balance-row">
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} accessibilityRole="button" accessibilityState={{ busy: credits.isPending && online }} onPress={() => router.push('/me/credits')}>
+    <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t('credits.viewHistory')} accessibilityState={{ busy: credits.isPending && online }} onPress={() => router.push('/me/credits')}>
       <Text style={styles.label}>{title}</Text>
       <View accessibilityLiveRegion="polite">
         {credits.data ? <Text variant="title2">{formatCredit(assistant ? credits.data.availableBalance : credits.data.balance, i18n.language)}</Text>

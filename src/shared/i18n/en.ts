@@ -37,6 +37,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "auth.recovery.invalidCode": "The code is invalid or expired. Please check it or request a new code.",
   "credits.title": "GoGo credits",
   "credits.history": "Credit history",
+  "credits.viewHistory": "View credit history",
   "credits.balance": "Balance",
   "credits.earned": "Earned",
   "credits.spent": "Spent",

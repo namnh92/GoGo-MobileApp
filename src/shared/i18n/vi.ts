@@ -28,6 +28,7 @@ export const viMessages = {
   "auth.recovery.invalidCode": "Mã không đúng hoặc đã hết hạn.",
   "credits.title": "Credit GoGo",
   "credits.history": "Lịch sử credit",
+  "credits.viewHistory": "Xem lịch sử credit",
   "credits.balance": "Số dư",
   "credits.earned": "Đã nhận",
   "credits.spent": "Đã dùng",
