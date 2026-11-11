@@ -38,11 +38,20 @@ const MAX_DISPLAY_NAME = 50
  */
 export default function GuestJoinScreen() {
   const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
-  // A warm link starts a separate attempt, including errors, pending and dialog.
-  return <GuestJoinInvite key={inviteCode} inviteCode={inviteCode} />
+  // A join in flight outlives a warm link (#596 F-05): a guest join persists its
+  // session when it lands, which cancels any request started meanwhile under the
+  // old session generation. So the lock lives here, above the per-code remount,
+  // and invite B cannot submit until attempt A has settled.
+  const [pending, setPending] = useState(false)
+  // A warm link starts a separate attempt: errors, preview and dialog reset.
+  return <GuestJoinInvite key={inviteCode} inviteCode={inviteCode} pending={pending} setPending={setPending} />
 }
 
-function GuestJoinInvite({ inviteCode }: { inviteCode: string }) {
+function GuestJoinInvite({ inviteCode, pending, setPending }: {
+  inviteCode: string
+  pending: boolean
+  setPending: (value: boolean) => void
+}) {
   const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
@@ -59,7 +68,6 @@ function GuestJoinInvite({ inviteCode }: { inviteCode: string }) {
   }, [])
 
   const [displayName, setDisplayName] = useState('')
-  const [pending, setPending] = useState(false)
   const [expired, setExpired] = useState(false)
   const preview = useInvitePreview(inviteCode, status !== 'hydrating')
   const [blockedRoom, setBlockedRoom] = useState(false)
@@ -155,7 +163,8 @@ function GuestJoinInvite({ inviteCode }: { inviteCode: string }) {
       )
       setError(toMessage(caught))
     } finally {
-      if (active.current) setPending(false)
+      // Always release: the lock is shared with whichever invite is on screen now.
+      setPending(false)
     }
   }
 

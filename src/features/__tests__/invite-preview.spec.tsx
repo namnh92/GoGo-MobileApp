@@ -226,7 +226,7 @@ describe('warm links and delayed responses', () => {
     expect(mockReplace).toHaveBeenCalledWith('/room/room-B')
   })
 
-  it.each(['success', 'failure'] as const)('ignores late join A %s while B is pending', async outcome => {
+  it.each(['success', 'failure'] as const)('holds invite B until late join A %s settles, then joins B', async outcome => {
     const joinA = deferred<{ roomId: string }>()
     const joinB = deferred<{ roomId: string }>()
     jest.mocked(api.post).mockResolvedValue(facts)
@@ -236,14 +236,17 @@ describe('warm links and delayed responses', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
     await changeCode(client)
     expect(await screen.findByText('Mai')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Tham gia' })).not.toBeDisabled()
-    await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
+    // One join at a time across a warm link (#596 F-05; same as base c87ed82).
+    expect(screen.getByRole('button', { name: 'Đang tham gia…' })).toBeDisabled()
     await act(async () => {
       if (outcome === 'success') joinA.resolve({ roomId: 'room-A' })
       else joinA.reject(new ApiError(410, { code: 'ROOM_EXPIRED', message: 'generic' }))
     })
     expect(mockReplace).not.toHaveBeenCalled()
     expect(screen.queryByTestId('invite-unusable')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
+    expect(mockJoin).toHaveBeenCalledTimes(2)
+    expect(mockJoin).toHaveBeenLastCalledWith({ inviteCode: 'invite-B' })
     expect(screen.getByRole('button', { name: 'Đang tham gia…' })).toBeDisabled()
     await act(async () => { joinB.resolve({ roomId: 'room-B' }) })
     expect(mockReplace).toHaveBeenCalledWith('/room/room-B')
@@ -334,5 +337,83 @@ describe('warm links and delayed responses', () => {
       expect(await screen.findByText('Mai')).toBeTruthy()
       expect(screen.getByRole('button', { name: 'Tham gia' })).not.toBeDisabled()
     })
+  })
+})
+
+describe('F-05: guest join A in flight across a warm link to B', () => {
+  /**
+   * Models the session lifecycle that `joinAsGuest` drives: landing a guest join
+   * persists its session and bumps the generation, which cancels any request that
+   * started under the previous generation (SessionCancelledError in the provider).
+   */
+  function sessionLifecycle() {
+    let generation = 0
+    const landed: string[] = []
+    const calls: { inviteCode: string; settle: () => void; fail: (e: Error) => void }[] = []
+    mockGuest.mockImplementation(({ inviteCode }: { inviteCode: string }) => {
+      const started = generation
+      return new Promise((resolve, reject) => {
+        calls.push({
+          inviteCode,
+          settle: () => {
+            if (generation !== started) { reject(new Error('SessionCancelledError')); return }
+            generation += 1
+            landed.push(inviteCode)
+            resolve({ roomId: `room-${inviteCode}` })
+          },
+          fail: reject,
+        })
+      })
+    })
+    return { calls, landed }
+  }
+
+  it('does not let invite B submit until join A has settled', async () => {
+    mockStatus = 'anonymous'
+    jest.mocked(api.post).mockResolvedValue(facts)
+    const life = sessionLifecycle()
+    const client = await mount()
+    await fireEvent.changeText(screen.getByLabelText('Tên hiển thị'), 'Lan')
+    await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
+    expect(life.calls).toHaveLength(1)
+
+    await changeCode(client, 'invite-B')
+    expect(await screen.findByText('Mai')).toBeTruthy()
+    await fireEvent.changeText(screen.getByLabelText('Tên hiển thị'), 'Mai')
+    // Press whatever join control invite B shows: on the buggy build it is an
+    // idle "Tham gia" that starts a second, concurrent guest join.
+    await fireEvent.press(screen.queryByRole('button', { name: 'Tham gia' }) ?? screen.getByRole('button', { name: 'Đang tham gia…' }))
+    // B never starts while A holds the session lifecycle.
+    expect(life.calls).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Đang tham gia…' })).toBeTruthy()
+
+    await act(async () => { life.calls[0].settle() })
+    expect(life.landed).toEqual(['private-invite-credential'])
+    // A landed on a screen that has moved on: no navigation into room A.
+    expect(mockReplace).not.toHaveBeenCalled()
+
+    await fireEvent.changeText(screen.getByLabelText('Tên hiển thị'), 'Mai')
+    await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
+    expect(life.calls).toHaveLength(2)
+    expect(life.calls[1].inviteCode).toBe('invite-B')
+    await act(async () => { life.calls[1].settle() })
+    expect(life.landed).toEqual(['private-invite-credential', 'invite-B'])
+    expect(mockReplace).toHaveBeenCalledWith('/room/room-invite-B/preference')
+  })
+
+  it('releases the lock when join A fails after the switch', async () => {
+    mockStatus = 'anonymous'
+    jest.mocked(api.post).mockResolvedValue(facts)
+    const life = sessionLifecycle()
+    const client = await mount()
+    await fireEvent.changeText(screen.getByLabelText('Tên hiển thị'), 'Lan')
+    await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
+    await changeCode(client, 'invite-B')
+    expect(await screen.findByText('Mai')).toBeTruthy()
+    await act(async () => { life.calls[0].fail(new ApiError(410, { code: 'ROOM_EXPIRED', message: 'generic' })) })
+    // A's failure belongs to A: B stays usable and unlocked.
+    expect(screen.queryByTestId('invite-unusable')).toBeNull()
+    await fireEvent.changeText(screen.getByLabelText('Tên hiển thị'), 'Mai')
+    expect(screen.getByRole('button', { name: 'Tham gia' })).not.toBeDisabled()
   })
 })

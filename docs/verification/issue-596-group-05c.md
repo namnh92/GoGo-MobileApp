@@ -142,3 +142,11 @@ Các dòng dưới được ghi ở round 1, trước `ab7d056`; không phải l
 | [src/shared/i18n/vi.ts](../../src/shared/i18n/vi.ts) | 785–808, 879, 886, 936 |
 
 Tài liệu hiện tại: toàn bộ file mới, gồm nguồn Stitch, đối chiếu theo màn, bảng lệch và test evidence.
+
+## Round 3 — F-05 (Opus 5.5 high, owner 2026-11-11)
+
+F-05 P2 (Astra round 2 @d80f599): the per-code remount (`key={inviteCode}`) reset `pending`, so invite B could start a second join while join A was in flight; a landing guest join persists its session and cancels B. Fix: the in-flight lock lives in `GuestJoinScreen` above the remount and is always released in `finally`; one join at a time across a warm link, as on base `c87ed82` (no remount there). Errors, preview and dialog still reset per code.
+
+- Regression `F-05: guest join A in flight across a warm link to B` models the session generation (landing bumps it, an older request is cancelled): FAIL on d80f599 (`Expected length: 1, Received length: 2` — B started concurrently), PASS after. Logs: GoGo workspace `dev/handoffs/596-f05-before.log`, `596-f05-after.log`.
+- Signed-in test `holds invite B until late join A settles, then joins B` updated from "B may submit while A is pending" to the base behaviour.
+- Checks (local, outside sandbox): typecheck 0; `pnpm test` 1756 passed / 0 failed; `pnpm test:ui` 3499 passed; lint only the 2 pre-existing `no-undef` in `scripts/generate-brand-icons.mjs`.
