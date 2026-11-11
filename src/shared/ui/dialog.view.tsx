@@ -26,6 +26,8 @@ export interface DialogOptions {
   actions: DialogAction[]
   /** Opt-in two-button row: secondary cancel left, primary right. */
   actionLayout?: 'stack' | 'row'
+  /** The native modal has actually appeared. */
+  onShown?: () => void
 }
 
 export interface DialogProps extends DialogOptions {
@@ -51,7 +53,7 @@ export interface DialogProps extends DialogOptions {
  * and TalkBack start there. It fades (no movement), and with reduced motion it
  * simply appears.
  */
-export function Dialog({ visible, title, message, actions, actionLayout = 'stack', onAction, onDismiss, onClosed }: DialogProps) {
+export function Dialog({ visible, title, message, actions, actionLayout = 'stack', onAction, onDismiss, onClosed, onShown }: DialogProps) {
   const reduced = useReducedMotionPreference() ?? true
   const cancellable = actions.some(action => action.style === 'cancel')
   const dismiss = () => {
@@ -74,6 +76,7 @@ export function Dialog({ visible, title, message, actions, actionLayout = 'stack
       transparent
       animationType={reduced ? 'none' : 'fade'}
       statusBarTranslucent
+      onShow={onShown}
       onRequestClose={dismiss}
       onDismiss={Platform.OS === 'ios' ? onClosed : undefined}
     >

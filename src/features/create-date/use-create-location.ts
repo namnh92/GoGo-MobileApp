@@ -13,6 +13,7 @@ import { useAppAreaStore } from '@/shared/location/app-area'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
+import { useWizardModal, useWizardModalStore } from './wizard-modal'
 
 /** Shared app-start/focus location behaviour, owned by the wizard's first step. */
 export function useCreateLocation() {
@@ -34,20 +35,24 @@ export function useCreateLocation() {
   // mount starts a new session; returning from another step does not re-prompt.
   const autoFailureShown = useRef(false)
   const focused = useRef(false)
-  const areaOpenRef = useRef(areaOpen)
-  const pendingFailure = useRef(false)
+  const onAreaClosed = useWizardModal(areaOpen)
+  const modals = useWizardModalStore(state => state.modals)
+  const exitVersion = useWizardModalStore(state => state.exitVersion)
+  const sessionExitVersion = useRef(exitVersion).current
+  const recoveryOpen = useRef(false)
+  const pendingFailure = useRef<'auto' | 'manual' | null>(null)
   const [settingsFailed, setSettingsFailed] = useState(false)
-  const failureHandler = useRef(() => {})
+  const failureHandler = useRef({ auto: () => {}, resume: () => {} })
   useFocusEffect(useCallback(() => {
     focused.current = true
     let active = true
     void refresh().then(result => {
-      if (active && !autoFailureShown.current && (result?.status === 'denied' || result?.status === 'unavailable')) {
-        failureHandler.current()
+      if (active && useWizardModalStore.getState().exitVersion === sessionExitVersion && !autoFailureShown.current && (result?.status === 'denied' || result?.status === 'unavailable')) {
+        failureHandler.current.auto()
       }
     })
-    return () => { active = false; focused.current = false; pendingFailure.current = false }
-  }, [refresh]))
+    return () => { active = false; focused.current = false; pendingFailure.current = null }
+  }, [refresh, sessionExitVersion]))
   const version = useAdministrativeVersion()
   const radiusM = useRoomStore(state => state.radiusM)
   // A restored manual draft is its own choice, even when startup GPS is ready.
@@ -96,46 +101,52 @@ export function useCreateLocation() {
   }
 
   async function promptLocationFailure() {
-    if (!focused.current) return
-    setSettingsFailed(false)
-    const actions = [
-      { key: 'cancel', label: t('common.cancel'), style: 'cancel' as const },
-      { key: 'confirm', label: t('createLocation.confirm') },
-    ]
-    const choice = await confirm({
-      title: t('createLocation.failureTitle'), message: t('createLocation.failureBody'), actions, actionLayout: 'row',
-    })
-    if (!focused.current) return
-    if (choice === 'confirm') {
-      try { await Linking.openSettings() } catch { setSettingsFailed(true) }
-    } else if (choice === 'cancel') {
-      const manual = await confirm({
-        title: t('createLocation.manualTitle'), message: t('createLocation.manualBody'), actions, actionLayout: 'row',
+    const state = useWizardModalStore.getState()
+    if (!focused.current || !pendingFailure.current || state.modals.size || recoveryOpen.current) return
+    if (pendingFailure.current === 'auto' && state.exitVersion !== sessionExitVersion) return
+    pendingFailure.current = null
+    recoveryOpen.current = true
+    try {
+      setSettingsFailed(false)
+      const actions = [
+        { key: 'cancel', label: t('common.cancel'), style: 'cancel' as const },
+        { key: 'confirm', label: t('createLocation.confirm') },
+      ]
+      const choice = await confirm({
+        title: t('createLocation.failureTitle'), message: t('createLocation.failureBody'), actions, actionLayout: 'row',
+        onShown: () => { autoFailureShown.current = true },
       })
-      if (manual === 'confirm' && focused.current) openArea()
-    }
+      if (!focused.current) return
+      if (choice === 'confirm') {
+        try { await Linking.openSettings() } catch { setSettingsFailed(true) }
+      } else if (choice === 'cancel') {
+        const manual = await confirm({
+          title: t('createLocation.manualTitle'), message: t('createLocation.manualBody'), actions, actionLayout: 'row',
+        })
+        if (manual === 'confirm' && focused.current) openArea()
+      }
+    } finally { recoveryOpen.current = false }
   }
 
-  function onLocationFailure() {
-    // An explicit failure also consumes the auto notice if a focus refresh is
-    // still in flight. Explicit taps always enter this flow again.
-    autoFailureShown.current = true
-    if (areaOpenRef.current) {
-      pendingFailure.current = true
-      setAreaOpen(false)
-    } else void promptLocationFailure()
+  function queueFailure(manual: boolean) {
+    if (!focused.current || recoveryOpen.current) return
+    if (!manual && useWizardModalStore.getState().exitVersion !== sessionExitVersion) return
+    pendingFailure.current = manual ? 'manual' : pendingFailure.current ?? 'auto'
+    // Explicit taps originate inside the area sheet: retain sheet → dialog.
+    // An automatic refresh must leave the user's current modal alone.
+    if (manual && areaOpen) setAreaOpen(false)
+    else void promptLocationFailure()
   }
 
-  function onAreaClosed() {
-    if (!pendingFailure.current) return
-    pendingFailure.current = false
-    void promptLocationFailure()
-  }
+  function onLocationFailure() { queueFailure(true) }
 
   useLayoutEffect(() => {
-    areaOpenRef.current = areaOpen
-    failureHandler.current = onLocationFailure
+    failureHandler.current = { auto: () => queueFailure(false), resume: () => { void promptLocationFailure() } }
+    if (exitVersion !== sessionExitVersion && pendingFailure.current === 'auto') pendingFailure.current = null
   })
+  useEffect(() => {
+    if (pendingFailure.current) failureHandler.current.resume()
+  }, [modals, exitVersion])
 
   function chooseArea(value: AdministrativeSelection | null) {
     setKeepDraftArea(true)

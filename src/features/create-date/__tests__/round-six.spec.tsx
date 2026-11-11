@@ -1,5 +1,5 @@
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
-import { AccessibilityInfo, Linking, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Alert, Linking, StyleSheet } from 'react-native'
 import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
 import i18n from '@/shared/i18n'
 import { useRoomStore } from '@/shared/store/roomStore'
@@ -10,6 +10,7 @@ import GroupSetup from '../group-setup.view'
 import CreateTime from '../create-time.view'
 import CreateBudget from '../create-budget.view'
 import CreateMood from '../create-mood.view'
+import { TimePickerSheet } from '../time-picker-sheet.view'
 import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
 
 // Preserve KAV configuration; the native renderer does not lay out a keyboard.
@@ -26,7 +27,7 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
   const React = jest.requireActual<typeof import('react')>('react')
   const View = jest.requireActual('react-native/Libraries/Components/View/View').default
   let nextId = 0
-  function Modal({ visible = true, onDismiss, children }: { visible?: boolean; onDismiss?: () => void; children?: React.ReactNode }) {
+  function Modal({ visible = true, onDismiss, onShow, children }: { visible?: boolean; onDismiss?: () => void; onShow?: () => void; children?: React.ReactNode }) {
     const id = React.useRef(++nextId).current
     const [shown, setShown] = React.useState(false)
     const dismissed = React.useRef(onDismiss)
@@ -34,25 +35,31 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
     React.useLayoutEffect(() => {
       if (visible && !shown) {
         if (mockPresenter.presented.size) { mockPresenter.refused.push(id); return }
-        mockPresenter.presented.add(id); setShown(true)
+        mockPresenter.presented.add(id); setShown(true); onShow?.()
       } else if (!visible && shown) {
         const timer = setTimeout(() => { mockPresenter.presented.delete(id); setShown(false); dismissed.current?.() }, 5)
         return () => clearTimeout(timer)
       }
-    }, [visible, shown, id])
+    }, [visible, shown, id, onShow])
     React.useEffect(() => () => { mockPresenter.presented.delete(id); dismissed.current?.() }, [id])
     return shown && visible ? React.createElement(View, { testID: 'native-modal' }, children) : null
   }
   return { __esModule: true, default: Modal }
 })
-const mockFocus: { current?: () => void | (() => void) } = {}
+const mockFocus: { current?: () => void | (() => void); blur?: () => void } = {}
+const mockDismiss = jest.fn()
+const mockSave = jest.fn(async () => {})
+const mockClear = jest.fn(async () => {})
+jest.mock('@/shared/store/savedRoomDraft', () => ({
+  saveRoomDraft: () => mockSave(), clearSavedRoomDraft: () => mockClear(),
+}))
 const mockRefresh = jest.fn<Promise<LocationState | undefined>, []>()
 const mockRequest = jest.fn<Promise<LocationState>, []>()
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn(), dismissTo: mockDismiss }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = jest.requireActual<typeof import('react')>('react')
-    React.useEffect(() => { mockFocus.current = callback; return callback() }, [callback])
+    React.useEffect(() => { mockFocus.current = callback; const cleanup = callback(); mockFocus.blur = cleanup || undefined; return cleanup }, [callback])
   },
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
@@ -87,6 +94,7 @@ async function press(view: Awaited<ReturnType<typeof renderScreen>>, name: strin
 }
 beforeEach(async () => {
   mockPresenter.presented.clear(); mockPresenter.refused = []
+  mockDismiss.mockClear(); mockSave.mockReset().mockResolvedValue(); mockClear.mockReset().mockResolvedValue()
   mockRefresh.mockReset().mockResolvedValue(undefined)
   mockRequest.mockReset().mockImplementation(async () => {
     mockAreaStore.setState({ location: { status: 'denied' } }); return { status: 'denied' }
@@ -164,15 +172,107 @@ it('auto failure can open Settings, and returning from Settings does not repeat 
   await act(async () => { mockFocus.current?.() })
   expect(view.queryByText(title())).toBeNull()
 })
-it('auto failure waits for an already open area sheet before the manual-choice flow', async () => {
+it('F-12 auto failure waits for area dismissal before the manual-choice flow', async () => {
   let resolve!: (result: LocationState) => void
   mockRefresh.mockReturnValue(new Promise(done => { resolve = done }))
   const view = await renderScreen(<CreateType />)
   await fireEvent.press(view.getByTestId('create-location-field'))
   await act(async () => { resolve({ status: 'denied' }) })
+  expect(view.queryByText(title())).toBeNull()
+  expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
+  expect(mockPresenter.refused).toEqual([])
+  await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
+  expect(view.queryByText(title())).toBeNull()
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
   await press(view, cancel()); await press(view, confirm())
   expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
+  expect(mockPresenter.refused).toEqual([])
+})
+it.each(['keep', 'discard', 'save'] as const)('F-12 delayed auto failure waits for exit prompt; %s dismisses safely', async action => {
+  let resolve!: (result: LocationState) => void
+  mockRefresh.mockReturnValue(new Promise(done => { resolve = done }))
+  useRoomStore.getState().patchDraft({ title: 'Weekend' })
+  const view = await renderScreen(<CreateType />)
+  await press(view, i18n.t('draft.close'))
+  expect(view.getByText(i18n.t('draft.exitTitle'))).toBeTruthy()
+  await act(async () => { resolve({ status: 'denied' }) })
+  expect(view.queryByText(title())).toBeNull()
+  // Checking refusals catches an attempted (but invisible) second native modal.
+  expect(mockPresenter.refused).toEqual([])
+  await press(view, i18n.t(action === 'keep' ? 'draft.keepEditing' : action === 'discard' ? 'draft.discard' : 'draft.saveExit'))
+  if (action === 'keep') {
+    expect(view.getByText(title())).toBeTruthy()
+    await press(view, confirm())
+    expect(Linking.openSettings).toHaveBeenCalledTimes(1)
+    await act(async () => { mockFocus.current?.() })
+    expect(view.queryByText(title())).toBeNull()
+    expect(mockDismiss).not.toHaveBeenCalled()
+  } else {
+    // Router is a spy: the screen remains mounted/focused even after exit.
+    expect(mockDismiss).toHaveBeenCalledWith('/(tabs)')
+    expect(view.queryByText(title())).toBeNull()
+    await act(async () => { mockFocus.current?.() })
+    expect(view.queryByText(title())).toBeNull()
+    expect(Linking.openSettings).not.toHaveBeenCalled()
+  }
+  expect(mockPresenter.refused).toEqual([])
+})
+it('F-12 pending auto failure waits for the time sheet native dismissal', async () => {
+  let resolve!: (result: LocationState) => void
+  mockRefresh.mockReturnValue(new Promise(done => { resolve = done }))
+  const screen = (visible: boolean) => <><CreateType /><TimePickerSheet visible={visible} initialTime="19:00" title="Time" onClose={jest.fn()} onDone={jest.fn()} testID="pending-time" /></>
+  const view = await renderScreen(screen(true))
+  await act(async () => { resolve({ status: 'unavailable' }) })
+  expect(view.queryByText(title())).toBeNull()
+  expect(mockPresenter.refused).toEqual([])
+  await view.rerender(screen(false))
+  await waitFor(() => expect(view.getByText(title())).toBeTruthy())
+  expect(mockPresenter.refused).toEqual([])
+})
+it('F-12 auto failure waits for a save-draft overlay; a failed save resumes recovery', async () => {
+  let resolve!: (result: LocationState) => void
+  let rejectSave!: (error: Error) => void
+  mockRefresh.mockReturnValue(new Promise(done => { resolve = done }))
+  mockSave.mockReturnValue(new Promise((_, reject) => { rejectSave = reject }))
+  jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+  const view = await renderScreen(<CreateType />)
+  await press(view, i18n.t('draft.save'))
+  expect(view.getByTestId('blocking-loading-overlay')).toBeTruthy()
+  await act(async () => { resolve({ status: 'denied' }) })
+  expect(view.queryByText(title())).toBeNull()
+  expect(mockPresenter.refused).toEqual([])
+  await act(async () => { rejectSave(new Error('save failed')) })
+  await waitFor(() => expect(view.getByText(title())).toBeTruthy())
+  expect(mockDismiss).not.toHaveBeenCalled()
+  expect(mockPresenter.refused).toEqual([])
+})
+it('F-12 drops a deferred auto prompt when step 1 loses focus before dismissal', async () => {
+  let resolve!: (result: LocationState) => void
+  mockRefresh.mockReturnValue(new Promise(done => { resolve = done }))
+  useRoomStore.getState().patchDraft({ title: 'Weekend' })
+  const view = await renderScreen(<CreateType />)
+  await press(view, i18n.t('draft.close'))
+  await act(async () => { resolve({ status: 'denied' }) })
+  await act(async () => { mockFocus.blur?.() })
+  await press(view, i18n.t('draft.keepEditing'))
+  expect(view.queryByText(title())).toBeNull()
+  expect(mockPresenter.refused).toEqual([])
+})
+it('F-12 a failed exit-save drops auto recovery but later manual failures still recover', async () => {
+  let resolve!: (result: LocationState) => void
+  mockRefresh.mockReturnValue(new Promise(done => { resolve = done }))
+  mockSave.mockRejectedValueOnce(new Error('save failed'))
+  jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+  useRoomStore.getState().patchDraft({ title: 'Weekend' })
+  const view = await renderScreen(<CreateType />)
+  await press(view, i18n.t('draft.close'))
+  await act(async () => { resolve({ status: 'denied' }) })
+  await press(view, i18n.t('draft.saveExit'))
+  expect(mockDismiss).not.toHaveBeenCalled()
+  expect(view.queryByText(title())).toBeNull()
+  await fireEvent.press(view.getByTestId('create-location-field'))
+  await press(view, i18n.t('home.useLocation'))
+  expect(view.getByText(title())).toBeTruthy()
   expect(mockPresenter.refused).toEqual([])
 })
 it('a failed Settings launch leaves an accessible inline fallback', async () => {

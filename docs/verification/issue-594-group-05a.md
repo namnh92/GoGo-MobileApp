@@ -482,9 +482,11 @@ Raw check logs: `/tmp/594-f10-ui-final.log`, `/tmp/594-f10-typecheck-final.log`,
 
 Đây là component regression; chưa chạy simulator/native build hoặc live API acceptance. Chỉ sửa F-10 tại CreateMood và test harness liên quan; singleton scope store/cleanup không đổi. Không git add/commit/push; index trống khi bàn giao.
 
-## F-09 — assistant community-rating regression — 2026-11-11
+## Astra F-11 — assistant community-rating regression — 2026-11-11
 
 Basis: PR #598, HEAD `ed6c0ef75754428c6bf89eb4603f266882c9d1d1`, worktree `mobile-594` sạch trước điều tra. Owner yêu cầu điều tra rồi sửa regression do F-09 (`b3789a9`); kết quả sau sửa thuộc working-tree patch, không stage/commit.
+
+Finding ID: **F-11** (regression phát sinh từ fix F-09); detected **`ed6c0ef`**, fixed **`ed91a7df373565f01f82ab18aa3671cd3e525d8e`**. Phần dưới giữ nguyên evidence FAIL `ed6c0ef` → PASS source/test được commit tại `ed91a7d`; đây là đối soát ID lịch sử, không phải lần chạy lại matrix trong vòng F-12. Mapper giữ cả `gogoRating` và `gogoRatingCount` ngoài availability spread, kể cả unavailable; không đổi F-09 sparse-rating guard.
 
 ### Điều tra payload, contract và mapper
 
@@ -604,3 +606,46 @@ Code/test/registry basis: **`rs-10c70b1ba456`**, scope `src` (docs không nằm 
 | `git diff --check` | PASS |
 
 Logs local: `/tmp/594-round6-final-before.log`, `/tmp/594-round6-ui.log`, `/tmp/594-round6-registry.log`, `/tmp/594-round6-typecheck.log`, `/tmp/594-round6-lint.log`. Native presenter giả lập dismissal trễ để bắt modal overlap; các flow không bị từ chối trình bày modal. UI gate có Node `punycode` deprecation hiện hữu. Chưa chạy simulator/native build hoặc live acceptance; không suy ra pixel parity, trải nghiệm bàn phím hay quyền hệ điều hành thực tế từ component tests. Index trống; không git add/commit.
+
+
+## Round 6 — Astra F-12 — deferred location recovery — 2026-11-11
+
+Basis: PR #598, detected HEAD **`862ab9ae`**, worktree `mobile-594` sạch khi bắt đầu. Chỉ sửa F-12 và đối soát nhãn F-11 bên trên; không stage/commit. Phần này thay thế mô tả round 6 trước đó về việc tiêu thụ auto notice trước khi trình bày và tự đóng area sheet khi auto refresh lỗi.
+
+### Fix
+
+- `wizard-modal.ts` là signal Zustand nhỏ, mỗi presenter giữ một token từ lúc visible đến `onClosed` (native dismissal), hoặc cleanup khi unmount. Đăng ký `WizardExitPrompt`, overlay lưu nháp/thoát, area sheet của wizard và cả start/end time sheets. Shared Dialog chỉ thêm callback tùy chọn `onShown` chuyển tiếp native `Modal.onShow`; không đổi default flow. Không sửa shared Sheet hay Home/Discovery.
+- Auto denied/unavailable giữ pending khi bất kỳ token nào còn mở; không đóng modal người dùng đang sửa. Sau native dismissal, chỉ mở recovery khi bước 1 vẫn focused. `autoFailureShown` chỉ đặt khi native `Modal.onShow` báo dialog đã xuất hiện; guard riêng ngăn refresh/manual tạo hai recovery flow đồng thời.
+- Exit prompt giữ mounted qua dismissal bằng `useDialog({ waitForDismiss: true })`, rồi mới resolve action và mở overlay nếu cần. Save/discard xác nhận tăng `exitVersion` ngay trước dismissal; pending auto và late refresh thuộc wizard cũ bị bỏ, kể cả router chưa unmount. Lưu nháp thành công/đóng wizard sạch cũng hủy recovery. Blur/unmount bỏ pending. Wizard mới lấy version hiện hành nên vẫn được auto notice mới.
+- Manual tap vẫn đóng area sheet, chờ `onClosed`, rồi chạy recovery hiện có; từng tap lỗi mới vẫn được báo. Nếu còn wizard presenter khác, manual cũng chờ signal trống để tránh cùng collision. Thêm kiểm tra exit-save thất bại: auto cũ đã hủy, nhưng manual failure sau đó vẫn mở recovery được.
+
+### FAIL `862ab9a` → PASS patch
+
+Final test file: `src/features/create-date/__tests__/round-six.spec.tsx`; native presenter giả lập từ round 6 từ chối modal thứ hai cho đến dismissal trễ 5ms. Kiểm cả dialog thật xuất hiện và danh sách refused rỗng, không chỉ kiểm popup vô hình.
+
+Baseline lấy nguyên production `git archive 862ab9a` vào `/tmp` riêng, chỉ copy final test file và symlink dependencies; không checkout/reset/stash working tree. Baseline path: `/tmp/594-f12-baseline-path.txt`. Cùng final test/lệnh ở hai phía: `pnpm test:ui --runInBand round-six -t F-12`.
+
+| Regression | `862ab9a` | Patch |
+| --- | --- | --- |
+| Refresh lỗi trong exit prompt; keep editing → dialog đúng một lần; discard/save → không dialog dù screen còn mounted/focused và refocus | 3 FAIL: attempted modal bị refused | 3 PASS |
+| Auto lỗi trong area sheet → giữ sheet, chỉ recovery sau user dismiss và native close | 1 FAIL: auto đóng area sheet | 1 PASS |
+| Auto lỗi trong time sheet / save-draft overlay; save lỗi → recovery sau close | 2 FAIL: attempted modal bị refused | 2 PASS |
+| Pending rồi mất focus trước keep-editing dismissal → không dialog | 1 FAIL: attempted modal bị refused trước blur | 1 PASS |
+| Exit-save lỗi hủy auto cũ, manual tap sau đó vẫn recovery | 1 FAIL: recovery không xuất hiện sau collision | 1 PASS |
+| **Tổng** | **8 FAIL**, exit 1 | **8 PASS**, exit 0 |
+
+Raw logs: `/tmp/594-f12-before-final.log`, `/tmp/594-f12-after-final.log`.
+
+### Checks
+
+Source/test basis: **`rs-6d1e83995c90`**, scope `src`; manifest + retrievable diff/files: `/tmp/594-f12-snapshots/mobile-594-f12-final-rs-6d1e83995c90/MANIFEST.txt`. Docs ngoài fingerprint; source/test không đổi sau basis.
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `pnpm test:ui create-date wizard-exit dialog --runInBand` | **PASS**, 9 suites / 102 tests (gồm 26 round-six cases) |
+| `pnpm typecheck` | **PASS**, exit 0; sandbox cho phép |
+| `pnpm exec eslint --no-cache <8 touched/new TS/TSX files>` | **PASS**, exit 0, không warning |
+| `git diff --check` | **PASS** |
+| `snapshot.sh verify <manifest>` | **MATCH** |
+
+Logs: `/tmp/594-f12-ui-final.log`, `/tmp/594-f12-typecheck-final.log`, `/tmp/594-f12-lint-final.log`. UI gate có Node `punycode` deprecation hiện hữu. Đây là component regression; chưa chạy simulator/native build/live acceptance. Index trống, HEAD giữ `862ab9ae`; không git add/commit.
