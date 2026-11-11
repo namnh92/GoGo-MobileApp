@@ -28,8 +28,8 @@ function CreditBalanceContent({ assistant }: { assistant: boolean }) {
   useFocusEffect(useCallback(() => { void refetch() }, [refetch]))
   const title = t('credits.title')
   return <View style={assistant ? styles.assistant : styles.account} testID="credit-balance-row">
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t('credits.viewHistory')} accessibilityState={{ busy: credits.isPending && online }} onPress={() => router.push('/me/credits')}>
-      <Text variant={assistant ? 'bodySmall' : 'body'} numberOfLines={assistant ? 1 : undefined} style={styles.label}>{title}</Text>
+    <Pressable style={({ pressed }) => [styles.row, assistant && styles.assistantRow, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t('credits.viewHistory')} accessibilityState={{ busy: credits.isPending && online }} onPress={() => router.push('/me/credits')}>
+      <Text variant={assistant ? 'bodySmall' : 'body'} numberOfLines={assistant ? 1 : undefined} style={assistant ? undefined : styles.label}>{title}</Text>
       <View accessibilityLiveRegion="polite">
         {credits.data ? <Text variant={assistant ? 'caption' : 'title2'} numberOfLines={assistant ? 1 : undefined}>{formatCredit(assistant ? credits.data.availableBalance : credits.data.balance, i18n.language)}</Text>
           : !online || credits.isPaused ? <Text variant={assistant ? 'caption' : 'body'} numberOfLines={assistant ? 1 : undefined} color="text.secondary">{t('credits.offline')}</Text>

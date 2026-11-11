@@ -1,5 +1,4 @@
-import { CreditBalanceRow } from '@/features/credits/credit-balance.view'
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router'
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BackHandler, KeyboardAvoidingView, Platform, View } from 'react-native'
@@ -36,6 +35,7 @@ import { isUserOnly } from './send-error'
 import { SignInPrompt } from './sign-in-prompt.view'
 import { StateNotice } from './state-notice.view'
 import { Welcome } from './welcome.view'
+import { UsageFooter } from './usage-footer.view'
 import { styles } from './assistant.style'
 
 /**
@@ -108,6 +108,8 @@ function AssistantChat({ account }: { account: string }) {
   const [images, setImages] = useState<ComposerImage[]>([])
 
   const status = useAssistantStatus()
+  const { refetch: refetchStatus } = status
+  useFocusEffect(useCallback(() => { void refetchStatus() }, [refetchStatus]))
   const messages = useAssistantMessages(conversationId)
   const outgoing = useOutgoingAssistantMessages(conversationId)
   const { send, retry } = useSendAssistantMessage(conversationId, setConversationId)
@@ -315,7 +317,7 @@ function AssistantChat({ account }: { account: string }) {
             onRemoveImage={index => setImages(current => current.filter((_, at) => at !== index))}
             context={context ? { label: context.name, onRemove: () => setContext(null) } : null}
           />
-          <CreditBalanceRow assistant />
+          <UsageFooter status={status} />
         </View>
       </KeyboardAvoidingView>
     </>

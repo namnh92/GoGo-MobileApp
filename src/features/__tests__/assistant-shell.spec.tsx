@@ -16,7 +16,7 @@ const mockRouter = { back: jest.fn(), replace: jest.fn(), canGoBack: () => true 
 const mockParams: { value: Record<string, string> } = { value: {} }
 const mockGate = { on: true }
 
-jest.mock('expo-router', () => ({
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(),
   useRouter: () => mockRouter,
   useLocalSearchParams: () => mockParams.value,
   Redirect: function Redirect({ href }: { href: string }) {

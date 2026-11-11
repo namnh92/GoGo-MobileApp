@@ -16,7 +16,7 @@ const mockStatus = jest.fn()
 const mockMessages = jest.fn()
 const mockHistory = jest.fn()
 const mockRefetch = jest.fn()
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}), Redirect: () => null }))
+jest.mock('expo-router', () => ({ useFocusEffect: jest.fn(), useRouter: () => mockRouter, useLocalSearchParams: () => ({}), Redirect: () => null }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => mockSignedIn ? { status: 'user', session: { kind: 'user', userId: 'u1' } } : { status: 'guest', session: { kind: 'guest', roomId: 'r1' } } }))
 jest.mock('@/shared/api/queries/use-online-status', () => ({ useOnlineStatus: () => true }))
 jest.mock('@/shared/api', () => ({

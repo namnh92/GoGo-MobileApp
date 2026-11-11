@@ -21,8 +21,8 @@ describe('assistant credit footer ownership (#633)', () => {
     const footer = elements('View').find(node => node.openingElement.attributes.getText(source).includes('testID="assistant-footer"'))!
     expect(footer.parent).toBe(avoiding)
     const controls = footer.children.filter(ts.isJsxSelfClosingElement)
-    expect(controls.map(node => node.tagName.getText(source))).toEqual(['Composer', 'CreditBalanceRow'])
-    expect(controls[1].attributes.getText(source)).toBe('assistant')
+    expect(controls.map(node => node.tagName.getText(source))).toEqual(['Composer', 'UsageFooter'])
+    expect(controls[1].attributes.getText(source)).toBe('status={status}')
     expect(avoiding.openingElement.attributes.getText(source)).toContain("behavior={Platform.OS === 'ios' ? 'padding' : undefined}")
   })
 
