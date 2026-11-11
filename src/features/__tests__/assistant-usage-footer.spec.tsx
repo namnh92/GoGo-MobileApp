@@ -102,7 +102,9 @@ it('refetches and updates after each accepted send while the reply stream is ope
     expect(callsTo(backend, 'getStatus').length).toBeGreaterThan(reads)
     expect(view.getByRole('button', { name: 'Dừng' })).toBeTruthy()
     // A new chat allows another accepted send without completing the old reply.
-    await act(async () => { fireEvent.press(view.getByRole('button', { name: 'Cuộc trò chuyện mới' })) })
+    await act(async () => { fireEvent.press(view.getByRole('button', { name: 'Lịch sử trò chuyện' })) })
+    await waitFor(() => expect(view.getByTestId('assistant-history-list')).toBeTruthy())
+    await act(async () => { fireEvent.press(view.getByTestId('assistant-history-new-chat')) })
     await settle()
   }
 })
