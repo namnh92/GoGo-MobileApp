@@ -9,7 +9,7 @@ it.each([2, 3])('keeps %i equal-width actions on one non-wrapping row with singl
   await render(<SheetActions>
     <SecondaryBtn label="Cancel" onPress={jest.fn()} style={{ flex: 2 }} />
     {count === 3 ? <SecondaryBtn label="Other" onPress={jest.fn()} /> : null}
-    <PrimaryBtn variant="stitch" label="A long primary command" onPress={jest.fn()} wrapLabel />
+    <PrimaryBtn variant="stitch" label="A long primary command" onPress={jest.fn()} />
   </SheetActions>)
   expect(StyleSheet.flatten(screen.getByTestId('sheet-actions').props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'nowrap' })
   const buttons = screen.getAllByRole('button')
@@ -39,4 +39,9 @@ it.each([
   }
   await fireEvent.press(buttons[0]!)
   expect(close).toHaveBeenCalledTimes(1)
+})
+
+it('respects an explicit wrapping opt-in for long action labels', async () => {
+  await render(<SheetActions><PrimaryBtn label="Save draft" onPress={jest.fn()} wrapLabel /></SheetActions>)
+  expect(screen.getByText('Save draft').props.numberOfLines).toBeUndefined()
 })

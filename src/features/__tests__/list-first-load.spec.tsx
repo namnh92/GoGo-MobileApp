@@ -14,7 +14,6 @@ jest.mock('expo-router', () => ({
 }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/ui/toast.view', () => ({ useToast: () => ({ show: jest.fn() }) }))
-jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/features/notifications/unread-count', () => ({ useUnreadInbox: () => ({ count: 0 }) }))
 jest.mock('@/shared/location/use-discovery-scope', () => ({ useDiscoveryScope: () => ({ scope: { status: 'ready', source: 'gps', position: { lat: 21, lng: 105 } } }) }))
 jest.mock('@/shared/api', () => ({

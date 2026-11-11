@@ -1,6 +1,7 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { AccessibilityInfo, RefreshControl } from 'react-native'
+import { saveRoomDraft } from '@/shared/store/savedRoomDraft'
 import { motion } from '@/shared/ui/tokens'
 
 import { loaded, loaded as mockLoaded, renderScreen, type QueryLike } from './harness'
@@ -31,9 +32,8 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }))
 jest.mock('@/shared/providers/session-provider', () => ({
-  useSession: () => ({ status: mockSession.status, session: null }),
+  useSession: () => ({ status: mockSession.status, session: { userId: 'owner' } }),
 }))
-jest.mock('@/features/create-date/draft-resume.view', () => ({ DraftResume: () => null }))
 jest.mock('@/shared/location/use-current-location', () => ({
   useCurrentLocation: () => ({ state: { status: 'idle' }, request: mockRequest }),
 }))
@@ -386,4 +386,13 @@ describe('Home pull to refresh', () => {
     expect(mockRoomRefetch).toHaveBeenCalledTimes(1)
     expect(view.getByTestId('home-list').props.refreshControl.props.refreshing).toBe(false)
   })
+})
+
+// Owner round 8: saved room drafts belong in Plans, never on Home.
+it('Home has no resume/delete draft buttons even with an account draft', async () => {
+  await act(async () => { await saveRoomDraft('owner', 'budget') })
+  const view = await renderScreen(<HomeScreen />)
+  expect(view.queryByText('Tiếp tục nháp')).toBeNull()
+  expect(view.queryByRole('button', { name: 'Xoá nháp' })).toBeNull()
+  expect(view.queryByText('Bản nháp')).toBeNull()
 })

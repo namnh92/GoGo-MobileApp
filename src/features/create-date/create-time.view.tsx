@@ -6,21 +6,21 @@ import i18n from '@/shared/i18n'
 
 import { useRoom, useRoomStore, type DurationPresetKey } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Atmosphere, glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
+import { glassStyles, PrimaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
-import { Sheet } from '@/shared/ui/sheet.view'
+import { TimePickerSheet } from './time-picker-sheet.view'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
+import { TIME_SLOTS } from './time-slots'
 import { DateTimeSheet } from './date-time-sheet.view'
 import { dayTimeLabel, dayLabel } from './day-format'
 import { isPastSlot, parseDayKey } from './calendar'
 import { freshDay, scheduleToIso } from './schedule-day'
-import { TIME_SLOTS } from './time-slots'
-import { WizardStep } from './wizard-step.view'
+import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-time.style'
 
-type PickerTarget = 'end' | null
+type PickerTarget = 'start' | 'end' | null
 
 /** Whole and half hours from `start` to `end` ("HH:MM"); an end at or before the start is the next day. */
 function hoursBetween(start: string, end: string): number {
@@ -43,7 +43,6 @@ export default function CreateTimeScreen() {
   const scheduleDay = useRoomStore(state => state.scheduleDay)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const [pickerFor, setPickerFor] = useState<PickerTarget>(null)
-  const [dateSheet, setDateSheet] = useState(false)
 
   // No chosen day, or one that has passed, is today.
   const now = new Date()
@@ -85,16 +84,13 @@ export default function CreateTimeScreen() {
     else if (endTime && endTime <= slot) setEndTime(null)
   }
 
-  function finishDateSheet(chosenDay: string | null, slot: string) {
-    patchDraft({ scheduleDay: chosenDay })
-    applyStart(slot)
-    setDateSheet(false)
-  }
-
   function pickSlot(slot: string) {
-    setEndTime(slot)
-    // A hand-picked end replaces whatever length was chosen.
-    setDurationPreset(null)
+    if (pickerFor === 'start') applyStart(slot)
+    else {
+      setEndTime(slot)
+      // A hand-picked end replaces whatever length was chosen.
+      setDurationPreset(null)
+    }
     setPickerFor(null)
   }
 
@@ -102,23 +98,22 @@ export default function CreateTimeScreen() {
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
 
-  const slotOptions = startTime ? TIME_SLOTS.filter(s => s > startTime) : TIME_SLOTS
 
   return (
-    <Atmosphere>
-      <WizardStep step="time" onBack={() => router.back()} />
+    <WizardScreen step="time">
       <ScrollView
         testID="create-time-scroll"
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
       >
-        <Text variant="display">{t('createTime.title', { context: roomType })}</Text>
+        <Text variant="discoveryTitle">{t('createTime.title', { context: roomType })}</Text>
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
 
-        {/* Start and end, each as one line: day and time. */}
+        <DateTimeSheet initialDay={day} onDayChange={scheduleDay => patchDraft({ scheduleDay })} />
+
         <View style={styles.rows}>
           <Pressable
-            onPress={() => setDateSheet(true)}
+            onPress={() => setPickerFor('start')}
             accessibilityRole="button"
             accessibilityLabel={`${t('createTime.start')}: ${startTime ? dayTimeLabel(startDate, startTime, locale) : t('createTime.notSet')}`}
             testID="create-time-start-row"
@@ -127,7 +122,7 @@ export default function CreateTimeScreen() {
             <Icon name="calendar" size={20} color={startPast ? 'status.dangerText' : 'accent.primary'} />
             <Text variant="label" color="text.secondary">{t('createTime.start')} *</Text>
             <Text
-              variant="title2"
+              variant="discoveryHeading"
               color={startPast ? 'status.dangerText' : startTime === null ? 'accent.primary' : 'text.primary'}
               numberOfLines={1}
               style={styles.rowValue}
@@ -145,7 +140,7 @@ export default function CreateTimeScreen() {
           >
             <Icon name="calendar" size={20} color="text.secondary" />
             <Text variant="label" color="text.secondary">{t('createTime.end')}</Text>
-            <Text variant="title2" numberOfLines={1} style={styles.rowValue}>
+            <Text variant="discoveryHeading" numberOfLines={1} style={styles.rowValue}>
               {endTime
                 ? dayTimeLabel(endDate, endTime, locale)
                 : t(durationPreset === 'evening' ? 'createTime.openEnd' : 'createTime.notSet')}
@@ -169,7 +164,7 @@ export default function CreateTimeScreen() {
         ) : null}
 
         <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
-        <View style={{ gap: spacing[2], marginBottom: spacing[6] }}>
+        <View style={styles.options}>
           {DURATION_PRESETS.map(preset => {
             const active = durationPreset === preset.key
             const label = t(`createTime.preset.${preset.key}`)
@@ -182,9 +177,9 @@ export default function CreateTimeScreen() {
                 accessibilityState={{ selected: active }}
                 style={[styles.option, active ? styles.optionActive : glassStyles.card]}
               >
-                <Text variant="title2" color={active ? 'accent.onSoft' : 'text.primary'}>{label}</Text>
+                <Text variant="discoveryHeading" color={active ? 'accent.onSoft' : 'text.primary'}>{label}</Text>
                 {/* Selection is never colour alone. */}
-                {active ? <Text variant="title2" color="accent.onSoft">✓</Text> : null}
+                {active ? <Text variant="discoveryHeading" color="accent.onSoft">✓</Text> : null}
               </Pressable>
             )
           })}
@@ -192,39 +187,19 @@ export default function CreateTimeScreen() {
 
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn label={t('common.continue')} onPress={next} disabled={!canContinue} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} disabled={!canContinue} icon="arrowRight" />
       </GlassBar>
 
-      <DateTimeSheet
-        visible={dateSheet}
-        initialDay={day}
-        initialTime={startTime}
-        onClose={() => setDateSheet(false)}
-        onDone={finishDateSheet}
-      />
+      <TimePickerSheet visible={pickerFor === 'start'} initialTime={startTime ?? TIME_SLOTS.find(slot => !isPastSlot(slot, day, now)) ?? '23:59'}
+        title={`${t('createTime.pickTime')} · ${t('createTime.start')}`}
+        isInvalid={slot => isPastSlot(slot, day, new Date())} invalidHint={t('createTime.startPast')}
+        onClose={() => setPickerFor(null)} onDone={pickSlot} testID="start-time-sheet" />
+      <TimePickerSheet visible={pickerFor === 'end'} initialTime={endTime ?? startTime ?? '19:00'}
+        title={`${t('createTime.pickTime')} · ${t('createTime.end')}`}
+        isInvalid={slot => startTime !== null && slot <= startTime}
+        invalidHint={t('createTime.endAfterStart')}
+        onClose={() => setPickerFor(null)} onDone={pickSlot} testID="end-time-sheet" />
 
-      {/* End time: the 30-minute slot grid. */}
-      <Sheet visible={pickerFor !== null} onClose={() => setPickerFor(null)} maxHeight="70%">
-        <Text variant="title1" style={styles.sheetTitle}>
-          {t('createTime.pickTime')} · {t('createTime.end')}
-        </Text>
-        <View style={styles.slotGrid}>
-          {slotOptions.map(slot => {
-            const active = endTime === slot
-            return (
-              <Pressable
-                key={slot}
-                onPress={() => pickSlot(slot)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.slotBtn, active && styles.slotBtnActive]}
-              >
-                <Text variant="label" color={active ? 'accent.onAccent' : 'text.primary'}>{slot}</Text>
-              </Pressable>
-            )
-          })}
-        </View>
-      </Sheet>
-    </Atmosphere>
+    </WizardScreen>
   )
 }

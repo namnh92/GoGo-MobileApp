@@ -7,7 +7,7 @@ import { styles } from './sheet-actions.style'
 export function SheetActions({ children }: { children: ReactNode }) {
   return <View testID="sheet-actions" style={styles.row}>
     {Children.toArray(children).map(child => isValidElement<ButtonProps>(child)
-      ? cloneElement(child, { style: [child.props.style, styles.action], wrapLabel: false })
+      ? cloneElement(child, { style: [child.props.style, styles.action], wrapLabel: child.props.wrapLabel ?? false })
       : child)}
   </View>
 }

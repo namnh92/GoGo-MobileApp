@@ -4,6 +4,8 @@ import { resolveColor, type TextColor } from './text'
 
 /** Material Symbols, 24-unit outline grid, as used in the approved redesign. */
 const paths = {
+  keyboardDoubleArrowDown: 'M7.4 4.6L12 9.2l4.6-4.6L18 6l-6 6-6-6zm0 7L12 16.2l4.6-4.6L18 13l-6 6-6-6z',
+  keyboardDoubleArrowUp: 'M7.4 19.4L12 14.8l4.6 4.6L18 18l-6-6-6 6zm0-7L12 7.8l4.6 4.6L18 11l-6-6-6 6z',
   doneAll: 'M1.4 12 0 13.4 5.6 19l1.4-1.4zM22.6 5 12 15.6 7.8 11.4 6.4 12.8 12 18.4 24 6.4zM17 5l-6.2 6.2 1.4 1.4 6.2-6.2z',
   markChatRead: 'M2 2h16v3h-2V4H4v12h2v2H2zm6 5h14v12H12l-4 4zm2 2v9.2l1.2-1.2H20V9zm4.2 6.6-3-3 1.4-1.4 1.6 1.6 3.4-3.4 1.4 1.4z',
   photoLibrary: 'M3 3h18v18H3zm2 2v12l5-5 4 4 2-2 3 3V5zm2 2h3v3H7z',

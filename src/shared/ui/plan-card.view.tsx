@@ -2,7 +2,7 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { Card } from '@/shared/ui/card.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
-import { Chip, type ChipVariant } from '@/shared/ui/primitives'
+import { Chip, IconBtn, type ChipVariant } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './plan-card.style'
@@ -23,7 +23,7 @@ import { styles } from './plan-card.style'
  * `metaAccessibilityLabel` is the same facts as spoken sentences: "800k/người"
  * read aloud is noise, "Ngân sách 800k mỗi người" is the fact (GoGo-BE#637).
  */
-export function PlanCard({ icon, title, meta, metaAccessibilityLabel, status, past = false, onPress, style, testID }: {
+export function PlanCard({ icon, title, meta, metaAccessibilityLabel, status, past = false, onPress, trailingAction, style, testID }: {
   /** The room type's glyph (#382: an icon, not an emoji). */
   icon: IconName
   title: string
@@ -33,28 +33,42 @@ export function PlanCard({ icon, title, meta, metaAccessibilityLabel, status, pa
   status: { label: string; variant: ChipVariant }
   past?: boolean
   onPress: () => void
+  /** Separate sibling button: never nests a destructive action inside Open. */
+  trailingAction?: { icon: IconName; accessibilityLabel: string; onPress: () => void }
   style?: StyleProp<ViewStyle>
   testID?: string
 }) {
-  return (
-    <Pressable testID={testID} accessibilityRole="button" onPress={onPress} style={style}>
-      <Card style={[styles.card, past && styles.past]}>
-        <View testID="plan-card-icon" style={[styles.icon, past && styles.iconPast]}>
-          <Icon name={icon} size={24} color={past ? 'text.secondary' : 'accent.onSoft'} />
-        </View>
-        <View style={styles.body}>
-          <Chip label={status.label} variant={status.variant} style={styles.status} />
-          <Text testID="plan-card-title" variant="title2">{title}</Text>
-          <Text
-            testID="plan-card-meta"
-            variant="bodySmall"
-            color="text.secondary"
-            accessibilityLabel={metaAccessibilityLabel}
-          >
+  const content = (
+    <>
+      <View testID="plan-card-icon" style={[styles.icon, past && styles.iconPast]}>
+        <Icon name={icon} size={24} color={past ? 'text.secondary' : 'accent.onSoft'} />
+      </View>
+      <View style={styles.body}>
+        <Chip label={status.label} variant={status.variant} style={styles.status} />
+        <Text testID="plan-card-title" variant="title2">{title}</Text>
+        {meta ? (
+          <Text testID="plan-card-meta" variant="bodySmall" color="text.secondary" accessibilityLabel={metaAccessibilityLabel}>
             {meta}
           </Text>
-        </View>
+        ) : null}
+      </View>
+    </>
+  )
+  if (trailingAction) return (
+    <View style={style}>
+      <Card style={[styles.card, past && styles.past]}>
+        <Pressable testID={testID} accessibilityRole="button" onPress={onPress} style={styles.content}>
+          {content}
+        </Pressable>
+        <IconBtn size="regular" accessibilityLabel={trailingAction.accessibilityLabel} onPress={trailingAction.onPress}>
+          <Icon name={trailingAction.icon} size={20} color="text.secondary" />
+        </IconBtn>
       </Card>
+    </View>
+  )
+  return (
+    <Pressable testID={testID} accessibilityRole="button" onPress={onPress} style={style}>
+      <Card style={[styles.card, past && styles.past]}>{content}</Card>
     </Pressable>
   )
 }

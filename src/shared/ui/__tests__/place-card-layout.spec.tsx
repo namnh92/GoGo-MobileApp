@@ -104,8 +104,8 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     expect(structure(screen.getByTestId('place-card-surface'))).toMatchSnapshot(name + ' minimal')
     expect(screen.getByTestId('place-photo-placeholder', { includeHiddenElements: true })).toBeTruthy()
     for (const id of ['place-card-meta', 'place-card-verified', 'saved-photo-attribution', 'place-card-hours-badge', 'place-card-price', 'place-google-rating', 'place-card-tags', 'place-card-distance', 'place-card-save']) expect(screen.queryByTestId(id)).toBeNull()
-    if (name === 'SMALL') expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá')
-    else expect(screen.queryByTestId('place-gogo-rating')).toBeNull()
+    expect(screen.queryByTestId('place-gogo-rating')).toBeNull()
+    expect(screen.queryByTestId('place-card-ratings')).toBeNull()
   })
   it('LARGE reserves the upper corners for verified/save and lower left for status; category stays in tags', async () => {
     await render(<ThemeScopeProvider name={theme}><PlaceCardLarge place={full} saved onToggleSave={jest.fn()} /></ThemeScopeProvider>)

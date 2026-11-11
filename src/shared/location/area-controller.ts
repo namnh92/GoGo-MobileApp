@@ -13,7 +13,7 @@ export type AreaDependencies = {
   fallback: () => Promise<DiscoveryScope>
 }
 
-/** One controller per app process. No consumer mounts trigger work. Coordinates stay in memory. */
+/** One controller per app process. Hooks subscribe; screens can refresh on focus. Coordinates stay in memory. */
 export function createAreaController(deps: AreaDependencies) {
   let revision = 0
   let initialized: Promise<void> | undefined
@@ -38,7 +38,7 @@ export function createAreaController(deps: AreaDependencies) {
     },
   }))
 
-  function resolve(explicit: boolean): Promise<LocationState> {
+  function resolve(explicit: boolean, preservePosition = false): Promise<LocationState> {
     if (running) return running
     const currentRevision = revision
     running = (async () => {
@@ -54,6 +54,10 @@ export function createAreaController(deps: AreaDependencies) {
         store.setState({ area, manual: false, scope: { status: 'ready', source: 'gps', position: { lat: result.lat, lng: result.lng } } })
         persist(area ? { area, manual: false } : null)
       } else {
+        // A focus refresh can report a refusal/failure without discarding the
+        // position already chosen for the room. Manual choices still win via revision.
+        const previousScope = store.getState().scope
+        if (preservePosition && previousScope.status === 'ready' && previousScope.source === 'gps') return result
         const saved = store.getState().area
         const scope = saved ? { status: 'ready' as const, source: 'selected_area' as const, area: saved } : await deps.fallback()
         if (currentRevision !== revision) return result
@@ -97,6 +101,12 @@ export function createAreaController(deps: AreaDependencies) {
     await initialize()
     return resolve(true)
   }
+  async function refresh() {
+    await initialize()
+    // A saved/manual area is intentional. Never replace it on focus.
+    if (store.getState().manual) return
+    return resolve(false, true)
+  }
   async function retry() {
     // Retry the fallback data without silently requesting another GPS fix.
     if (store.getState().scope.status !== 'unavailable') return
@@ -108,5 +118,5 @@ export function createAreaController(deps: AreaDependencies) {
       if (area) persist({ area, manual: false })
     }
   }
-  return { store, initialize, permissionChanged, request, retry, flushed: () => writes }
+  return { store, initialize, permissionChanged, request, refresh, retry, flushed: () => writes }
 }

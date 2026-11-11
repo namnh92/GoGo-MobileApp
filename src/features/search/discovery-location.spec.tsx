@@ -83,3 +83,23 @@ it('discards an uncommitted area when the close button is pressed', async () => 
   expect(useDiscoveryAreaStore.getState().area).toBeNull()
   expect(mockApplied).not.toHaveBeenCalled()
 })
+
+
+it.each(['denied', 'unavailable'] as const)('round 9: manualOnly hides GPS and %s text; default mode restores both', async status => {
+  const { useAppAreaStore } = jest.requireActual<typeof import('@/shared/location/app-area')>('@/shared/location/app-area')
+  useAppAreaStore.setState({ location: { status } })
+  const view = await renderScreen(<DiscoveryLocationSheet mode="manualOnly" visible onClose={mockBack} onApplied={mockApplied} />)
+  const notice = i18n.t(status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')
+  expect(view.queryByText(i18n.t('home.useLocation'))).toBeNull()
+  expect(view.queryByText(notice)).toBeNull()
+  expect(view.getByText('Pick another city')).toBeTruthy()
+  expect(view.getByText(i18n.t('administrative.clear'))).toBeTruthy()
+  await view.rerender(<DiscoveryLocationSheet visible onClose={mockBack} onApplied={mockApplied} />)
+  expect(view.getByText(i18n.t('home.useLocation'))).toBeTruthy()
+  expect(view.getByText(notice)).toBeTruthy()
+  await view.rerender(<DiscoveryLocationSheet mode="manualOnly" visible onClose={mockBack} onApplied={mockApplied} />)
+  await fireEvent.press(view.getByText('Pick another city'))
+  await fireEvent.press(view.getByText(i18n.t('areaPicker.confirm')))
+  expect(useDiscoveryAreaStore.getState().area?.provinceCode).toBe('other-city')
+  expect(mockPermission).not.toHaveBeenCalled()
+})

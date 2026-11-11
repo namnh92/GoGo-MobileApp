@@ -290,6 +290,7 @@ describe('Sentry is used only through the #336 boundary', () => {
       expect(audits.flatMap(a => a.navigators.map(n => `${a.file} ${n}`)).sort()).toEqual([
         'src/app/(tabs)/_layout.tsx Tabs',
         'src/app/_layout.tsx Stack',
+        'src/app/create/_layout.tsx Stack',
       ])
     })
   })
