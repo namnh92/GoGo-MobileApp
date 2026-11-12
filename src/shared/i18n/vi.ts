@@ -2055,7 +2055,7 @@ export const viMessages = {
   'budgetPicker.placeholder': 'Ví dụ 650.000',
   'budgetPicker.currency': 'đ',
   'budgetPicker.required': 'Vui lòng nhập số tiền.',
-  'budgetPicker.format': 'Chỉ nhập số tiền nguyên và dấu phân cách hàng nghìn, ví dụ 650.000đ.',
+  'budgetPicker.format': 'Chỉ nhập số tiền nguyên, ví dụ 650.000',
   'budgetPicker.integer': 'Vui lòng nhập số tiền nguyên.',
   'budgetPicker.bounds': 'Nhập từ 10.000đ đến 100.000.000đ, theo đơn vị đã chọn.',
   'createBudget.range.under300': 'Dưới 300.000đ',

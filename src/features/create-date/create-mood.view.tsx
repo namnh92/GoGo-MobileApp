@@ -26,6 +26,7 @@ import { ExpandToggle } from '@/shared/ui/expand-toggle.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import type { SeedPlaceRef } from '@/shared/store/roomStore'
 
+import { budgetAmountSchema } from './budget-picker'
 import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-mood.style'
 
@@ -158,6 +159,15 @@ export default function CreateMoodScreen() {
     // Only an account can own a room — a guest session gets 403 USER_ONLY.
     if (status !== 'user') {
       router.push('/auth/sign-in?next=create')
+      return
+    }
+
+    const budget = budgetAmountSchema.safeParse(useRoomStore.getState().budgetAmount)
+    if (!budget.success) {
+      const key = budget.error.issues[0]!.message
+      setError(t(key === 'budgetPicker.required' ? 'budgetPicker.required'
+        : key === 'budgetPicker.format' ? 'budgetPicker.format'
+        : key === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds'))
       return
     }
 

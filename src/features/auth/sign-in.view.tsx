@@ -209,19 +209,19 @@ export default function SignInScreen() {
             <View style={styles.coffee}><InfoBanner coffee title={t('auth.coffeeTitle')} body={t('auth.coffeeBody')} /></View>
             <View style={styles.form}>
               {mode === 'signUp' && <Controller control={signUpForm.control} name="displayName" render={({ field, fieldState }) => (
-                <LabelledInput {...fieldVisibility('displayName')} label={t('auth.displayName')} icon="badge" ref={field.ref} value={field.value}
+                <LabelledInput announceError={fieldState.error?.type !== 'server'} {...fieldVisibility('displayName')} label={t('auth.displayName')} icon="badge" ref={field.ref} value={field.value}
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('displayName').onBlur() }} placeholder={t('auth.displayNamePlaceholder')}
                   autoCapitalize="words" autoCorrect={false} editable={!pending} maxLength={50}
                   error={fieldState.error ? t('auth.displayNameInvalid') : undefined} />
               )} />}
               <Controller key={`email-${mode}`} control={form.control as never} name="email" render={({ field, fieldState }) => (
-                <LabelledInput {...fieldVisibility('email')} label={t('auth.email')} icon="mail" ref={field.ref} value={field.value as string}
+                <LabelledInput announceError={fieldState.error?.type !== 'server'} {...fieldVisibility('email')} label={t('auth.email')} icon="mail" ref={field.ref} value={field.value as string}
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('email').onBlur() }} placeholder={t('auth.emailPlaceholder')}
                   autoCapitalize="none" autoComplete="email" keyboardType="email-address" autoCorrect={false}
                   editable={!pending} error={fieldState.error ? t('auth.emailInvalid') : undefined} />
               )} />
               <Controller key={`password-${mode}`} control={form.control as never} name="password" render={({ field, fieldState }) => (
-                <LabelledInput {...fieldVisibility('password')} label={t('auth.password')} icon="lock" ref={field.ref} value={field.value as string}
+                <LabelledInput announceError={fieldState.error?.type !== 'server'} {...fieldVisibility('password')} label={t('auth.password')} icon="lock" ref={field.ref} value={field.value as string}
                   onChangeText={field.onChange} onBlur={() => { field.onBlur(); fieldVisibility('password').onBlur() }} placeholder={t('auth.passwordPlaceholder')}
                   autoCapitalize="none" autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
                   secureTextEntry={!showPassword} editable={!pending}

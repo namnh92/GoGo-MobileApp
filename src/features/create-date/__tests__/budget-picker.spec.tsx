@@ -1,3 +1,5 @@
+import { AccessibilityInfo } from 'react-native'
+import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { act, fireEvent } from '@testing-library/react-native'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,6 +14,8 @@ import CreateMoodScreen from '../create-mood.view'
 
 const mockPush = jest.fn()
 const mockCreate = jest.fn()
+// Submission validation must work independently of draft persistence.
+jest.mock('@/shared/store/savedRoomDraft', () => ({ saveRoomDraft: jest.fn(async () => undefined), clearSavedRoomDraft: jest.fn(async () => undefined) }))
 jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 jest.mock('@/shared/api', () => ({
@@ -24,7 +28,7 @@ jest.mock('@/shared/api', () => ({
 const inputLabel = () => `${i18n.t('budgetPicker.amount')} ${i18n.t('createBudget.unit.couple')}`
 const customLabel = () => i18n.t('budgetPicker.custom')
 
-function PickerForm({ amount = 800_000, change = () => undefined }: { amount?: number; change?: (amount: number) => void }) {
+function PickerForm({ amount = 800_000, change = () => undefined }: { amount?: number; change?: (amount: number | null) => void }) {
   const form = useForm({ resolver: zodResolver(budgetPickerSchema), defaultValues: { budgetAmount: amount } })
   return <Controller control={form.control} name="budgetAmount" render={({ field }) =>
     <BudgetPicker {...field} roomType="couple" budgetMode="total" onChange={value => { field.onChange(value); change(value) }} />
@@ -38,7 +42,7 @@ beforeEach(async () => {
   await act(async () => { await i18n.changeLanguage('vi') })
 })
 
-it.each(['vi', 'en'])('formats while typing and emits whole VND minor units, retaining custom for a tier amount (%s)', async language => {
+it.each(['vi', 'en'])('keeps focused typing ungrouped and emits whole VND, retaining custom for a tier amount (%s)', async language => {
   await act(async () => { await i18n.changeLanguage(language) })
   const change = jest.fn()
   const view = await renderScreen(<PickerForm change={change} />)
@@ -46,13 +50,14 @@ it.each(['vi', 'en'])('formats while typing and emits whole VND minor units, ret
   const input = () => view.getByLabelText(inputLabel())
   expect(input().props.keyboardType).toBe('number-pad')
   expect(input().props.placeholder).toBe(i18n.t('budgetPicker.placeholder'))
-  for (const [typed, formatted, numeric] of [['6', '6', 6], ['65', '65', 65], ['6500', '6.500', 6500], ['6.5000', '65.000', 65000], ['65.0000', '650.000', 650000]] as const) {
+  await fireEvent(input(), 'focus', {})
+  for (const [typed, formatted, numeric] of [['6', '6', 6], ['65', '65', 65], ['6500', '6500', 6500], ['65000', '65000', 65000], ['650000', '650000', 650000]] as const) {
     await fireEvent.changeText(input(), typed)
     expect(input().props.value).toBe(formatted)
     expect(change).toHaveBeenLastCalledWith(numeric)
   }
   await fireEvent.changeText(input(), '800000')
-  expect(input().props.value).toBe('800.000')
+  expect(input().props.value).toBe('800000')
   expect(view.getByRole('button', { name: customLabel() }).props.accessibilityState.selected).toBe(true)
 })
 
@@ -121,6 +126,7 @@ it.each(['vi', 'en'])('F-14 retains invalid paste, blocks Continue, and recovers
   await fireEvent.press(view.getByRole('button', { name: customLabel() }))
   const input = () => view.getByLabelText(inputLabel())
   const next = () => view.getByRole('button', { name: i18n.t('common.continue') })
+  await fireEvent(input(), 'focus', {})
   for (const text of ['650000.50', '650.000,50', '650x000', '650,000.50']) {
     await fireEvent.changeText(input(), text)
     expect(input().props.value).toBe(text)
@@ -131,11 +137,117 @@ it.each(['vi', 'en'])('F-14 retains invalid paste, blocks Continue, and recovers
   }
   for (const text of ['650000', '650.000', '650.000đ', '650,000']) {
     await fireEvent.changeText(input(), text)
-    expect(input().props.value).toBe('650.000')
+    expect(input().props.value).toBe('650000')
     expect(view.queryByText(i18n.t('budgetPicker.format'))).toBeNull()
     expect(next().props.accessibilityState.disabled).toBe(false)
     expect(useRoomStore.getState().budgetAmount).toBe(650000)
   }
   await fireEvent.press(next())
   expect(mockPush).toHaveBeenCalledWith('/create/mood')
+})
+
+
+it('F-14 rejects select-all decimal paste over a grouped amount and keeps it after blur/focus', async () => {
+  useRoomStore.getState().patchDraft({ budgetAmount: 10000 })
+  const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  const input = () => view.getByLabelText(inputLabel())
+  await fireEvent.changeText(input(), '10000')
+  await fireEvent(input(), 'blur', {})
+  await fireEvent(input(), 'focus', {})
+  await fireEvent.changeText(input(), '10.0001')
+  expect(input().props.value).toBe('10.0001')
+  expect(view.getByText(i18n.t('budgetPicker.format'))).toBeTruthy()
+  expect(view.getByRole('button', { name: i18n.t('common.continue') }).props.accessibilityState.disabled).toBe(true)
+  await fireEvent(input(), 'blur', {})
+  await fireEvent(input(), 'focus', {})
+  expect(input().props.value).toBe('10.0001')
+})
+
+it('F-15 shows digits on focus, supports backspace and groups only on blur', async () => {
+  const change = jest.fn()
+  const view = await renderScreen(<PickerForm amount={650000} change={change} />)
+  const input = () => view.getByLabelText(inputLabel())
+  expect(input().props.value).toBe('650.000')
+  await fireEvent(input(), 'focus', {})
+  expect(input().props.value).toBe('650000')
+  await fireEvent.changeText(input(), '65000')
+  expect(input().props.value).toBe('65000')
+  expect(change).toHaveBeenLastCalledWith(65000)
+  expect(view.queryByText(i18n.t('budgetPicker.format'))).toBeNull()
+  await fireEvent.changeText(input(), '650000')
+  await fireEvent(input(), 'blur', {})
+  expect(input().props.value).toBe('650.000')
+})
+
+it('shows an exact live budget preview while typing', async () => {
+  const view = await renderScreen(<PickerForm amount={650000} />)
+  const input = () => view.getByLabelText(inputLabel())
+  expect(view.getByText('650.000đ / cả phòng (2 người)')).toBeTruthy()
+  await fireEvent(input(), 'focus', {})
+  await fireEvent.changeText(input(), '650001')
+  expect(view.getByText('650.001đ / cả phòng (2 người)')).toBeTruthy()
+})
+
+it.each(['650.000đ', '650,000', ' 650.000 ₫ ', '650000 VND'])('normalizes valid paste to focused digits: %s', async text => {
+  const change = jest.fn()
+  const view = await renderScreen(<PickerForm amount={650000} change={change} />)
+  const input = () => view.getByLabelText(inputLabel())
+  await fireEvent(input(), 'focus', {})
+  await fireEvent.changeText(input(), text)
+  expect(input().props.value).toBe('650000')
+  expect(change).toHaveBeenLastCalledWith(650000)
+})
+
+it.each(['650.00', '650000.50', '650.000,50', '1.2.3', '6 50'])('rejects malformed paste %s', async text => {
+  const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  const input = () => view.getByLabelText(inputLabel())
+  await fireEvent(input(), 'focus', {})
+  await fireEvent.changeText(input(), text)
+  expect(input().props.value).toBe(text)
+  expect(view.getByText(i18n.t('budgetPicker.format'))).toBeTruthy()
+  expect(view.getByRole('button', { name: i18n.t('common.continue') }).props.accessibilityState.disabled).toBe(true)
+})
+
+it('emits null when the focused amount is cleared', async () => {
+  const change = jest.fn()
+  const view = await renderScreen(<PickerForm amount={650000} change={change} />)
+  await fireEvent(view.getByLabelText(inputLabel()), 'focus', {})
+  await fireEvent.changeText(view.getByLabelText(inputLabel()), '')
+  expect(change).toHaveBeenLastCalledWith(null)
+})
+
+it('F-16 associates errors and announces once per changed error', async () => {
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => undefined)
+  const field = (error?: string) => <LabelledInput label="Amount" icon="payments" accessibilityHint="Existing hint" accessibilityState={{ disabled: true }} error={error} />
+  const view = await renderScreen(field())
+  expect(view.getByLabelText('Amount').props.accessibilityHint).toBe('Existing hint')
+  expect(announce).not.toHaveBeenCalled()
+  await view.rerender(field('Invalid amount'))
+  expect(view.getByLabelText('Amount').props.accessibilityHint).toContain('Invalid amount')
+  expect(view.getByLabelText('Amount').props.accessibilityHint).toContain('Existing hint')
+  expect(view.getByLabelText('Amount').props['aria-invalid']).toBe(true)
+  expect(view.getByLabelText('Amount').props.accessibilityState.disabled).toBe(true)
+  expect(view.getByText('Invalid amount').props.accessibilityLiveRegion).toBe('polite')
+  expect(announce).toHaveBeenCalledTimes(1)
+  expect(announce).toHaveBeenLastCalledWith('Invalid amount')
+  await view.rerender(field('Invalid amount'))
+  expect(announce).toHaveBeenCalledTimes(1)
+  await view.rerender(field('Out of bounds'))
+  expect(announce).toHaveBeenCalledTimes(2)
+  expect(announce).toHaveBeenLastCalledWith('Out of bounds')
+  await view.rerender(field())
+  expect(view.getByLabelText('Amount').props.accessibilityHint).toBe('Existing hint')
+  expect(view.getByLabelText('Amount').props['aria-invalid']).not.toBe(true)
+  expect(announce).toHaveBeenCalledTimes(2)
+  announce.mockRestore()
+})
+
+it.each([NaN, null, Infinity, 650000.5, 9999, 100000001])('refuses final wizard submit for invalid custom budget %s', async budgetAmount => {
+  useRoomStore.getState().patchDraft({ budgetAmount })
+  const view = await renderScreen(<CreateMoodScreen />)
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.cta') }))
+  expect(mockCreate).not.toHaveBeenCalled()
+  expect(useRoomStore.getState().creationPending).toBe(false)
 })

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import type { BudgetMode } from '@/shared/store/roomStore'
+import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { Chip } from '@/shared/ui/chip.view'
 import { LabelledInput } from '@/shared/ui/labelled-input.view'
@@ -10,13 +11,13 @@ import { BUDGET_TIERS } from './budget-tiers'
 import { budgetAmountSchema, formatBudgetInput, parseBudgetInput } from './budget-picker'
 import { styles } from './budget-picker.style'
 
-const isTier = (value: number) => BUDGET_TIERS.some(tier => tier.amount === value)
+const isTier = (value: number | null) => BUDGET_TIERS.some(tier => tier.amount === value)
 
 /** The caller owns the numeric value; local state preserves invalid text and
  * keeps custom entry open even when its amount matches a tier. */
 export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true }: {
-  value: number
-  onChange: (value: number) => void
+  value: number | null
+  onChange: (value: number | null) => void
   onBlur?: () => void
   roomType: 'couple' | 'group'
   budgetMode: BudgetMode
@@ -25,6 +26,7 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
 }) {
   const { t } = useTranslation()
   const [custom, setCustom] = useState(() => !isTier(value))
+  const [focused, setFocused] = useState(false)
   const [raw, setRaw] = useState<string | null>(null)
   const lastValue = useRef(value)
   useEffect(() => {
@@ -35,7 +37,7 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
     }
     lastValue.current = value
   }, [value])
-  function change(amount: number) {
+  function change(amount: number | null) {
     lastValue.current = amount
     onChange(amount)
   }
@@ -43,7 +45,9 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
     ? t('createBudget.unit.couple') : budgetUnitLabel(budgetMode, roomType, t)
   const validation = budgetAmountSchema.safeParse(value)
   const errorKey = !validation.success ? validation.error.issues[0]!.message : null
-  const error = raw ? t('budgetPicker.format') : custom && enforceBounds && errorKey ? t(errorKey === 'budgetPicker.required' ? 'budgetPicker.required'
+  const invalidPaste = raw !== null && !Number.isFinite(parseBudgetInput(raw)) && raw !== ''
+  const error = invalidPaste ? t('budgetPicker.format') : custom && enforceBounds && errorKey ? t(errorKey === 'budgetPicker.required' ? 'budgetPicker.required'
+    : errorKey === 'budgetPicker.format' ? 'budgetPicker.format'
     : errorKey === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds') : undefined
 
   return <View style={styles.body}>
@@ -53,21 +57,29 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
         variant={!custom && value === tier.amount ? 'selected' : 'default'}
         disabled={disabled} onPress={() => { setCustom(false); setRaw(null); change(tier.amount) }} />)}
       <Chip label={t('budgetPicker.custom')} variant={custom ? 'selected' : 'default'} disabled={disabled}
-        onPress={() => { if (!custom) { setCustom(true); setRaw(null); change(NaN) } }} />
+        onPress={() => { if (!custom) { setCustom(true); setRaw(null); change(null) } }} />
     </View>
-    {custom ? <LabelledInput label={t('budgetPicker.amount')} icon="payments"
+    {custom ? <><LabelledInput label={t('budgetPicker.amount')} icon="payments"
       accessibilityLabel={`${t('budgetPicker.amount')} ${unit}`} keyboardType="number-pad"
-      value={raw ?? formatBudgetInput(value)} onChangeText={text => {
-        const previous = formatBudgetInput(value)
-        // Native typing appends to the displayed grouping (e.g. 6.500 →
-        // 6.5000). Only this known digit insertion may regroup a partial group.
-        const appended = raw === null && previous.includes('.') && text.startsWith(previous)
-          && /^\d$/.test(text.slice(previous.length))
-        const amount = parseBudgetInput(appended ? previous.replace(/\./g, '') + text.slice(previous.length) : text)
-        setRaw(Number.isFinite(amount) ? null : text)
-        change(amount)
-      }} onBlur={onBlur}
+      value={invalidPaste ? raw! : focused ? raw ?? (value !== null && Number.isFinite(value) ? String(value) : '') : formatBudgetInput(value)}
+      onFocus={() => {
+        setFocused(true)
+        if (!invalidPaste) setRaw(value !== null && Number.isFinite(value) ? String(value) : '')
+      }}
+      onChangeText={text => {
+        if (/^\d*$/.test(text)) {
+          setRaw(text)
+          change(text === '' ? null : Number(text))
+        } else {
+          const amount = parseBudgetInput(text)
+          setRaw(Number.isFinite(amount) ? String(amount) : text)
+          change(amount)
+        }
+      }} onBlur={() => { setFocused(false); onBlur?.() }}
       placeholder={t('budgetPicker.placeholder')} editable={!disabled} error={error}
-      trailing={<Text variant="bodySmall">{t('budgetPicker.currency')} {unit}</Text>} /> : null}
+      trailing={<Text variant="bodySmall">{t('budgetPicker.currency')} {unit}</Text>} />
+      {value !== null && Number.isFinite(value) && !invalidPaste && (!enforceBounds || validation.success)
+        ? <Text variant="bodySmall">{formatMoney(value, 'VND', 'standard')} {unit}</Text> : null}
+    </> : null}
   </View>
 }
