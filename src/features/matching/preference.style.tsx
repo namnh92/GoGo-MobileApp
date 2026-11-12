@@ -4,6 +4,7 @@ import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   title: { marginTop: spacing[2] },
   body: { marginTop: spacing[2], marginBottom: spacing[5] },
+  privacyNote: { marginBottom: spacing[5] },
   content: { paddingHorizontal: spacing[5], paddingBottom: spacing[5] },
   choices: { gap: spacing[2] },
   error: { marginTop: spacing[4] },

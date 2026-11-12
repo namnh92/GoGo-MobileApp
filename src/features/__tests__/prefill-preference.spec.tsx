@@ -1,6 +1,6 @@
 import { act, fireEvent, within } from '@testing-library/react-native'
 
-import { loaded, pending, failed, renderScreen, type QueryLike } from './harness'
+import { loaded, pending, failed, renderScreen, roomFor, type QueryLike } from './harness'
 
 /**
  * PROF-APP-004 (#179), ADR-0022 — saved interests are offered on the room
@@ -10,6 +10,7 @@ import { loaded, pending, failed, renderScreen, type QueryLike } from './harness
  */
 
 const mockMe: { query: QueryLike } = { query: loaded(undefined) }
+const mockRoom: { query: QueryLike } = { query: loaded(undefined) }
 const mockPreferences: { query: QueryLike } = { query: loaded({ selections: {}, version: 0 }) }
 const mockTaxonomies = { query: loaded({ kinds: { mood: [
   { key: 'chill', labels: { vi: 'Thư giãn', en: 'Chill' } },
@@ -35,6 +36,7 @@ jest.mock('@/shared/providers/session-provider', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useMe: () => mockMe.query,
+  useRoom: () => mockRoom.query,
   useMyPreferences: () => mockPreferences.query,
   useSaveMyPreferences: () => ({ mutateAsync: mockSave, isPending: false }),
   useCompleteMyPreferences: () => ({ mutateAsync: mockComplete, isPending: false }),
@@ -67,10 +69,35 @@ beforeEach(async () => {
   mockTaxonomies.query = defaultTaxonomies
   useRoomStore.getState().resetDraft()
   mockSession.status = 'user'
+  mockRoom.query = loaded(roomFor('couple'))
   mockMe.query = loaded({ interests: { mood: ['chill', 'retired_key', 'cozy'] } })
   mockPreferences.query = loaded({ selections: {}, version: 0 })
   mockSave.mockReset()
   mockComplete.mockReset()
+})
+
+describe.each(['vi', 'en'])('preference privacy note in %s', locale => {
+  beforeEach(async () => { await i18n.changeLanguage(locale) })
+  it('shows the couple explanation', async () => {
+    const view = await renderScreen(<PreferenceScreen />)
+    expect(view.getByText(i18n.t('gogoRoom.body'))).toBeTruthy()
+    expect(view.queryByText(i18n.t('gogoRoom.body_group'))).toBeNull()
+  })
+
+  it.each([
+    roomFor('group-host'),
+    roomFor('group-guest'),
+    roomFor('group-host', { participantCount: 2 }),
+    roomFor('couple', { decisionMode: 'vote' }),
+    roomFor('couple', { decisionMode: 'host' }),
+    roomFor('couple', { participantCount: 4 }),
+  ])('uses group wording for group facts: %j', async room => {
+    mockRoom.query = loaded(room)
+    const view = await renderScreen(<PreferenceScreen />)
+    expect(view.getByText(i18n.t('gogoRoom.body_group'))).toBeTruthy()
+    expect(view.queryByText(i18n.t('gogoRoom.body'))).toBeNull()
+    expect(view.queryByText(/cả hai|hai người|couple/i)).toBeNull()
+  })
 })
 
 describe('saved interests prefill on the preference screen', () => {

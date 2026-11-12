@@ -12,6 +12,7 @@ import {
   useCompleteMyPreferences,
   useMe,
   useMyPreferences,
+  useRoom,
   useSaveMyPreferences,
   useTaxonomies,
 } from '@/shared/api'
@@ -19,6 +20,7 @@ import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { InfoBanner } from '@/shared/ui/info-banner.view'
 import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { Icon } from '@/shared/ui/icons'
@@ -38,6 +40,7 @@ export default function PreferenceScreen() {
 
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KIND })
   const preferences = useMyPreferences(roomId)
+  const room = useRoom(roomId)
   const savePreferences = useSaveMyPreferences(roomId)
   const completePreferences = useCompleteMyPreferences(roomId)
 
@@ -146,6 +149,8 @@ export default function PreferenceScreen() {
   }
 
   const pending = savePreferences.isPending || completePreferences.isPending
+  const couplePrivacy = room.data?.type === 'couple' &&
+    room.data.decisionMode === 'match' && room.data.participantCount <= 2
 
   return (
     <Atmosphere>
@@ -157,6 +162,9 @@ export default function PreferenceScreen() {
         <Chip variant="positive" label={t('preference.selectedCount', { n: selected.length, max: MAX_PREFS })} />
         <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
+        <View style={styles.privacyNote}>
+          <InfoBanner body={t(couplePrivacy ? 'gogoRoom.body' : 'gogoRoom.body_group')} />
+        </View>
 
         {offerSaved ? (
           <Pressable
