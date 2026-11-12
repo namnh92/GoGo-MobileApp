@@ -924,6 +924,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'roomMembers.removeLabel': 'Remove {{name}} from room',
   'roomSeeds.removeLabel': 'Remove {{name}} from suggested places',
   'roomSeeds.empty': 'No suggested places yet.',
+  'roomSeeds.limitHint': 'Maximum {{max}} suggested places. Remove a place to add another.',
   'roomSeeds.removeTitle': 'Remove suggested place?',
   'roomSeeds.removeBody': 'Remove {{name}} from this room’s suggested places?',
   'roomBudget.total': '/ room ({{n}} people)',

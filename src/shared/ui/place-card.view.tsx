@@ -17,6 +17,8 @@ import { touchTarget } from './tokens'
 import { PhotoSkeleton } from './skeleton.view'
 
 export interface CardControls {
+  /** Group card facts into a focus target; sibling actions remain reachable. */
+  focusable?: boolean
   onPress?: () => void
   accessibilityLabel?: string
   accessibilityHint?: string
@@ -114,7 +116,7 @@ export function CardShell({ props, data, small = false, showCredits = true, chil
   const Target = props.onPress ? Pressable : View
   return <View testID="place-card-surface" style={[styles.discoveryCard, style, props.style]}>
     <View testID={data.candidate ? small ? 'place-preview-compact' : 'import-preview-card' : undefined}>
-      <Target testID="place-card-open-target" accessibilityRole={props.onPress ? 'button' : undefined} accessibilityLabel={props.accessibilityLabel ?? (props.onPress ? data.place.name : undefined)} accessibilityHint={props.accessibilityHint} accessibilityState={{ disabled: props.disabled, selected: props.selected }} disabled={props.disabled} onPress={props.onPress}>{children}</Target>
+      <Target testID="place-card-open-target" focusable={props.focusable} accessible={props.focusable || undefined} accessibilityRole={props.onPress ? 'button' : undefined} accessibilityLabel={props.accessibilityLabel ?? (props.onPress ? data.place.name : undefined)} accessibilityHint={props.accessibilityHint} accessibilityState={{ disabled: props.disabled, selected: props.selected }} disabled={props.disabled} onPress={props.onPress}>{children}</Target>
       {props.headerAction ? <View style={small ? styles.saveSmall : styles.saveOnPhoto}>{props.headerAction}</View> : props.saved != null && props.onToggleSave ? <SaveToggle compact={small} saved={props.saved} onToggle={props.onToggleSave} /> : null}
       {showCredits ? <CardCredits data={data} /> : null}
       {props.footer ? <View style={styles.savedFooter}>{props.footer}</View> : null}

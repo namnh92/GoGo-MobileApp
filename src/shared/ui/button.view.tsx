@@ -170,12 +170,13 @@ export function DangerBtn(props: ButtonProps) {
  * a screen reader announcing "button" and nothing else is a dead end. Drawn at
  * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
  */
-export function IconBtn({ testID, children, onPress, accessibilityLabel, active = false, disabled = false, style, size = 'small' }: {
+export function IconBtn({ testID, children, onPress, accessibilityLabel, accessibilityHint, active = false, disabled = false, style, size = 'small' }: {
   testID?: string
   size?: ButtonSize
   children: ReactNode
   onPress: () => void
   accessibilityLabel: string
+  accessibilityHint?: string
   active?: boolean
   disabled?: boolean
   style?: StyleProp<ViewStyle>
@@ -189,6 +190,7 @@ export function IconBtn({ testID, children, onPress, accessibilityLabel, active 
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled, selected: active }}
       hitSlop={hitSlop}
       style={[

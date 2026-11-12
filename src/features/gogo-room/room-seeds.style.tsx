@@ -5,4 +5,7 @@ export const styles = StyleSheet.create(theme => ({
   heading: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
   title: { flex: 1 },
   add: { width: touchTarget.min, height: touchTarget.min },
+  row: { marginHorizontal: -theme.spacing[4] },
+  rowContent: { paddingVertical: theme.spacing[1] },
+  separator: { width: theme.spacing[3] },
 }))

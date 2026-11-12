@@ -905,6 +905,7 @@ export const viMessages = {
   'roomMembers.removeLabel': 'Mời {{name}} ra khỏi phòng',
   'roomSeeds.removeLabel': 'Bỏ {{name}} khỏi địa điểm gợi ý',
   'roomSeeds.empty': 'Chưa có địa điểm gợi ý.',
+  'roomSeeds.limitHint': 'Tối đa {{max}} địa điểm gợi ý. Bỏ một địa điểm để thêm địa điểm khác.',
   'roomSeeds.removeTitle': 'Bỏ địa điểm gợi ý?',
   'roomSeeds.removeBody': 'Bỏ {{name}} khỏi danh sách địa điểm gợi ý của phòng?',
   'roomBudget.total': '/ cả phòng ({{n}} người)',
