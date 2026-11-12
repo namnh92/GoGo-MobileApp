@@ -1,31 +1,35 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { ScrollView, View } from 'react-native'
 import { useMe } from '@/shared/api'
 import { track } from '@/shared/analytics'
+import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoom, useRoomStore } from '@/shared/store/roomStore'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Chip, PrimaryBtn, glassStyles } from '@/shared/ui/primitives'
-import { IconCheck } from '@/shared/ui/icons'
+import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
-import { BUDGET_TIERS, DEFAULT_BUDGET_TIER, tierForAmount, type BudgetTier } from './budget-tiers'
+import { DEFAULT_BUDGET_TIER, tierForAmount } from './budget-tiers'
+import { BudgetPicker } from './budget-picker.view'
+import { budgetPickerSchema } from './budget-picker'
 import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const router = useRouter()
   const { roomType, budgetMode } = useRoom()
-  const unit = t(roomType === 'couple' ? 'createBudget.unit.couple' : budgetMode === 'per_person' ? 'price.unit.per_person' : 'price.unit.per_group')
+  const unit = roomType === 'couple' ? t('createBudget.unit.couple') : budgetUnitLabel(budgetMode, roomType, t)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
   const { status } = useSession()
-  const [selected, setSelected] = useState<BudgetTier>(() => draftBudgetAmount == null ? DEFAULT_BUDGET_TIER : tierForAmount(draftBudgetAmount) ?? DEFAULT_BUDGET_TIER)
+  const form = useForm({ resolver: zodResolver(budgetPickerSchema), defaultValues: { budgetAmount: draftBudgetAmount ?? DEFAULT_BUDGET_TIER.amount }, mode: 'onChange' })
+  const selectedAmount = useWatch({ control: form.control, name: 'budgetAmount' })
+  const valid = budgetPickerSchema.safeParse({ budgetAmount: selectedAmount }).success
 
   // ADR-0022: the profile's usual budget is per person, so it is offered only
   // when this room counts per person, only while the draft holds no amount,
@@ -37,14 +41,14 @@ export default function CreateBudgetScreen() {
 
   function useUsualBudget() {
     if (!usualTier) return
-    setSelected(usualTier)
+    form.setValue('budgetAmount', usualTier.amount, { shouldValidate: true })
     patchDraft({ budgetAmount: usualTier.amount })
     track('profile_prefill_used', { field: 'usualBudget' })
   }
 
-  function next() {
+  function next(value: { budgetAmount: number }) {
     // The amount is what the API constrains on; the tier key is presentation.
-    patchDraft({ budgetAmount: selected.amount })
+    patchDraft({ budgetAmount: value.budgetAmount })
     router.push('/create/mood')
   }
 
@@ -59,9 +63,10 @@ export default function CreateBudgetScreen() {
       : t('createBudget.body')
 
   return (
-    <WizardScreen step="budget">
+    <WizardScreen step="budget" avoidKeyboard>
       <ScrollView
         testID="create-budget-scroll"
+        keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
       >
@@ -74,7 +79,7 @@ export default function CreateBudgetScreen() {
               icon="dollar"
               label={t('createBudget.useUsualAction')}
               accessibilityLabel={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
-              variant={selected.key === usualTier.key ? 'selected' : 'info'}
+              variant={selectedAmount === usualTier.amount ? 'selected' : 'info'}
               onPress={useUsualBudget}
             />
             <Text variant="bodySmall" style={styles.prefillAmount}>
@@ -83,36 +88,16 @@ export default function CreateBudgetScreen() {
           </View>
         ) : null}
 
-        <View style={styles.options}>
-          {BUDGET_TIERS.map(tier => {
-            const active = selected.key === tier.key
-            return (
-              <Pressable
-                key={tier.key}
-                onPress={() => { setSelected(tier); patchDraft({ budgetAmount: tier.amount }) }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                style={[styles.option, active ? styles.optionActive : glassStyles.card]}
-              >
-                <View style={styles.optionBody}>
-                  <Text variant="discoveryHeading" color={active ? 'accent.onSoft' : 'text.primary'}>
-                    {t(`createBudget.range.${tier.key}`)}{tier.key !== 'flexible' ? ` ${unit}` : ''}
-                  </Text>
-                  <Text variant="bodySmall" color="text.secondary" style={styles.optionSub}>
-                    {t(`createBudget.range.${tier.key}.sub`)}
-                  </Text>
-                </View>
-                {/* Selection is a tint, a ring and a check, never colour alone. */}
-                <View style={[styles.checkBubble, active && styles.checkBubbleActive]}>
-                  {active ? <IconCheck color={theme.accent.onAccent} size={12} /> : null}
-                </View>
-              </Pressable>
-            )
-          })}
-        </View>
+        <Controller control={form.control} name="budgetAmount" render={({ field }) =>
+          <BudgetPicker value={field.value} onBlur={field.onBlur} roomType={roomType} budgetMode={budgetMode}
+            onChange={amount => {
+              field.onChange(amount)
+              patchDraft({ budgetAmount: budgetPickerSchema.safeParse({ budgetAmount: amount }).success ? amount : null })
+            }} />
+        } />
       </ScrollView>
       <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
-        <PrimaryBtn variant="stitch" label={t('common.continue')} onPress={next} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} disabled={!valid} onPress={() => void form.handleSubmit(next)()} icon="arrowRight" />
       </GlassBar>
     </WizardScreen>
   )

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { budgetAmountSchema } from '@/features/create-date/budget-picker'
 import type { RoomSummary } from '@/shared/api'
 import { isoToLocalSchedule, localScheduleToIso } from './room-schedule'
 
@@ -6,7 +7,7 @@ export const roomEditorSchema = z.object({
   title: z.string().trim().max(80),
   gps: z.object({ lat: z.number(), lng: z.number(), label: z.string().nullable() }).nullable(),
   area: z.object({ datasetVersion: z.string(), provinceCode: z.string(), provinceName: z.string(), communeCode: z.string().nullable(), communeName: z.string().nullable() }).nullable(),
-  budgetAmount: z.number().int().nonnegative(),
+  budgetAmount: budgetAmountSchema,
   budgetMode: z.enum(['total', 'per_person']),
   participantCount: z.number().int().min(2).max(20),
   radiusM: z.number().int().positive().nullable(),

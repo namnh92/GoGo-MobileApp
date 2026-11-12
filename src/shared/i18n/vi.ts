@@ -2050,6 +2050,13 @@ export const viMessages = {
   'groupSetup.overTen': 'Trên 10 người',
   'groupSetup.range': '{{min}} – {{max}} người',
 
+  'budgetPicker.custom': 'Nhập số tiền khác',
+  'budgetPicker.amount': 'Ngân sách tối đa',
+  'budgetPicker.placeholder': 'Ví dụ 650.000',
+  'budgetPicker.currency': 'đ',
+  'budgetPicker.required': 'Vui lòng nhập số tiền.',
+  'budgetPicker.integer': 'Vui lòng nhập số tiền nguyên.',
+  'budgetPicker.bounds': 'Nhập từ 10.000đ đến 100.000.000đ, theo đơn vị đã chọn.',
   'createBudget.range.under300': 'Dưới 300.000đ',
   'createBudget.range.under300.sub': 'Dành cho cà phê, ăn vặt nhẹ nhàng',
   'createBudget.range.to500': '300.000đ – 500.000đ',

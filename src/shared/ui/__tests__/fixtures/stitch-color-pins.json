@@ -1246,7 +1246,6 @@
     "src/features/gogo-room/room-editor.view.tsx": [
       "text.secondary",
       "text.secondary",
-      "text.secondary",
       "status.warningText",
       "text.secondary"
     ],

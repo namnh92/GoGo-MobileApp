@@ -4,6 +4,7 @@ import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
 import i18n from '@/shared/i18n'
 import { useRoomStore, toCreateRoomBody } from '@/shared/store/roomStore'
 import { styles as typeStyles } from '../create-type.style'
+import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { themes } from '@/shared/ui/theme'
 import { WHEEL_ROW } from '@/shared/ui/time-wheel.style'
 import CreateTypeScreen from '../create-type.view'
@@ -77,7 +78,7 @@ it.each(['couple', 'group-host'] as const)('keeps one budget scope subtitle for 
   const view = await renderScreen(<CreateBudgetScreen />)
   expect(view.queryByText('Tổng ngân sách cho hai người')).toBeNull()
   if (audience === 'group-host') expect(view.getAllByText(i18n.t('groupSetup.groupTotal'))).toHaveLength(1)
-  const unit = i18n.t(audience === 'couple' ? 'createBudget.unit.couple' : 'price.unit.per_group')
+  const unit = audience === 'couple' ? i18n.t('createBudget.unit.couple') : budgetUnitLabel('total', 'group', i18n.t)
   const tier = view.getByRole('button', { name: /^300.000đ – 500.000đ / })
   expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
   await fireEvent.press(tier)

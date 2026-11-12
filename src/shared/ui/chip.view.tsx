@@ -24,6 +24,8 @@ const LABEL: Record<ChipVariant, TextColor> = {
 
 export interface ChipProps {
   label: string
+  /** Let long amount/unit labels wrap without losing their scope. */
+  multiline?: boolean
   variant?: ChipVariant
   appearance?: ChipAppearance
   icon?: IconName
@@ -42,7 +44,7 @@ export interface ChipProps {
 /** Selection uses highlight + heavier text + a11y state, with no selection glyph. */
 export function Chip({ label, variant = 'default', appearance = 'default', icon, emoji,
   disabled: disabledProp = false, onPress, accessibilityLabel, onRemove, removeAccessibilityLabel,
-  style, testID }: ChipProps) {
+  style, testID, multiline = false }: ChipProps) {
   const selected = variant === 'selected'
   const disabled = disabledProp || variant === 'disabled'
   const stateVariant = disabled && !selected ? 'disabled' : variant
@@ -68,7 +70,7 @@ export function Chip({ label, variant = 'default', appearance = 'default', icon,
       {showIcon ? <Icon name={icon} size={14} color={labelColor} /> : null}
       {!icon && emoji ? <Text variant="bodySmall">{emoji}</Text> : null}
       <Text variant={selected ? 'introLabel' : 'introSmall'} color={labelColor}
-        numberOfLines={1} ellipsizeMode="tail" style={styles.chipLabel}
+        numberOfLines={multiline ? undefined : 1} ellipsizeMode={multiline ? undefined : 'tail'} style={styles.chipLabel}
         accessibilityLabel={!onPress ? accessibilityLabel ?? label : undefined}>
         {label}
       </Text>

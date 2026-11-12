@@ -126,7 +126,7 @@ it('keeps the last tier inside the step scroll view (#333)', async () => {
 it.each([
   ['couple', 'per_person', '/ cả phòng (2 người)', 'total'],
   ['group-host', 'per_person', '/người', 'per_person'],
-  ['group-host', 'total', ' · tổng nhóm', 'total'],
+  ['group-host', 'total', 'tổng nhóm', 'total'],
 ] as const)('shows units for %s / %s without changing the submitted amount', async (audience, mode, unit, expectedMode) => {
   useRoomStore.getState().setAudience(audience)
   useRoomStore.getState().setBudgetMode(mode)

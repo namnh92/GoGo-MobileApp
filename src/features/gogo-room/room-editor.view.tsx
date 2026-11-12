@@ -7,9 +7,7 @@ import { ScrollView, View } from 'react-native'
 import { isApiError, useRenameRoom, useUpdateRoomConstraints, type RoomSummary } from '@/shared/api'
 import type { OpBody } from '@/shared/api/types'
 import { AdministrativePicker, type AdministrativePickerLevel } from '@/shared/administrative/administrative-picker.view'
-import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
-import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
-import { formatMoney } from '@/shared/pricing/money'
+import { BudgetPicker } from '@/features/create-date/budget-picker.view'
 import { useCurrentLocation } from '@/shared/location/use-current-location'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
@@ -61,7 +59,6 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
   const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status) && initial.myRole === 'host' && EDITABLE.includes(initial.status)
   const valid = roomEditorSchema.safeParse(values).success && scheduleValid && (!changed.area || areaValid)
     && (!changed.participantCount || room.type !== 'group' || values.participantCount >= 3) && (!constraintsChanged || !!initial.constraints)
-  const currency = initial.constraints?.currency ?? 'VND'
 
   async function reloadAfterConflict() {
     if (submitting.current || pending || !conflict) return
@@ -209,11 +206,9 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
         label={t(mode === 'per_person' ? 'groupSetup.perPerson' : 'groupSetup.groupTotal')}
         variant={values.budgetMode === mode ? 'selected' : 'default'} disabled={pending || !canEdit}
         onPress={() => form.setValue('budgetMode', mode, { shouldDirty: true })} />)}</View> : null}
-      <Text variant="bodySmall" color="text.secondary">{budgetUnitLabel(values.budgetMode, room.type, t)}</Text>
-      <View style={styles.chips}>{BUDGET_TIERS.map(tier => <Chip key={tier.key}
-        label={`${formatMoney(tier.amount, currency)} ${budgetUnitLabel(values.budgetMode, room.type, t)}`}
-        variant={values.budgetAmount === tier.amount ? 'selected' : 'default'} disabled={pending || !canEdit}
-        onPress={() => form.setValue('budgetAmount', tier.amount, { shouldDirty: true })} />)}</View>
+      <Controller control={form.control} name="budgetAmount" render={({ field }) =>
+        <BudgetPicker {...field} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
+      } />
       <View testID="room-schedule-section" style={styles.section}>
         <Text variant="label">{t('roomSchedule.title')}</Text>
         <Text variant="bodySmall" color="text.secondary">{t('roomSchedule.format')}</Text>

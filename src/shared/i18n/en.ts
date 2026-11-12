@@ -2071,6 +2071,13 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'groupSetup.overTen': 'More than 10 people',
   'groupSetup.range': '{{min}} – {{max}} people',
 
+  'budgetPicker.custom': 'Enter another amount',
+  'budgetPicker.amount': 'Budget ceiling',
+  'budgetPicker.placeholder': 'e.g. 650.000',
+  'budgetPicker.currency': 'đ',
+  'budgetPicker.required': 'Enter an amount.',
+  'budgetPicker.integer': 'Enter a whole amount.',
+  'budgetPicker.bounds': 'Enter 10.000đ to 100.000.000đ in the selected unit.',
   'createBudget.range.under300': 'Under ₫300,000',
   'createBudget.range.under300.sub': 'Coffee and light snacks',
   'createBudget.range.to500': '₫300,000 – ₫500,000',

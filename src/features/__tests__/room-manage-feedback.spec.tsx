@@ -851,3 +851,33 @@ it('F-10 preserves still-different title and schedule edits while cleaning an ar
     startAt: new Date(2026, 10, 14, 19).toISOString(),
   })
 })
+
+it.each(['couple', 'group-host'] as const)('prefills custom budget, compares numeric dirty state, and saves its ceiling (%s)', async audience => {
+  const mode = audience === 'couple' ? 'total' : 'per_person'
+  mockRoom.query = mockLoaded(roomFor(audience, { constraintVersion: 7, constraints: {
+    budgetMode: mode, budgetAmount: 650000, currency: 'VND', administrativeArea: mockArea,
+  } }))
+  await render(<RoomManageScreen />, client)
+  await press(screen.getByRole('button', { name: i18n.t('roomLobby.edit') }))
+  expect(screen.getByRole('button', { name: i18n.t('budgetPicker.custom') }).props.accessibilityState.selected).toBe(true)
+  const unit = audience === 'couple' ? i18n.t('createBudget.unit.couple') : i18n.t('datePlan.perPerson')
+  const label = `${i18n.t('budgetPicker.amount')} ${unit}`
+  expect(screen.getByLabelText(label).props.value).toBe('650.000')
+  const save = () => screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') })
+  expect(save().props.accessibilityState.disabled).toBe(true)
+  await typeField(label, '650000')
+  expect(save().props.accessibilityState.disabled).toBe(true)
+  await typeField(label, '')
+  expect(save().props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
+  await typeField(label, '9999')
+  expect(save().props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText(i18n.t('budgetPicker.bounds'))).toBeTruthy()
+  await typeField(label, '675000')
+  expect(save().props.accessibilityState.disabled).toBe(false)
+  await press(save())
+  await press(save())
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', expect.objectContaining({
+    budgetAmount: 675000, budgetMode: mode, expectedConstraintVersion: 7,
+  })))
+})
