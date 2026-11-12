@@ -970,7 +970,6 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'roomManage.currentInvite': 'Current invite link',
   'roomManage.noInvite': 'No invite link yet',
   'roomManage.createInvite': 'Create invite link',
-  'roomManage.changeInvite': 'Change invite link',
   'roomManage.changeInviteTitle': 'Change invite link?',
   'roomManage.changeInviteBody': 'The old link will stop working. People already in the room are not affected.',
   'roomManage.changeInviteConfirm': 'Change link',

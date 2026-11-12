@@ -143,6 +143,8 @@ it('shares a legacy stored active link through the header without creating', asy
   await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
   expect(share.mock.calls[0][0].url).toContain(`/r/${CODE}`)
   expect(mockCreate).not.toHaveBeenCalled()
+  expect(mockRevoke).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('room-lobby-invite-confirm')).toBeNull()
   await finish()
 })
 it('creates on header press and shares, then reopens in the same session without duplicates', async () => {
@@ -174,6 +176,25 @@ it.each([
   await open(); await ready(); await press()
   await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
   expect(mockCreate).toHaveBeenCalledTimes(1)
+  expect(mockCreate).toHaveBeenCalledWith(ROOM_ID, { maxUses: 20 }, expect.any(String))
+  expect(mockRevoke).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('room-lobby-invite-confirm')).toBeNull()
+  await finish()
+})
+it('automatically renews an expired stored code without confirmation and shares the new code', async () => {
+  const expiresAt = '2000-01-01T00:00:00Z'
+  await saveInviteCode(storedInvite({ expiresAt }))
+  serve([row({ expiresAt })])
+  mockCreate.mockImplementation(async () => {
+    server = [...server, row({ inviteId: 'invite-new' })]
+    return { ...created('invite-new'), code: 'renewed-secret' }
+  })
+  await open(); await ready(); await press()
+  await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+  expect(share.mock.calls[0][0].url).toContain('/r/renewed-secret')
+  expect(mockCreate).toHaveBeenCalledTimes(1)
+  expect(mockRevoke).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('room-lobby-invite-confirm')).toBeNull()
   await finish()
 })
 it('asks to change an active link from another device without creating a duplicate', async () => {

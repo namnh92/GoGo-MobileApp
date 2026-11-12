@@ -86,7 +86,7 @@ it.each(['member', 'guest'] as const)('shows seeds read-only and no host actions
   await render(<GoGoRoomScreen />, client)
   expect(screen.getByTestId('room-lobby-seeds')).toBeTruthy()
   expect(screen.getByTestId('place-card-small')).toBeTruthy()
-  for (const id of ['room-lobby-seeds-add', 'place-card-remove', 'room-lobby-management', 'room-lobby-invite', 'room-lobby-cancel', 'room-lobby-change-invite']) expect(screen.queryByTestId(id)).toBeNull()
+  for (const id of ['room-lobby-seeds-add', 'place-card-remove', 'room-lobby-management', 'room-lobby-invite', 'room-lobby-cancel']) expect(screen.queryByTestId(id)).toBeNull()
   expect(screen.queryAllByRole('button', { name: /Mời .* ra khỏi phòng/ })).toHaveLength(0)
   await press('room-lobby-members-all')
   expect(within(screen.getByTestId('room-lobby-members-sheet')).getAllByTestId(/^room-lobby-sheet-member-\d/)).toHaveLength(7)

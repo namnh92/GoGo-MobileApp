@@ -69,8 +69,9 @@ async function open() {
 async function press(label: string) {
   await act(async () => { await fireEvent.press(screen.getByRole('button', { name: label })) })
 }
-async function change() {
-  await press('Đổi link mời')
+async function replaceFromShare() {
+  await press('Mời người tham gia')
+  await waitFor(() => expect(screen.getByTestId('room-lobby-invite-confirm')).toBeTruthy())
   await press('Đổi link')
 }
 
@@ -80,6 +81,7 @@ it('renders one active row with remaining uses and the formatted expiry, without
   const [date, time] = isoToLocalSchedule(expiry).split(' ')
   expect(screen.getByText(`còn 17 lượt · hết hạn ${time} ${date}`)).toBeTruthy()
   expect(screen.getAllByTestId('room-lobby-invite-status')).toHaveLength(1)
+  expect(within(screen.getByTestId('room-lobby-management')).getAllByRole('button').map(button => button.props.accessibilityLabel)).toEqual(['Huỷ phòng'])
   expect(screen.queryByText('Thu hồi')).toBeNull()
 })
 it('omits unavailable counts and shows a maximum only when useCount is absent', async () => {
@@ -106,9 +108,10 @@ it('creates from the empty state and shares the new canonical link', async () =>
   expect(mockRevoke).not.toHaveBeenCalled()
   expect(mockCreate).toHaveBeenCalledTimes(1)
 })
-it('opens the warning ResultSheet and cancels without mutations', async () => {
+it('opens the warning from header share for an active link without a code and cancels without mutations', async () => {
   await open()
-  await press('Đổi link mời')
+  await press('Mời người tham gia')
+  await waitFor(() => expect(screen.getByTestId('room-lobby-invite-confirm')).toBeTruthy())
   const sheet = screen.getByTestId('room-lobby-invite-confirm')
   expect(within(sheet).getByText('Đổi link mời?')).toBeTruthy()
   expect(within(sheet).getByText('Link cũ sẽ không dùng được nữa. Người đã vào phòng không bị ảnh hưởng.')).toBeTruthy()
@@ -120,7 +123,7 @@ it('opens the warning ResultSheet and cancels without mutations', async () => {
 it('refetches and revokes ALL active links before creating, then shares once', async () => {
   await open()
   server = [...server, row({ inviteId: 'other-device' }), row({ inviteId: 'revoked', revoked: true })]
-  await change()
+  await replaceFromShare()
   await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
   expect(mockRevoke.mock.calls).toEqual([['room-1', 'old'], ['room-1', 'other-device']])
   expect(mockRevoke.mock.invocationCallOrder[1]).toBeLessThan(mockCreate.mock.invocationCallOrder[0])
@@ -130,7 +133,7 @@ it('refetches and revokes ALL active links before creating, then shares once', a
 it('refetches to the empty state if create fails after revocation, and allows retry', async () => {
   mockCreate.mockRejectedValueOnce(new Error('offline'))
   await open()
-  await change()
+  await replaceFromShare()
   await waitFor(() => expect(screen.getByText('Chưa có link mời')).toBeTruthy())
   expect(screen.getByText(i18n.t('gogoRoom.inviteFailed'))).toBeTruthy()
   expect(share).not.toHaveBeenCalled()
@@ -142,7 +145,7 @@ it('refetches to the empty state if create fails after revocation, and allows re
 it('does not create or share after a revoke failure', async () => {
   mockRevoke.mockRejectedValueOnce(new Error('offline'))
   await open()
-  await change()
+  await replaceFromShare()
   await waitFor(() => expect(screen.getByText(i18n.t('gogoRoom.reissueFailed'))).toBeTruthy())
   expect(mockCreate).not.toHaveBeenCalled()
   expect(share).not.toHaveBeenCalled()
@@ -163,7 +166,8 @@ it('provides English invite copy', async () => {
     await open()
     expect(screen.getByText('Current invite link')).toBeTruthy()
     expect(screen.getByText(/17 uses left · expires/)).toBeTruthy()
-    await press('Change invite link')
+    await press('Invite people')
+    await waitFor(() => expect(screen.getByTestId('room-lobby-invite-confirm')).toBeTruthy())
     expect(screen.getByText('Change invite link?')).toBeTruthy()
     await press('Cancel')
   } finally { await act(async () => { await i18n.changeLanguage('vi') }) }

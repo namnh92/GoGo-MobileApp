@@ -12,7 +12,7 @@ import { AppHeaderAction } from '@/shared/ui/app-header.view'
 import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { useOnlineStatus, useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
-import { Card, DangerBtn, GhostBtn } from '@/shared/ui/primitives'
+import { Card, DangerBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
 import { Skeleton } from '@/shared/ui/skeleton.view'
@@ -146,6 +146,8 @@ export function useRoomHostActions(room: RoomSummary | undefined, roomId: string
           return
         }
       }
+      // Expired/exhausted invites need no replacement confirmation or revocation.
+      // The server owns the new link's lifetime via expiresAt.
       phase = 'create'
       changed = true
       const invite = await create.mutateAsync({ maxUses: 20 })
@@ -197,7 +199,6 @@ export function useRoomHostActions(room: RoomSummary | undefined, roomId: string
       {!joinable ? <Text variant="caption" color="text.secondary">{t('roomManage.inviteUnavailable')}</Text> : null}
       {error ? <Text accessibilityLiveRegion="polite" color="status.dangerText">{t(error === 'offline' ? 'common.offlineBody' : error === 'revoke' ? 'gogoRoom.reissueFailed' : 'gogoRoom.inviteFailed')}</Text> : null}
       {copied ? <Text accessibilityLiveRegion="polite">{t('common.copied')}</Text> : null}
-      <GhostBtn testID="room-lobby-change-invite" label={t('roomManage.changeInvite')} disabled={unavailable} onPress={() => setReplaceConfirm(true)} />
       <DangerBtn style={styles.dangerOutline} testID="room-lobby-cancel" label={t('roomManage.cancelRoom')} disabled={cancelBusy} onPress={() => { setCancelFailed(false); setCancelConfirm(true) }} />
     </Card> : null,
     dialogs: <>

@@ -186,4 +186,6 @@ it('F-21: creates a fresh link when the stored code expired and online metadata 
   expect(mockShare).toHaveBeenCalledWith('new-secret', expect.any(String))
   expect(mockShare).not.toHaveBeenCalledWith('device-secret', expect.any(String))
   expect(mockCreate).toHaveBeenCalledTimes(1)
+  expect(screen.queryByTestId('room-lobby-invite-confirm')).toBeNull()
+  idle()
 })

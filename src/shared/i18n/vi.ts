@@ -951,7 +951,6 @@ export const viMessages = {
   'roomManage.currentInvite': 'Link mời đang dùng',
   'roomManage.noInvite': 'Chưa có link mời',
   'roomManage.createInvite': 'Tạo link mời',
-  'roomManage.changeInvite': 'Đổi link mời',
   'roomManage.changeInviteTitle': 'Đổi link mời?',
   'roomManage.changeInviteBody': 'Link cũ sẽ không dùng được nữa. Người đã vào phòng không bị ảnh hưởng.',
   'roomManage.changeInviteConfirm': 'Đổi link',
