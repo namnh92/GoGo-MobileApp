@@ -1,6 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from '@/shared/api/query-keys'
 import type { ConfirmConditions } from './room-condition-confirmation.view'
+import type { usePlaceDetail } from '@/shared/api'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
@@ -14,7 +13,7 @@ import {
   isApiError,
   detailToPlaceCard,
   discoveryLabels,
-  usePlaceDetail,
+  useSeedPlaceDetails,
   useTaxonomies,
   roomCapabilities,
   useRemoveRoomMember,
@@ -51,9 +50,12 @@ import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { styles } from './room-manage.style'
 
 /** One cached detail query per seed; unknown/loading/error facts stay omitted. */
-function SeedPlaceCard({ placeId, name, onRemove }: { placeId: string; name: string; onRemove: () => void }) {
+function SeedPlaceCard({ placeId, name, detail, onRemove }: {
+  placeId: string; name: string
+  detail: ReturnType<typeof usePlaceDetail>
+  onRemove: () => void
+}) {
   const { t, i18n } = useTranslation()
-  const detail = usePlaceDetail(placeId)
   const taxonomy = useTaxonomies({ kinds: 'category,mood,setting,amenity,suitability' })
   const fallback = { id: placeId, name }
   const place = detailToPlaceCard(
@@ -68,11 +70,11 @@ function SeedPlaceCard({ placeId, name, onRemove }: { placeId: string; name: str
 export default function RoomManageScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
-  const queryClient = useQueryClient()
   const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
   const room = useRoom(roomId)
+  const seedDetails = useSeedPlaceDetails(room.data?.seedPlaces ?? [])
   const waitingForNetwork = useWaitingForNetwork(room)
   const invites = useRoomInvites(roomId)
   const updateConstraints = useUpdateRoomConstraints(roomId)
@@ -226,8 +228,7 @@ export default function RoomManageScreen() {
       {header}
       <PullToRefresh onRefresh={async () => { await Promise.all([
         room.refetch(), invites.refetch(),
-        ...(summary.seedPlaces ?? []).flatMap(seed => seed.placeId
-          ? [queryClient.refetchQueries({ queryKey: queryKeys.place(seed.placeId), exact: true })] : []),
+        seedDetails.refetchAll(),
       ]) }}>
       <ScrollView testID="room-manage-scroll"
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
@@ -323,6 +324,7 @@ export default function RoomManageScreen() {
           <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
           {(summary.seedPlaces ?? []).map(seed => seed.placeId && seed.name ? (
             <SeedPlaceCard key={seed.placeId} placeId={seed.placeId} name={seed.name}
+              detail={seedDetails.byPlaceId.get(seed.placeId)!}
               onRemove={() => seed.placeId && removeSeedPlace.mutate(seed.placeId)} />
           ) : null)}
           {!pickerScope ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.seedScopeUnavailable')}</Text> : null}

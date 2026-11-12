@@ -33,7 +33,10 @@ jest.mock('@/shared/api/endpoints/rooms', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockRoom.query,
-  usePlaceDetail: (placeId: string) => mockPlaceDetail(placeId),
+  useSeedPlaceDetails: (seeds: { placeId: string }[]) => {
+    const byPlaceId = new Map(seeds.map(seed => [seed.placeId, mockPlaceDetail(seed.placeId)]))
+    return { byPlaceId, refetchAll: () => Promise.all([...byPlaceId.values()].map(detail => detail.refetch())) }
+  },
   useTaxonomies: () => mockLoaded({ version: 1, kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }] } }),
   useRoomInvites: () => mockLoaded([]),
   useRevokeRoomInvite: () => ({ mutate: jest.fn() }),
@@ -343,14 +346,19 @@ it('shows compact skeleton facts while seed details fetch', async () => {
   expect(screen.getByTestId('place-card-remove')).toBeTruthy()
 })
 it('pull-to-refresh refetches each current seed detail along with the room', async () => {
-  const refetchQueries = jest.spyOn(client, 'refetchQueries')
+  const refetchOne = jest.fn()
+  const refetchTwo = jest.fn()
+  mockPlaceDetail.mockImplementation(placeId => ({
+    isPending: false, isError: false,
+    refetch: placeId === 'seed-1' ? refetchOne : refetchTwo,
+  }))
   mockRoom.query = mockLoaded(roomFor('group-host', { seedPlaces: [
     { placeId: 'seed-1', name: 'One' }, { placeId: 'seed-2', name: 'Two' },
   ] }))
   await render(<RoomManageScreen />, client)
   await act(async () => { screen.getByTestId('room-manage-scroll').props.refreshControl.props.onRefresh() })
-  expect(refetchQueries).toHaveBeenCalledWith({ queryKey: queryKeys.place('seed-1'), exact: true })
-  expect(refetchQueries).toHaveBeenCalledWith({ queryKey: queryKeys.place('seed-2'), exact: true })
+  expect(refetchOne).toHaveBeenCalledTimes(1)
+  expect(refetchTwo).toHaveBeenCalledTimes(1)
   expect(mockRoom.query.refetch).toHaveBeenCalledTimes(1)
 })
 it('uses a warning ResultSheet for area confirmation; cancel and dismiss keep the draft', async () => {

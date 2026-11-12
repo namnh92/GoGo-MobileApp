@@ -23,6 +23,7 @@ jest.mock('@/shared/api', () => ({
   usePlanStopPlaces: () => [],
   useEditPlanStops: () => mockMutation,
   useRoom: () => mockPending,
+  useSeedPlaceDetails: () => ({ byPlaceId: new Map(), refetchAll: jest.fn() }),
   useSavedEntries: () => ({ ...mockPending, entries: [] }),
   useTaxonomies: () => ({ data: undefined }),
   useToggleSaved: () => mockMutation,
