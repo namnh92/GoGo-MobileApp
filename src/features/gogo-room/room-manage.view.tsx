@@ -129,7 +129,8 @@ export default function RoomManageScreen() {
     )
   }
 
-  if (room.isError || !summary) {
+  // A failed background/recovery refetch must not unmount an open editor draft.
+  if (!summary) {
     return (
       <Atmosphere>
         {header}
@@ -256,6 +257,11 @@ export default function RoomManageScreen() {
             </Card>
           </>}>
           {(close, confirmConditions) => <RoomEditor room={summary} close={close} confirmConditions={confirmConditions}
+            reloadRoom={async () => {
+              const fresh = await room.refetch({ cancelRefetch: false })
+              if (fresh.isError || !fresh.data) throw fresh.error
+              return fresh.data
+            }}
             onPendingChange={setEditorPending} onChoosingChange={setAreaChoosing} />}
         </RoomEditSheet>
 

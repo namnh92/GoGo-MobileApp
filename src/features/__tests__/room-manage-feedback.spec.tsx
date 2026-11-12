@@ -471,7 +471,7 @@ it.each(['  Tên mới  ', '   '])('title-only saves trimmed/null title without 
   expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
 })
 
-it('sends only budget keys and the concurrency version for a budget-only change', async () => {
+it('F-12 omits unchanged currency for a budget-only change', async () => {
   await openArea()
   await chooseBudget()
   await confirmEditor()
@@ -479,7 +479,7 @@ it('sends only budget keys and the concurrency version for a budget-only change'
   expect(screen.getByTestId('room-conditions-confirmation')).toBeTruthy()
   await confirmEditor()
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
-    budgetAmount: 500000, budgetMode: 'per_person', currency: 'VND', expectedConstraintVersion: 7,
+    budgetAmount: 500000, budgetMode: 'per_person', expectedConstraintVersion: 7,
   }))
   expect(mockRename).not.toHaveBeenCalled()
 })
@@ -580,20 +580,20 @@ it('preserves all typed fields across the full-height area chooser', async () =>
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
   expect(mockRename).toHaveBeenCalledTimes(1)
   expect(mockPatch.mock.calls[0][1]).toEqual({
-    budgetMode: 'per_person', budgetAmount: 500000, currency: 'VND', expectedConstraintVersion: 7,
+    budgetMode: 'per_person', budgetAmount: 500000, expectedConstraintVersion: 7,
     administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
     originLat: null, originLng: null, radiusM: null, startAt: new Date(2026, 10, 14, 19).toISOString(),
   })
 })
 
-it('edits the group size and budget mode through the existing constraints endpoint', async () => {
+it('F-12 omits unchanged currency when editing the group size and budget mode', async () => {
   await openArea()
   await press(screen.getByRole('button', { name: i18n.t('groupSetup.increase') }))
   await press(screen.getByRole('button', { name: i18n.t('groupSetup.groupTotal') }))
   await confirmEditor()
   await confirmEditor()
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
-    budgetMode: 'total', budgetAmount: 300000, currency: 'VND', participantCount: 5, expectedConstraintVersion: 7,
+    budgetMode: 'total', budgetAmount: 300000, participantCount: 5, expectedConstraintVersion: 7,
   }))
 })
 
@@ -647,7 +647,7 @@ it('uses the returned constraint version for a second edit in the same open shee
   await confirmEditor()
   await confirmEditor()
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
-  expect(mockPatch.mock.calls[1][1]).toEqual({ budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', expectedConstraintVersion: 8 })
+  expect(mockPatch.mock.calls[1][1]).toEqual({ budgetMode: 'per_person', budgetAmount: 300000, expectedConstraintVersion: 8 })
 })
 
 it.each(['active', 'completed', 'cancelled'] as const)('keeps the unified editor locked in %s', async status => {
@@ -675,4 +675,179 @@ it.each(['vi', 'en'])('keeps compact aligned schedule fields in %s', async langu
       expect(column.children[0]).toBe(label)
     }
   } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
+
+
+it.each([500000, 100000])('F-10 reloads explicitly after conflict and reconciles a draft against server budget %s', async budgetAmount => {
+  const { ApiError } = jest.requireActual('@/shared/api/errors') as typeof import('@/shared/api/errors')
+  mockPatch.mockRejectedValueOnce(new ApiError(409, { code: 'CONSTRAINT_VERSION_CONFLICT', message: 'changed elsewhere' }))
+  const startAt = new Date(2026, 10, 15, 20, 0, 30).toISOString()
+  const fresh = roomFor('group-host', { title: 'Tên từ thiết bị khác', constraintVersion: 12, participantCount: 6, constraints: {
+    budgetMode: 'total', budgetAmount, currency: 'VND', administrativeArea: mockArea, startAt,
+  } })
+  let finish!: (value: { data: typeof fresh, isError: boolean }) => void
+  const refetch = jest.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  mockRoom.query.refetch = refetch
+  await openArea()
+  await chooseBudget()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByText(`Ngân sách: ${i18n.t('roomManage.conflict')}`)).toBeTruthy())
+  expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
+  // Background query updates alone must never advance the editor's version.
+  mockRoom.query.data = fresh
+  await screen.rerender(<RoomManageScreen />)
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('')
+  expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+  await press(screen.getByRole('button', { name: i18n.t('roomEdit.reload') }))
+  expect(refetch).toHaveBeenCalledWith({ cancelRefetch: false })
+  const modal = screen.getByTestId('room-edit-sheet-modal')
+  expect(within(modal).getByTestId('blocking-loading-overlay')).toBeTruthy()
+  await act(async () => { await fireEvent(modal, 'requestClose') })
+  expect(screen.getByTestId('room-edit-sheet')).toBeTruthy()
+  await act(async () => finish({ data: fresh, isError: false }))
+  await waitFor(() => expect(screen.queryByRole('button', { name: i18n.t('roomEdit.reload') })).toBeNull())
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('Tên từ thiết bị khác')
+  expect(screen.getByLabelText('Bắt đầu').props.value).toBe('15/11/2026 20:00')
+  expect(screen.getByText(i18n.t('groupSetup.people', { n: 6 }))).toBeTruthy()
+  expect(screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!.props.accessibilityState.selected).toBe(true)
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(budgetAmount === 500000)
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+  if (budgetAmount === 500000) {
+    // A later edit must still use the reloaded version and budget mode.
+    await press(screen.getByRole('button', { name: i18n.t('groupSetup.increase') }))
+  }
+  await confirmEditor()
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
+  expect(mockPatch.mock.calls[1][1]).toEqual({
+    budgetMode: 'total', budgetAmount: 500000, expectedConstraintVersion: 12,
+    ...(budgetAmount === 500000 ? { participantCount: 7 } : {}),
+  })
+  expect(mockRename).not.toHaveBeenCalled()
+})
+
+it('F-10 keeps the draft and saving blocked when reload fails, then permits a fresh retry', async () => {
+  const { ApiError } = jest.requireActual('@/shared/api/errors') as typeof import('@/shared/api/errors')
+  mockPatch.mockRejectedValueOnce(new ApiError(409, { code: 'CONSTRAINT_VERSION_CONFLICT', message: 'changed elsewhere' }))
+  const fresh = roomFor('group-host', { constraintVersion: 10 })
+  const refetch = jest.fn().mockResolvedValueOnce({ isError: true, error: new Error('offline'), data: fresh })
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValueOnce({ isError: false, data: fresh })
+  mockRoom.query.refetch = refetch
+  await openArea()
+  await typeField('Tên kèo', 'Tên mới')
+  await chooseBudget()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByText(`Ngân sách: ${i18n.t('roomManage.conflict')}`)).toBeTruthy())
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await press(screen.getByRole('button', { name: i18n.t('roomEdit.reload') }))
+    await waitFor(() => expect(screen.getByText(i18n.t('roomEdit.reloadFailed'))).toBeTruthy())
+    mockRoom.query.isError = true
+    mockRoom.query.error = new Error('refetch failed')
+    await screen.rerender(<RoomManageScreen />)
+    expect(screen.getByTestId('room-edit-sheet')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
+    expect(screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!.props.accessibilityState.selected).toBe(true)
+    expect(mockPatch).toHaveBeenCalledTimes(1)
+  }
+  await press(screen.getByRole('button', { name: i18n.t('roomEdit.reload') }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled())
+  // The successful title became clean before conflict; reload adopts its server value.
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('')
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
+  expect(mockPatch.mock.calls[1][1]).toEqual({ budgetMode: 'per_person', budgetAmount: 500000, expectedConstraintVersion: 10 })
+  expect(mockRename).toHaveBeenCalledTimes(1)
+})
+
+it('F-11 treats the successfully reselected area as the committed baseline within the same sheet', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: {
+    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: { ...mockArea, status: 'needs_reselection' },
+  } }))
+  await openArea()
+  await chooseArea()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled())
+  await press(screen.getByRole('button', { name: 'Thành phố Hồ Chí Minh' }))
+  await press(screen.getByRole('button', { name: 'Thành phố Hồ Chí Minh' }))
+  expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
+  await confirmEditor()
+  expect(screen.queryByTestId('room-conditions-confirmation')).toBeNull()
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+})
+
+it('blocks an end before the start in the unified editor, including an unchanged stored start', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: {
+    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: mockArea,
+    startAt: new Date(2026, 10, 14, 19).toISOString(), endAt: new Date(2026, 10, 14, 22).toISOString(),
+  } }))
+  await openArea()
+  await typeField('Kết thúc (không bắt buộc)', '14/11/2026 18:00')
+  expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
+  await confirmEditor()
+  expect(screen.queryByTestId('room-conditions-confirmation')).toBeNull()
+  expect(mockPatch).not.toHaveBeenCalled()
+  await typeField('Bắt đầu', '14/11/2026 20:00')
+  expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled()
+  await confirmEditor()
+  expect(mockPatch).not.toHaveBeenCalled()
+  await typeField('Kết thúc (không bắt buộc)', '14/11/2026 21:00')
+  expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeEnabled()
+})
+
+it('reports server ROOM_NOT_EDITABLE on rename without dropping the draft or sending constraints', async () => {
+  const { ApiError } = jest.requireActual('@/shared/api/errors') as typeof import('@/shared/api/errors')
+  mockRename.mockRejectedValueOnce(new ApiError(409, { code: 'ROOM_NOT_EDITABLE', message: 'locked elsewhere' }))
+  await openArea()
+  await typeField('Tên kèo', 'Tên chưa lưu')
+  await chooseBudget()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByText(`Tên kèo: ${i18n.t('roomTitle.locked')}`)).toBeTruthy())
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('Tên chưa lưu')
+  expect(screen.getByTestId('room-edit-sheet')).toBeTruthy()
+  expect(mockRename).toHaveBeenCalledWith('room-1', { title: 'Tên chưa lưu' })
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: i18n.t('roomEdit.reload') })).toBeNull()
+})
+
+
+it('F-10 preserves still-different title and schedule edits while cleaning an area now equal to the server', async () => {
+  const { ApiError } = jest.requireActual('@/shared/api/errors') as typeof import('@/shared/api/errors')
+  mockPatch.mockRejectedValueOnce(new ApiError(409, { code: 'CONSTRAINT_VERSION_CONFLICT', message: 'changed elsewhere' }))
+  const fresh = roomFor('group-host', { title: 'Tên từ máy khác', constraintVersion: 15, constraints: {
+    budgetMode: 'total', budgetAmount: 100000, currency: 'VND',
+    administrativeArea: { ...mockArea, provinceCode: '79', provinceName: 'Thành phố Hồ Chí Minh', communeCode: null, communeName: null },
+    startAt: new Date(2026, 10, 14, 18).toISOString(), endAt: new Date(2026, 10, 14, 22).toISOString(),
+  } })
+  const refetch = jest.fn().mockResolvedValue({ data: fresh, isError: false })
+  mockRoom.query.refetch = refetch
+  await openArea()
+  await chooseArea()
+  await typeField('Bắt đầu', '14/11/2026 19:00')
+  await typeField('Kết thúc (không bắt buộc)', '14/11/2026 22:00')
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByText(new RegExp(i18n.t('roomManage.conflict')))).toBeTruthy())
+  await typeField('Tên kèo', 'Tên nháp')
+  await press(screen.getByRole('button', { name: i18n.t('roomEdit.reload') }))
+  await waitFor(() => expect(screen.getByText(i18n.t('roomEdit.reloaded'))).toBeTruthy())
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('Tên nháp')
+  expect(screen.getByLabelText('Bắt đầu').props.value).toBe('14/11/2026 19:00')
+  expect(screen.getByLabelText('Kết thúc (không bắt buộc)').props.value).toBe('14/11/2026 22:00')
+  await confirmEditor()
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
+  expect(mockRename).toHaveBeenCalledWith('room-1', { title: 'Tên nháp' })
+  expect(mockPatch.mock.calls[1][1]).toEqual({
+    budgetMode: 'total', budgetAmount: 100000, expectedConstraintVersion: 15,
+    startAt: new Date(2026, 10, 14, 19).toISOString(),
+  })
 })

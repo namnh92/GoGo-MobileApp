@@ -24,20 +24,22 @@ import { styles } from './room-editor.style'
 
 const EDITABLE: readonly RoomSummary['status'][] = ['draft', 'collecting', 'matching', 'ready']
 
-/** Mounted only while the sheet is open, so each opening starts from the room.
- * The snapshot stays fixed across query updates and partial endpoint success. */
-export function RoomEditor({ room, close, confirmConditions, onPendingChange, onChoosingChange }: {
+/** Query updates never replace an open draft. Conflict recovery explicitly
+ * reloads the baseline while preserving fields the user still wants to change. */
+export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendingChange, onChoosingChange }: {
   room: RoomSummary
+  reloadRoom: () => Promise<RoomSummary>
   close: () => void
   confirmConditions: ConfirmConditions
   onPendingChange: (value: boolean) => void
   onChoosingChange: (value: boolean) => void
 }) {
   const { t } = useTranslation()
-  const [initial] = useState(room)
+  const [initial, setInitial] = useState(room)
   const [base, setBase] = useState(() => roomEditorDefaults(initial))
   const [scheduleWindow, setScheduleWindow] = useState({ start: initial.constraints?.startAt ?? initial.scheduledDate, end: initial.constraints?.endAt })
   const [areaReselected, setAreaReselected] = useState(false)
+  const [areaNeedsReselection, setAreaNeedsReselection] = useState(initial.constraints?.administrativeArea?.status === 'needs_reselection')
   const [areaValid, setAreaValid] = useState(false)
   const [choosingLevel, setChoosingLevel] = useState<AdministrativePickerLevel>(null)
   const choosing = choosingLevel !== null
@@ -45,6 +47,7 @@ export function RoomEditor({ room, close, confirmConditions, onPendingChange, on
   const submitting = useRef(false)
   const constraintVersion = useRef(initial.constraintVersion)
   const [notice, setNotice] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
   const rename = useRenameRoom(room.id)
   const update = useUpdateRoomConstraints(room.id)
   const location = useCurrentLocation()
@@ -52,16 +55,54 @@ export function RoomEditor({ room, close, confirmConditions, onPendingChange, on
   useEffect(() => { onPendingChange(pending) }, [pending, onPendingChange])
   const form = useForm<RoomEditorValues>({ resolver: zodResolver(roomEditorSchema), defaultValues: base, mode: 'onChange' })
   const values = useWatch({ control: form.control }) as RoomEditorValues
-  const changed = roomEditorChanges(values, base, areaReselected && initial.constraints?.administrativeArea?.status === 'needs_reselection')
+  const changed = roomEditorChanges(values, base, areaReselected && areaNeedsReselection)
   const constraintsChanged = Object.entries(changed).some(([key, dirty]) => key !== 'title' && dirty)
   const scheduleValid = validRoomEditorSchedule(values, changed, scheduleWindow)
-  const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status)
+  const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status) && initial.myRole === 'host' && EDITABLE.includes(initial.status)
   const valid = roomEditorSchema.safeParse(values).success && scheduleValid && (!changed.area || areaValid)
     && (!changed.participantCount || room.type !== 'group' || values.participantCount >= 3) && (!constraintsChanged || !!initial.constraints)
   const currency = initial.constraints?.currency ?? 'VND'
 
+  async function reloadAfterConflict() {
+    if (submitting.current || pending || !conflict) return
+    submitting.current = true
+    setPending(true)
+    try {
+      const fresh = await reloadRoom()
+      const draft = form.getValues()
+      const dirty = roomEditorChanges(draft, base, areaReselected && areaNeedsReselection)
+      const freshBase = roomEditorDefaults(fresh)
+      // Untouched fields adopt concurrent edits. Still-different draft fields
+      // stay dirty against the new baseline; equal fields naturally become clean.
+      form.reset({
+        ...freshBase,
+        ...(dirty.title ? { title: draft.title } : {}),
+        ...(dirty.area || dirty.gps ? { area: draft.area, gps: draft.gps } : {}),
+        ...(dirty.radiusM || dirty.gps ? { radiusM: draft.radiusM } : {}),
+        ...(dirty.budgetAmount ? { budgetAmount: draft.budgetAmount } : {}),
+        ...(dirty.budgetMode ? { budgetMode: draft.budgetMode } : {}),
+        ...(dirty.participantCount ? { participantCount: draft.participantCount } : {}),
+        ...(dirty.start ? { start: draft.start } : {}),
+        ...(dirty.end ? { end: draft.end } : {}),
+      })
+      setBase(freshBase)
+      setInitial(fresh)
+      constraintVersion.current = fresh.constraintVersion
+      setScheduleWindow({ start: fresh.constraints?.startAt ?? fresh.scheduledDate, end: fresh.constraints?.endAt })
+      setAreaNeedsReselection(fresh.constraints?.administrativeArea?.status === 'needs_reselection')
+      setAreaReselected(areaReselected && (dirty.area || dirty.gps))
+      setConflict(false)
+      setNotice(t('roomEdit.reloaded'))
+    } catch {
+      setNotice(t('roomEdit.reloadFailed'))
+    } finally {
+      submitting.current = false
+      setPending(false)
+    }
+  }
+
   async function submit(value: RoomEditorValues) {
-    if (submitting.current || pending || !canEdit || !valid || (!changed.title && !constraintsChanged)) return
+    if (submitting.current || pending || conflict || !canEdit || !valid || (!changed.title && !constraintsChanged)) return
     submitting.current = true
     // Guard repeated presses while waiting for the stale warning too.
     if (constraintsChanged && !await confirmConditions()) { submitting.current = false; return }
@@ -89,7 +130,6 @@ export function RoomEditor({ room, close, confirmConditions, onPendingChange, on
           expectedConstraintVersion: constraintVersion.current,
           budgetMode: value.budgetMode,
           budgetAmount: value.budgetAmount,
-          ...(changed.budgetAmount || changed.budgetMode ? { currency } : {}),
           ...(changed.area && value.area ? {
             administrativeArea: { datasetVersion: value.area.datasetVersion, provinceCode: value.area.provinceCode, communeCode: value.area.communeCode },
             // F-04: a manual area replaces the GPS filter atomically.
@@ -108,10 +148,12 @@ export function RoomEditor({ room, close, confirmConditions, onPendingChange, on
         constraintVersion.current = updated.constraintVersion
         setScheduleWindow(previous => ({ start: patch.startAt ?? previous.start, end: patch.endAt === null ? undefined : patch.endAt ?? previous.end }))
         setBase(value)
+        if (changed.area || changed.gps) setAreaNeedsReselection(false)
         setAreaReselected(false)
       }
       setNotice(t(constraintsChanged ? 'roomManage.savedStale' : value.title.trim() ? 'roomTitle.saved' : 'roomTitle.cleared'))
     } catch (error) {
+      if (isApiError(error) && error.status === 409 && error.code !== 'ROOM_NOT_EDITABLE') setConflict(true)
       const reason = isApiError(error) && error.code === 'ROOM_NOT_EDITABLE' ? t('roomTitle.locked')
         : isApiError(error) && error.status === 409 ? t('roomManage.conflict') : t('roomManage.saveFailed')
       setNotice(t('roomEdit.failedFields', { fields: failedFields, reason }))
@@ -125,7 +167,7 @@ export function RoomEditor({ room, close, confirmConditions, onPendingChange, on
     if (pending || !canEdit || submitting.current) return
     submitting.current = true
     setPending(true)
-    setNotice(null)
+    if (!conflict) setNotice(null)
     try {
       const result = await location.request()
       if (result?.status === 'granted') {
@@ -191,10 +233,11 @@ export function RoomEditor({ room, close, confirmConditions, onPendingChange, on
       {!canEdit ? <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text> : null}
       <SheetActions>
         <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={pending} />
-        <PrimaryBtn label={t('roomEdit.saveSchedule')} disabled={pending || !canEdit || !valid || (!changed.title && !constraintsChanged)}
+        <PrimaryBtn label={t('roomEdit.saveSchedule')} disabled={pending || conflict || !canEdit || !valid || (!changed.title && !constraintsChanged)}
           loading={pending} onPress={() => void form.handleSubmit(submit)()} />
       </SheetActions>
       {notice ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">{notice}</Text> : null}
+      {conflict ? <SecondaryBtn label={t('roomEdit.reload')} disabled={pending} onPress={() => void reloadAfterConflict()} /> : null}
     </View>
   </View>
   return choosing ? body : <ScrollView style={styles.shrink} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bounces={false}>{body}</ScrollView>

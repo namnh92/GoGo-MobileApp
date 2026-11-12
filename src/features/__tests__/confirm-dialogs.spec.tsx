@@ -166,7 +166,7 @@ it('595 unified sheet uses selected budget chips and retains version and unit', 
   expect(view.getAllByRole('button').some(node => node.props.accessibilityState?.selected === true)).toBe(true)
   await press(view.getByRole('button', { name: 'Xác nhận' }))
   await press(view.getByRole('button', { name: 'Xác nhận' }))
-  expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ expectedConstraintVersion: 9, budgetMode: room.constraints!.budgetMode, currency: room.constraints!.currency }))
+  expect(mockUpdateConstraints).toHaveBeenCalledWith({ expectedConstraintVersion: 9, budgetMode: room.constraints!.budgetMode, budgetAmount: 500000 })
 })
 
 
