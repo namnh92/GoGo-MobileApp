@@ -1,44 +1,34 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
-import { onlineManager } from '@tanstack/react-query'
-import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, Platform, ScrollView, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { AccessibilityInfo, ScrollView, View } from 'react-native'
 
 import {
-  isRetryable,
   memberProgress,
   roomCapabilities,
-  type MemberSelectionStatus,
-  type RoomMember,
   type RoomSummary,
-  useCreateRoomInvite,
   useCurrentPlan,
   useCurrentSuggestions,
-  useRevokeRoomInvite,
   useRoom,
-  useRoomInvites,
+  useSeedPlaceDetails,
   useRoomRealtime,
   useStartMatching,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { useSession } from '@/shared/providers/session-provider'
-import { formatMoney } from '@/shared/pricing/money'
-import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
+import { roomBudgetLabel } from '@/shared/pricing/budget-unit'
 import { isUuid } from '@/shared/navigation/deep-link'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { decisionScreen, PLAN_RETRY_NOTICE, PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-routing'
 import { markRoomStepShown, planStep, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
-import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigation/routing-hold'
+import { alertWithHold, useRoutingHold } from '@/shared/navigation/routing-hold'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
-import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -46,14 +36,13 @@ import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { spacing } from '@/shared/ui/tokens'
 
-import { useInviteExpiry } from './use-invite-expiry'
-import { resolveInviteDisplay } from './invite-state'
-import { roomInviteUrl, shareRoomInvite } from './invite-share'
-import { roomScheduleLabel, roomScheduleRangeLabel } from './room-schedule'
+import { roomScheduleRangeLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { RoomFacts } from './room-facts.view'
+import { RoomMembers } from './room-members.view'
+import { RoomSeeds } from './room-seeds.view'
+import { useRoomHostActions } from './room-host-actions.view'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
-import type { MessageKey } from '@/shared/i18n/types'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
 /** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
@@ -83,33 +72,9 @@ const ROW_ICON: Record<RowTone, 'accent.primary' | 'status.infoText' | 'status.s
   warning: 'status.warningText',
 }
 
-function initial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?'
-}
-
-/**
- * The lobby's whole job is answering "are we waiting on anyone?" (spec §16).
- * `selectionStatus` already carries that; before this it only fed a counter,
- * so a host could see 2/4 without knowing which two.
- */
-const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'default' | 'warning' | 'positive' }> = {
-  pending: { key: 'gogoRoom.status.waiting', variant: 'default' },
-  in_progress: { key: 'gogoRoom.status.choosing', variant: 'warning' },
-  completed: { key: 'gogoRoom.status.completed', variant: 'positive' },
-}
-
-export interface GoGoRoomScreenProps {
-  /** #649: wire the dedicated BE#861 code field here when available. Never pass the invite token. */
-  roomCode?: string | null
-}
-
-export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
-  const displayRoomCode = roomCode && /^[0-9]{6}$/.test(roomCode) ? roomCode : null
+export default function GoGoRoomScreen() {
   const [actionHeight, setActionHeight] = useState(0)
   const actionInset = useBottomBarInset(actionHeight)
-  const { theme } = useUnistyles()
-  // Avatar fills after the first, which is the theme accent (#297); the rest follow the theme.
-  const avatarColors = [theme.accent.primary, theme.status.info, theme.status.success, theme.status.warning]
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { roomId, notice } = useLocalSearchParams<{ roomId: string; notice?: string }>()
@@ -119,10 +84,6 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
   const validRoomId = isUuid(roomId) ? roomId : undefined
 
   const rememberRoom = useRecentRoomsStore(state => state.remember)
-  const [codeCopied, setCodeCopied] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-
   const room = useRoom(validRoomId)
   const summary = room.data
   const capabilities = roomCapabilities(summary)
@@ -131,16 +92,9 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
   // layer owns how that freshness arrives.
   const focused = useScreenFocused()
   const realtime = useRoomRealtime(validRoomId, 'lobby', { enabled: focused && validRoomId !== undefined })
-  // Invites are host-only on the server; a member's device neither lists them
-  // nor reads a stored code (#199).
-  const inviteRoomId = capabilities.canInvite ? validRoomId : undefined
-  const invites = useRoomInvites(inviteRoomId)
-  const createInvite = useCreateRoomInvite(inviteRoomId)
-  const revokeInvite = useRevokeRoomInvite(validRoomId ?? '')
+  const seedDetails = useSeedPlaceDetails(summary?.seedPlaces ?? [])
   const startMatching = useStartMatching(roomId)
   const starting = useRef(false)
-
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   useEffect(() => {
     if (summary) rememberRoom(summary)
@@ -177,6 +131,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
 
   // A share sheet or a confirmation is up: the person is mid-action here.
   const routingHold = useRoutingHold()
+  const hostActions = useRoomHostActions(summary, validRoomId, routingHold.hold)
   // A start that failed after the server had made its run leaves the host here;
   // counting failures makes the routing below look again.
   const [startFailures, setStartFailures] = useState(0)
@@ -240,119 +195,6 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
     markRoomStepShown(validRoomId, nextStep)
   }, [validRoomId, nextStep, nextPath, focused, routingHold.held, startFailures, navTick, navigation, router])
 
-  // A cold start can restore the room and its invites from disk before the
-  // session is back. Until it is, this device's stored code is unknown, not
-  // absent: judging then would offer to re-issue the host's own live code.
-  const sessionHydrating = useSession().status === 'hydrating'
-  const [inviteClock, setInviteClock] = useState(() => Date.now())
-  // The API lists invites without codes; this device holds the code it created.
-  const storedInvite = createInvite.stored
-  const { display: inviteDisplay, forget: forgetStoredInvite } = resolveInviteDisplay({
-    stored: !inviteRoomId ? null : sessionHydrating ? undefined : storedInvite,
-    invites: invites.data,
-    // Paused (offline) with nothing loaded is as unreadable as a failure.
-    invitesFailed: invites.isError || (invites.isPaused && invites.data === undefined),
-    listIsCurrent: invites.status === 'success' && !invites.isFetching
-      && invites.dataUpdatedAt > (storedInvite?.savedAt ?? 0),
-    now: inviteClock,
-  })
-  const shownExpiry = inviteDisplay.kind === 'code' || inviteDisplay.kind === 'active-elsewhere'
-    ? inviteDisplay.expiresAt : null
-  useInviteExpiry(shownExpiry ? Date.parse(shownExpiry) : undefined, setInviteClock, inviteClock)
-  // Revoked, expired, used up or no longer listed: the code can never let anyone in.
-  const deadInviteId = forgetStoredInvite ? storedInvite?.inviteId : undefined
-  const forgetInvite = createInvite.forget
-  useEffect(() => {
-    if (deadInviteId) void forgetInvite(deadInviteId)
-  }, [deadInviteId, forgetInvite])
-  // Another phone can revoke or re-issue while this one is in the background.
-  const refetchInvites = invites.refetch
-  useEffect(() => {
-    if (focused && inviteRoomId) void refetchInvites({ cancelRefetch: false })
-  }, [focused, inviteRoomId, refetchInvites])
-  const inviteCode = inviteDisplay.kind === 'code' ? inviteDisplay.code : null
-  const creatingInvite = useRef(false)
-  async function generateInvite() {
-    if (!capabilities.canInvite || creatingInvite.current || inviteDisplay.kind !== 'none') return
-    creatingInvite.current = true
-    try {
-      await createInvite.mutateAsync({ maxUses: 20 })
-    } catch {
-      // Never retry from render, polling or foreground events.
-    } finally {
-      creatingInvite.current = false
-    }
-  }
-
-  const [reissueFailed, setReissueFailed] = useState(false)
-  // A failed re-issue belongs to the card state it happened in; adjusted during
-  // render so the message goes the moment the card moves on.
-  const [reissueKind, setReissueKind] = useState(inviteDisplay.kind)
-  if (reissueKind !== inviteDisplay.kind) {
-    setReissueKind(inviteDisplay.kind)
-    setReissueFailed(false)
-  }
-  /**
-   * Other devices hold the codes: revoke every usable invite (duplicates would
-   * keep letting people in), then mint exactly one new one.
-   */
-  /**
-   * The usable set as the server has it at confirmation, not as the card last
-   * saw it: an invite another phone created meanwhile must be revoked too.
-   * `null` when this device's own code turns out to be the live one.
-   */
-  async function usableInviteIds(seen: readonly string[]): Promise<readonly string[] | null> {
-    if (!onlineManager.isOnline()) return seen
-    const fresh = await invites.refetch({ cancelRefetch: false })
-    if (fresh.status !== 'success') return seen
-    const { display } = resolveInviteDisplay({
-      stored: storedInvite ?? null,
-      invites: fresh.data,
-      invitesFailed: false,
-      listIsCurrent: true,
-      now: Date.now(),
-    })
-    if (display.kind === 'code') return null
-    return display.kind === 'active-elsewhere' ? display.inviteIds : []
-  }
-
-  async function reissueInvite(inviteIds: readonly string[]) {
-    if (!capabilities.canInvite || creatingInvite.current) return
-    creatingInvite.current = true
-    // #198 — the lobby must not route the host away while old codes are revoked
-    // and the new one is made; the new code is shown here.
-    const release = routingHold.hold()
-    setReissueFailed(false)
-    try {
-      try {
-        const current = await usableInviteIds(inviteIds)
-        if (current === null) return
-        for (const inviteId of current) await revokeInvite.mutateAsync(inviteId)
-      } catch {
-        setReissueFailed(true)
-        return
-      }
-      // One create per confirmed re-issue; a failure shows below and waits for the host.
-      await createInvite.mutateAsync({ maxUses: 20 }).then(() => setReissueFailed(false), () => undefined)
-    } finally {
-      creatingInvite.current = false
-      release()
-    }
-  }
-
-  function confirmReissue(inviteIds: readonly string[]) {
-    // A confirmation is up: routing waits until it is answered (#198).
-    alertWithHold(
-      routingHold.hold,
-      t('gogoRoom.reissueTitle'),
-      t(inviteIds.length > 1 ? 'gogoRoom.reissueBodyMany' : 'gogoRoom.reissueBody', { n: inviteIds.length }),
-      [
-        { text: t('gogoRoom.reissueCancel'), style: 'cancel' },
-        { text: t('gogoRoom.reissueConfirm'), style: 'destructive', onPress: () => { void reissueInvite(inviteIds) } },
-      ],
-    )
-  }
-
   if (!validRoomId) {
     return (
       <Atmosphere>
@@ -404,10 +246,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
   }
 
   const roomType = summary.type
-  const participantCount = summary.participantCount
-  const members = summary.members ?? []
   const progress = memberProgress(summary)
-  const inviteUrl = inviteCode ? roomInviteUrl(inviteCode) : null
   const joinable = JOINABLE.includes(summary.status)
   // The same facts the auto-route reads: a confirmed run that sends this member to the deck,
   // and at least one card still without their vote. Finished, empty or moved on: no button.
@@ -416,59 +255,6 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
   const continueVoting = status === 'matching' && screen === 'swipe' && candidatesLeft && Boolean(nextPath)
   const startVisible =
     capabilities.isHost && (summary.matching?.canStart ?? (progress.completed >= 2 && progress.completed === progress.total))
-
-  function flash(setter: (value: boolean) => void) {
-    setter(true)
-    timers.current.push(setTimeout(() => setter(false), 2000))
-  }
-
-  /**
-   * The code as the server still honours it. Another phone may have revoked it
-   * since the last refetch, so it is checked before it is handed out; offline,
-   * the stored code is still the best answer.
-   */
-  async function verifiedInviteCode(): Promise<string | null> {
-    // A closed room refuses joins (410): there is nothing worth handing out.
-    if (!inviteCode || !joinable) return null
-    if (!onlineManager.isOnline()) return inviteCode
-    const fresh = await invites.refetch({ cancelRefetch: false })
-    if (fresh.status !== 'success') return inviteCode
-    const { display } = resolveInviteDisplay({
-      stored: storedInvite,
-      invites: fresh.data,
-      invitesFailed: false,
-      listIsCurrent: true,
-      now: Date.now(),
-    })
-    return display.kind === 'code' ? display.code : null
-  }
-
-  async function copyCode() {
-    if (!displayRoomCode || !await verifiedInviteCode()) return
-    track('gogo_invite_copied', { channel: 'code' })
-    void Clipboard.setStringAsync(displayRoomCode).catch(() => {})
-    flash(setCodeCopied)
-  }
-
-  async function invite() {
-    // Held from the tap: checking the code is a network read, and routing away
-    // in that window would open the share sheet over another screen (#198).
-    const release = routingHold.hold()
-    let shareCalled = false
-    try {
-      const code = await verifiedInviteCode()
-      if (!code) return
-      track('gogo_invite_shared', { channel: 'native_share', roomType })
-      shareCalled = true
-      if (await shareRoomInvite(code, t('gogoRoom.title', { context: roomType })).catch(() => null) === 'copied') {
-        flash(setLinkCopied)
-      }
-    } finally {
-      // iOS resolves when the sheet closes; Android as soon as the chooser opens.
-      if (shareCalled && Platform.OS === 'android') releaseOnReturn(release)
-      else release()
-    }
-  }
 
   async function beginMatching(allowIncompletePreferences = false) {
     if (starting.current) return
@@ -516,7 +302,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
       One dominant CTA per screen (spec §7). Choosing your own preferences
       is the room's main job; once everyone has finished, the host's start
       takes over as the dominant one. Host-only either way, and
-      server-enforced. Inviting lives in the code card above.
+      server-enforced. Inviting lives in the header.
     */}
     {!capabilities.isHost && joinable ? <View style={styles.waitingNotice}><Icon name="clock" size={20} color="text.secondary" /><Text variant="bodySmall" color="text.secondary" style={styles.infoValue}>{t('roomLobby.waitHost')}</Text></View> : null}
     {startVisible || continueVoting ? (
@@ -566,9 +352,10 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
 
   return (
     <Atmosphere>
-      <BlockingLoadingOverlay visible={startMatching.isPending || createInvite.isPending || revokeInvite.isPending} />
+      <BlockingLoadingOverlay visible={startMatching.isPending} />
+      {hostActions.dialogs}
       <View>
-        <AppHeader title={t(roomType === 'couple' ? 'roomLobby.coupleTitle' : capabilities.isHost ? 'gogoRoom.title_group' : 'roomLobby.group')} onBack={() => goBackOrHome(router)} />
+        <AppHeader titleNumberOfLines={1} testID="room-lobby-header" title={summary.title?.trim() || t(roomType === 'couple' ? 'roomLobby.coupleTitle' : capabilities.isHost ? 'gogoRoom.title_group' : 'roomLobby.group')} rightAction={hostActions.headerAction} onBack={() => goBackOrHome(router)} />
       </View>
       <RoomConnectionNotice
         roomId={validRoomId}
@@ -582,81 +369,17 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
           {planNotice === PLAN_RETRY_NOTICE ? t('gogoRoom.planRetry') : t('gogoRoom.planUnavailable')}
         </Text>
       ) : null}
-      <PullToRefresh onRefresh={async () => { await room.refetch() }}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: actionInset + spacing[4] }]}>
-        {roomType === 'couple' || !capabilities.isHost ? (
-          <Card style={styles.hero}>
-            <View style={styles.badgeRow}><Chip label={t(roomType === 'couple' ? 'roomLobby.couple' : 'roomLobby.group')} variant="info" /></View>
-            <Text variant="title1">{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</Text>
-            <Text variant="body" color="text.secondary">{t('gogoRoom.body', { context: roomType })}</Text>
-          </Card>
-        ) : null}
-
-        {capabilities.canInvite ? (
-          <Card style={styles.codeCard}>
-            {/* A room past collecting refuses new invites (409) and joins (410):
-                say so rather than show controls that cannot work (RULE-CORE-016). */}
-            {!joinable ? <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
-            {joinable && inviteDisplay.kind === 'none' ? (
-              <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite} style={styles.createInvite}
-                loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
-            ) : null}
-            {joinable && inviteDisplay.kind === 'active-elsewhere' ? (
-              <>
-                <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>
-                  {t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })}
-                </Text>
-                <SecondaryBtn
-                  label={t('gogoRoom.reissueInvite')}
-                  onPress={() => confirmReissue(inviteDisplay.inviteIds)}
-                  style={styles.createInvite}
-                  loading={revokeInvite.isPending || createInvite.isPending}
-                />
-              </>
-            ) : null}
-            {joinable && inviteDisplay.kind === 'unknown' ? (
-              <>
-                <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.invitesLoadFailed')}</Text>
-                <GhostBtn label={t('common.retry')} onPress={() => void invites.refetch()} />
-              </>
-            ) : null}
-            {reissueFailed ? (
-              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.reissueFailed')}</Text>
-            ) : null}
-            {createInvite.isError ? (
-              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</Text>
-            ) : null}
-            {displayRoomCode ? <>
-              <Text variant="label" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
-              <View style={styles.codeRow}>
-                <Text testID="invite-code" variant="title1" selectable numberOfLines={1} style={styles.code}>{displayRoomCode}</Text>
-                <SecondaryBtn size="small"
-                  onPress={() => { void copyCode() }}
-                  disabled={!inviteUrl || !joinable}
-                  label={t(codeCopied ? 'common.copied' : 'common.copy')}
-                  icon={codeCopied ? 'check' : 'copy'}
-                  style={styles.copyBtn}
-                />
-              </View>
-            </> : null}
-            <SecondaryBtn
-              label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
-              onPress={invite}
-              disabled={!inviteUrl || !joinable}
-            />
-          </Card>
-        ) : null}
-
+      <PullToRefresh onRefresh={async () => { await Promise.all([room.refetch(), hostActions.refresh(), seedDetails.refetchAll()]) }}>
+      <ScrollView testID="room-lobby-scroll" contentContainerStyle={[styles.content, { paddingBottom: actionInset + spacing[4] }]}>
         {/* What the room is actually constrained by — facts, composed here. */}
-        {summary.constraints || (roomType !== 'couple' && capabilities.isHost && summary.title?.trim()) ? (
-          <Card style={styles.sectionCard}>
+        <Card testID="room-lobby-conditions" style={styles.sectionCard}>
             <View style={styles.sectionHead}>
               <Icon name="sliders" size={20} color="accent.primary" />
-              <Text variant="title2" style={styles.sectionTitle}>{t('gogoRoom.constraints')}</Text>
-              {capabilities.isHost ? <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/manage`)} /> : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>}
+              <Text variant="discoveryHeading" accessibilityRole="header" style={styles.sectionTitle}>{t('gogoRoom.constraints')}</Text>
+              {capabilities.isHost ? <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/edit`)} /> : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>}
             </View>
             <RoomFacts facts={{
-              name: roomType !== 'couple' && capabilities.isHost && summary.title?.trim()
+              name: summary.title?.trim()
                 ? <InfoRow icon="info" tone="info" label={t('roomTitle.title')}>{summary.title.trim()}</InfoRow> : null,
               area: summary.constraints?.administrativeArea ? <>
                 <InfoRow icon="mapPin" tone="accent" label={t('roomLobby.area')}>{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
@@ -666,7 +389,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
               </> : null,
               budget: summary.constraints?.budgetAmount ? (
                 <InfoRow icon="dollar" tone="success" label={t('roomManage.budgetTitle')}>
-                  {`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(summary.constraints.budgetMode, roomType, t)}`}
+                  {roomBudgetLabel(summary.constraints, summary.participantCount, t)}
                 </InfoRow>
               ) : null,
               schedule: summary.constraints?.startAt || summary.scheduledDate ? (
@@ -674,44 +397,10 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
               ) : null,
             }} />
           </Card>
-        ) : null}
 
-        {/* Per-member status, not just a count (spec §16). */}
-        {members.length > 0 ? (
-          <Card style={[styles.sectionCard, roomType === 'group' && capabilities.isHost && styles.groupMembers]}>
-            <View style={styles.sectionHead}>
-              <Icon name="users" size={20} color="accent.primary" />
-              <Text variant="title2" style={styles.sectionTitle}>
-                {t('roomManage.membersTitle')}
-              </Text>
-            </View>
-            <Text variant="caption" color="text.secondary">{t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })} · {t('groupSetup.people', { n: participantCount })}</Text>
-            <View style={styles.memberList}>
-              {members.map((member: RoomMember, index: number) => {
-                const chip = STATUS_CHIP[member.selectionStatus]
-                return (
-                  <View key={member.id} accessible accessibilityLabel={[member.displayName, t(`roomManage.role.${member.role}`), t(chip.key)].join(', ')} style={[styles.memberRow, roomType === 'group' && capabilities.isHost && styles.hostMemberRow]}>
-                    <AvatarCircle
-                      label={initial(member.displayName)}
-                      size={44}
-                      background={avatarColors[index % avatarColors.length]}
-                      imageUri={member.avatarUrl}
-                      host={member.role === 'host'}
-                    />
-                    <View style={styles.memberNameRow}>
-                      <Text variant="body" style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
-                      {member.role !== 'host' && !member.isGuest ? <Chip label={t('roomManage.role.member')} variant="info" /> : null}
-                      {member.isGuest ? (
-                        <Chip label={t('gogoRoom.guestBadge')} variant="info" />
-                      ) : null}
-                    </View>
-                    <Chip label={t(chip.key)} variant={chip.variant} />
-                  </View>
-                )
-              })}
-            </View>
-          </Card>
-        ) : null}
+        <RoomMembers room={summary} onRefresh={() => room.refetch()} hold={routingHold.hold} />
+        <RoomSeeds room={summary} details={seedDetails} onRefresh={() => room.refetch()} hold={routingHold.hold} />
+        {hostActions.group}
       </ScrollView>
       </PullToRefresh>
       <GlassBar testID="room-lobby-actions" placement="floating" onHeightChange={setActionHeight}>{actions}</GlassBar>

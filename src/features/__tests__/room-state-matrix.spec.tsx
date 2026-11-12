@@ -133,7 +133,7 @@ describe('room hub × audience', () => {
     expect(view.queryByText('Chủ phòng')).toBeNull()
     expect(view.getByTestId('avatar-host-badge')).toBeTruthy()
     const heading = view.getByText('Điều kiện phòng')
-    expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ ...type.title2, color: text.primary })
+    expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ ...type.discoveryHeading, color: text.primary })
   })
 
   it('gives a member a different screen than a host', async () => {
@@ -177,7 +177,7 @@ describe('room hub × budget unit', () => {
       constraints: { ...room.constraints, budgetMode: 'per_person', budgetAmount: 300_000 },
     })
     const view = await renderScreen(<GoGoRoomScreen />)
-    expect(view.getByText(/\/người/)).toBeTruthy()
+    expect(view.getByText(/\/ người/)).toBeTruthy()
     expect(view.queryByText(/cho 2 người/)).toBeNull()
   })
 
@@ -188,7 +188,7 @@ describe('room hub × budget unit', () => {
       constraints: { ...room.constraints, budgetMode: 'total', budgetAmount: 500_000 },
     })
     const view = await renderScreen(<GoGoRoomScreen />)
-    expect(view.getByText(/cho 2 người/)).toBeTruthy()
+    expect(view.getByText('500.000đ / cả phòng (2 người)')).toBeTruthy()
     expect(view.queryByText(/tổng nhóm/)).toBeNull()
   })
 
@@ -199,7 +199,7 @@ describe('room hub × budget unit', () => {
       constraints: { ...room.constraints, budgetMode: 'total', budgetAmount: 1_500_000 },
     })
     const view = await renderScreen(<GoGoRoomScreen />)
-    expect(view.getByText(/tổng nhóm/)).toBeTruthy()
+    expect(view.getByText('1.500.000đ / cả phòng (4 người)')).toBeTruthy()
   })
 })
 
@@ -326,8 +326,10 @@ describe.each(['orange', 'orangeDark'] as const)('595 lobby audience × state re
     const data = roomFor('group-host')
     mockRoom.query = loaded({ ...data, participantCount: 7, members: Array.from({ length: 7 }, (_, i) => ({ ...data.members![0], id: `p${i}`, displayName: `Member ${i}` })) })
     const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
-    for (let i = 0; i < 7; i++) expect(view.getByText(`Member ${i}`)).toBeTruthy()
-    expect(view.getByText(/7 người/)).toBeTruthy()
+    for (let i = 0; i < 5; i++) expect(view.getByText(`Member ${i}`)).toBeTruthy()
+    expect(view.queryByText('Member 5')).toBeNull()
+    await fireEvent.press(view.getByRole('button', { name: 'Xem tất cả (7)' }))
+    for (let i = 0; i < 7; i++) expect(within(view.getByTestId('room-lobby-members-sheet')).getByText(`Member ${i}`)).toBeTruthy()
   })
 })
 
@@ -361,16 +363,16 @@ it.each(['couple', 'group-guest'] as const)('595 owner sim shared fixed action s
 
 
 describe.each(['orange', 'orangeDark'] as const)('595 owner sim lobby / %s', theme => {
-  it.each(AUDIENCES)('removes manage, header share and no-app copy; preserves host edit / %s', async audience => {
+  it.each(AUDIENCES)('removes manage and no-app copy; adds host header share; preserves host edit / %s', async audience => {
     mockRoom.query = loaded(roomFor(audience))
     const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
     expect(view.queryByRole('button', { name: 'Quản lý phòng' })).toBeNull()
-    expect(within(view.getByTestId('app-header')).queryByRole('button', { name: 'Mời người tham gia' })).toBeNull()
+    expect(within(view.getByTestId('room-lobby-header')).queryByRole('button', { name: 'Mời người tham gia' }) !== null).toBe(audience !== 'group-guest')
     expect(view.queryByText(/không cần cài app/)).toBeNull()
     if (audience === 'group-guest') expect(view.queryByText('Sửa')).toBeNull()
     else {
       await fireEvent.press(view.getByText('Sửa'))
-      expect(mockPush).toHaveBeenCalledWith(`/room/${mockParams.roomId}/manage`)
+      expect(mockPush).toHaveBeenCalledWith(`/room/${mockParams.roomId}/edit`)
     }
   })
 

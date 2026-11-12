@@ -234,11 +234,28 @@ it.each(['title', 'constraints', 'both'] as const)('stays and hides the overlay 
   expect(mockPatch).toHaveBeenCalledTimes(path === 'title' ? 0 : 2)
 })
 
-it('replaces the manage route on success when there is no back stack', async () => {
+it('replaces the lobby route on success when there is no back stack', async () => {
   mockCanGoBack.mockReturnValue(false)
   await beginSave('title')
-  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/room/room-1/manage'))
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/room/room-1'))
   expect(mockBack).not.toHaveBeenCalled()
   expect(mockPrevent.enabled).toBe(false)
   expect(screen.queryByTestId('room-edit-discard')).toBeNull()
+})
+
+it('round 6h omits the leftover custom schedule caption for off-preset edit times', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraints: { ...constraints,
+    startAt: iso(14, 19, 17), endAt: iso(14, 22, 43),
+  } }))
+  await open()
+  expect(screen.queryByTestId('create-time-custom')).toBeNull()
+  expect(screen.queryByText('Lịch tùy chỉnh')).toBeNull()
+})
+
+it('round 6h omits custom schedule copy in the wizard with no duration selected', async () => {
+  useRoomStore.setState({ startTime: '19:17', endTime: '22:43', scheduleDay: '2026-11-14', durationPreset: null })
+  await render(<CreateTimeScreen />, client)
+  expect(screen.getByText(i18n.t('createTime.durationLabel'))).toBeTruthy()
+  expect(screen.queryByText('Lịch tùy chỉnh')).toBeNull()
+  expect(screen.queryByTestId('create-time-custom')).toBeNull()
 })

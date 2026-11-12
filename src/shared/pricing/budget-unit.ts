@@ -49,3 +49,12 @@ export function budgetFact(
     spoken: t('plans.budgetTotalA11y', { amount, n: participantCount }),
   }
 }
+
+/** Full room facts share a whole amount and its explicit participant scope. */
+export function roomBudgetLabel(
+  budget: { budgetAmount: number; budgetMode?: BudgetMode; currency?: string },
+  participantCount: number,
+  t: TFunction,
+): string {
+  return `${formatMoney(budget.budgetAmount, budget.currency, 'standard')} ${t(budget.budgetMode === 'per_person' ? 'roomBudget.perPerson' : 'roomBudget.total', { n: participantCount })}`
+}

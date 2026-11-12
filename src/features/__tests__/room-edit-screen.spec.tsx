@@ -167,7 +167,8 @@ it('keeps a non-preset sub-minute duration custom instead of selecting a rounded
   mockRoom.query = mockLoaded(roomFor('group-host', { constraints: { ...constraints,
     startAt: new Date(2026, 10, 14, 19, 0, 30).toISOString(), endAt: new Date(2026, 10, 14, 22, 0, 45).toISOString() } }))
   await open()
-  expect(screen.getByTestId('create-time-custom')).toBeTruthy()
+  expect(screen.queryByTestId('create-time-custom')).toBeNull()
+  expect(screen.queryByText('Lịch tùy chỉnh')).toBeNull()
   expect(screen.queryByRole('button', { name: '2–3 giờ' })).toBeNull()
   expect(save()).toBeDisabled()
 })

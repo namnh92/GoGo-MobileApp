@@ -25,7 +25,9 @@ let mockDatasetVersion = 'ds-2026'
 jest.mock('@/shared/location/use-current-location', () => ({
   useCurrentLocation: () => ({ request: mockLocationRequest, state: { status: 'unavailable' } }),
 }))
+jest.mock('@/shared/navigation/deep-link', () => ({ ...jest.requireActual('@/shared/navigation/deep-link'), isUuid: () => true }))
 jest.mock('expo-router', () => ({
+  useNavigationContainerRef: () => ({ isReady: () => true }),
   useRouter: () => ({ push: mockPush, back: mockBack, replace: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
   useFocusEffect: (callback: () => void) => { mockFocus = callback },
@@ -35,8 +37,12 @@ jest.mock('@/shared/api/endpoints/rooms', () => ({
   updateRoomConstraints: (...args: unknown[]) => mockPatch(...args),
   renameRoom: (...args: unknown[]) => mockRename(...args),
 }))
+jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user' }) }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useRoomRealtime: () => ({ status: 'live' }),
+  useCurrentSuggestions: () => mockLoaded(undefined),
+  useCurrentPlan: () => mockLoaded(undefined),
   useRoom: () => mockRoom.query,
   useMyPreferences: () => mockLoaded({ selections: {}, version: 0 }),
   useSaveMyPreferences: () => ({ mutateAsync: jest.fn(), isPending: false }),
@@ -56,7 +62,7 @@ jest.mock('@/shared/administrative/queries', () => ({
   useAdministrativeVersion: () => mockLoaded({ datasetVersion: mockDatasetVersion }),
   useAdministrativeUnits: () => mockLoaded([{ code: '79', fullName: 'Thành phố Hồ Chí Minh' }]),
 }))
-import RoomManageScreen from '@/features/gogo-room/room-manage.view'
+import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
 let client: QueryClient
 beforeEach(() => {
@@ -72,16 +78,17 @@ afterEach(() => client.clear())
 async function press(node: Parameters<typeof fireEvent.press>[0]) { await act(async () => { await fireEvent.press(node) }) }
 describe.each(['orange', 'orangeDark'] as const)('595 owner sim 3 / %s', theme => {
   it('uses the shared seed onRemove X and omits unknown facts', async () => {
-    await render(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>, client)
+    await render(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>, client)
     expect(screen.getByTestId('place-card-small')).toBeTruthy()
     expect(within(screen.getByTestId('place-card-small')).queryByText('Xoá')).toBeNull()
     expect(screen.queryByTestId('place-card-address')).toBeNull()
     expect(within(screen.getByTestId('place-card-small')).queryByText(/₫|Google/)).toBeNull()
     await press(screen.getByTestId('place-card-remove'))
-    expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+    await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: 'Xoá' }))
+    expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
   })
   it('opens a room-area picker with an icon-only 44pt add button in the title row', async () => {
-    await render(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>, client)
+    await render(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>, client)
     const add = screen.getByRole('button', { name: 'Thêm địa điểm gợi ý' })
     expect(within(add).queryByText('Thêm địa điểm gợi ý')).toBeNull()
     expect(StyleSheet.flatten(add.props.style)).toMatchObject({ width: touchTarget.min, height: touchTarget.min })
@@ -101,7 +108,7 @@ describe.each(['orange', 'orangeDark'] as const)('595 owner sim 3 / %s', theme =
     expect(readPickerScope(id)).toBeNull()
   })
   it('uses lobby section headings and caption/body condition rows', async () => {
-    await render(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>, client)
+    await render(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>, client)
     for (const label of ['Điều kiện phòng', 'Địa điểm gợi ý', 'Thành viên']) {
       expect(StyleSheet.flatten(screen.getByText(label).props.style)).toMatchObject(type.discoveryHeading)
     }
@@ -111,24 +118,24 @@ describe.each(['orange', 'orangeDark'] as const)('595 owner sim 3 / %s', theme =
 })
 it.each([null, { ...mockArea, status: 'needs_reselection' }])('requires a current area before opening seed search (%s)', async area => {
   mockRoom.query = mockLoaded(roomFor('group-host', { constraints: { budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: area as typeof mockArea | null } }))
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   await press(screen.getByRole('button', { name: 'Thêm địa điểm gợi ý' }))
   expect(mockPush).not.toHaveBeenCalled()
   expect(screen.getByText('Hãy chọn khu vực của phòng để thêm địa điểm gợi ý.')).toBeTruthy()
 })
 it.each(['member', 'guest'] as const)('hides area editing for %s', async role => {
   mockRoom.query = mockLoaded(roomFor('group-guest', { members: [{ id: 'me', displayName: 'Tôi', role: 'member', isGuest: role === 'guest', selectionStatus: 'pending' }] }))
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull()
   expect(mockPatch).not.toHaveBeenCalled()
 })
 it('omits the danger heading, host permission card and inline warnings', async () => {
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   for (const key of ['roomLobby.danger', 'roomManage.hostOnlyTitle', 'roomManage.hostOnlyBody', 'roomLobby.warning', 'roomManage.staleWarning']) {
     expect(screen.queryByText(i18n.t(key))).toBeNull()
   }
   expect(screen.getByRole('button', { name: 'Huỷ phòng' })).toBeTruthy()
-  expect(screen.getByText(i18n.t('roomManage.cancelBody'))).toBeTruthy()
+  expect(screen.queryByText(i18n.t('roomManage.cancelBody'))).toBeNull()
   await press(screen.getByRole('button', { name: 'Sửa' }))
   expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
 })
@@ -140,7 +147,7 @@ it('hydrates the common small seed card with detail photo, address and Google ra
     taxonomies: [{ kind: 'category', key: 'cafe' }],
     prices: [{ priceMin: 50000, priceMax: 80000, currency: 'VND', unit: 'per_person', confidence: 1 }],
   }))
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   expect(mockPlaceDetail).toHaveBeenCalledWith('seed-1')
   expect(screen.getByTestId('place-card-name')).toHaveTextContent('Quán chi tiết')
   expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Đường Hoa')
@@ -149,27 +156,29 @@ it('hydrates the common small seed card with detail photo, address and Google ra
     source: [{ uri: 'https://example.com/seed.jpg', cacheKey: 'https://example.com/seed.jpg' }], cachePolicy: 'memory-disk',
   })
   await press(screen.getByTestId('place-card-remove'))
-  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+  await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: 'Xoá' }))
+  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
 })
 it.each(['loading', 'error'])('keeps a name-only removable seed on detail %s', async state => {
   mockPlaceDetail.mockReturnValue({ data: state === 'error' ? { id: 'seed-1', name: 'Stale detail', rating: 5, ratingCount: 10 } : undefined, isPending: state === 'loading', isError: state === 'error' })
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   expect(screen.getByTestId('place-card-name')).toHaveTextContent('Quán thật')
   for (const id of ['place-card-meta', 'place-google-rating', 'place-card-price', 'place-card-tags', 'place-photo-image']) {
     expect(screen.queryByTestId(id)).toBeNull()
   }
   await press(screen.getByTestId('place-card-remove'))
-  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+  await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: 'Xoá' }))
+  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
 })
-it.each(['vi', 'en'])('orders manage facts and renders the overnight end date in %s', async language => {
+it.each(['vi', 'en'])('orders lobby facts and renders the overnight end date in %s', async language => {
   await act(async () => { await i18n.changeLanguage(language) })
   try {
     const startAt = new Date(2026, 10, 11, 23).toISOString()
     const endAt = new Date(2026, 10, 12, 1).toISOString()
-    mockRoom.query = mockLoaded(roomFor('group-host', { constraints: {
+    mockRoom.query = mockLoaded(roomFor('group-host', { title: 'Kèo thật', constraints: {
       budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: mockArea, startAt, endAt,
     } }))
-    await render(<RoomManageScreen />, client)
+    await render(<GoGoRoomScreen />, client)
     expect(screen.getAllByTestId(/^room-fact-/).map(node => node.props.testID)).toEqual([
       'room-fact-name', 'room-fact-area', 'room-fact-budget', 'room-fact-schedule',
     ])
@@ -182,16 +191,16 @@ it.each(['vi', 'en'])('orders manage facts and renders the overnight end date in
     await act(async () => { await i18n.changeLanguage('vi') })
   }
 })
-it('renders start alone when the manage schedule has no end', async () => {
+it('renders start alone when the lobby schedule has no end', async () => {
   const startAt = new Date(2026, 10, 11, 23).toISOString()
   mockRoom.query = mockLoaded(roomFor('group-host', { constraints: { budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: null, startAt } }))
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   const schedule = within(screen.getByTestId('room-fact-schedule'))
   expect(schedule.getByText('23:00 11/11/2026')).toBeTruthy()
   expect(schedule.queryByText(/ – /)).toBeNull()
 })
 it('marks the host avatar and announces the role while showing only selection status', async () => {
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   const host = screen.getByLabelText(/^Tôi, Chủ phòng,/)
   expect(within(host).getByTestId('avatar-host-badge')).toBeTruthy()
   expect(within(host).getByText('Chưa chọn')).toBeTruthy()
@@ -201,22 +210,23 @@ it('marks the host avatar and announces the role while showing only selection st
   expect(screen.getAllByTestId('avatar-host-badge')).toHaveLength(1)
   expect(screen.queryByText(/Chủ phòng ·/)).toBeNull()
   expect(screen.queryByText('Chủ phòng')).toBeNull()
-  expect(within(member).getByRole('button', { name: 'Xoá' })).toBeTruthy()
-  expect(within(host).queryByRole('button', { name: 'Xoá' })).toBeNull()
+  expect(within(member).getByRole('button', { name: 'Mời Người 1 ra khỏi phòng' })).toBeTruthy()
+  expect(within(host).queryByRole('button', { name: /Mời .* ra khỏi phòng/ })).toBeNull()
 })
 it('offers a seed-detail retry without inventing facts or losing remove', async () => {
   const refetch = jest.fn()
   mockPlaceDetail.mockReturnValue({ isError: true, isFetching: false, isPending: false, refetch })
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   expect(screen.queryByTestId('place-card-meta')).toBeNull()
   await press(screen.getByRole('button', { name: 'Thử lại' }))
   expect(refetch).toHaveBeenCalledTimes(1)
   await press(screen.getByTestId('place-card-remove'))
-  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+  await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: 'Xoá' }))
+  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
 })
 it('shows compact skeleton facts while seed details fetch', async () => {
   mockPlaceDetail.mockReturnValue({ isPending: false, isFetching: true, isError: true })
-  await render(<RoomManageScreen />, client)
+  await render(<GoGoRoomScreen />, client)
   expect(screen.getByTestId('place-card-small-loading')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
   expect(screen.getByTestId('place-card-remove')).toBeTruthy()
@@ -231,8 +241,8 @@ it('pull-to-refresh refetches each current seed detail along with the room', asy
   mockRoom.query = mockLoaded(roomFor('group-host', { seedPlaces: [
     { placeId: 'seed-1', name: 'One' }, { placeId: 'seed-2', name: 'Two' },
   ] }))
-  await render(<RoomManageScreen />, client)
-  await act(async () => { screen.getByTestId('room-manage-scroll').props.refreshControl.props.onRefresh() })
+  await render(<GoGoRoomScreen />, client)
+  await act(async () => { screen.getByTestId('room-lobby-scroll').props.refreshControl.props.onRefresh() })
   expect(refetchOne).toHaveBeenCalledTimes(1)
   expect(refetchTwo).toHaveBeenCalledTimes(1)
   expect(mockRoom.query.refetch).toHaveBeenCalledTimes(1)

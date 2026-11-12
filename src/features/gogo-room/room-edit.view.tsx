@@ -38,11 +38,12 @@ export default function RoomEditScreen() {
     discardConfirmed.current = false
     setDiscard(true)
   })
+  function returnToLobby() { if (router.canGoBack()) router.back(); else router.replace(`/room/${roomId}`) }
   function back() {
     if (pending) return
     if (confirmation.visible) { confirmation.dismiss(); return }
-    if (dirty) { discardConfirmed.current = false; next.current = () => router.back(); setDiscard(true) }
-    else router.back()
+    if (dirty) { discardConfirmed.current = false; next.current = returnToLobby; setDiscard(true) }
+    else returnToLobby()
   }
   return <Atmosphere>
     <KeyboardAvoidingView testID="room-edit-screen" style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} onAccessibilityEscape={back}>
@@ -55,7 +56,7 @@ export default function RoomEditScreen() {
           : <RoomEditor room={room.data} onPendingChange={setPending} onDirtyChange={setDirty} confirmConditions={confirmation.confirm}
             onSaved={() => {
               // Commit the removal-guard change before dispatching navigation.
-              next.current = () => { if (router.canGoBack()) router.back(); else router.replace(`/room/${roomId}/manage`) }
+              next.current = returnToLobby
               setLeaving(true)
             }}
             reloadRoom={async () => {

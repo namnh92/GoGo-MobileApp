@@ -201,7 +201,7 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
         <View style={styles.section}>
           <Controller control={form.control} name="title" render={({ field, fieldState }) => <RoomTitleField {...field} disabled={pending || !canEdit} invalid={!!fieldState.error} />} />
         </View>
-        <View testID="room-manage-area-editor" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
+        <View testID="room-edit-area-editor" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
           <CreateLocationFields embedded disabled={pending || !canEdit} model={location.model} />
         </View>
         {room.type === 'group' ? <View style={styles.section}>

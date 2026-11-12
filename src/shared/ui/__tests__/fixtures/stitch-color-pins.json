@@ -1181,69 +1181,21 @@
       "status.infoText",
       "status.successText",
       "status.warningText",
-      "accent.primary",
-      "status.info",
-      "status.success",
-      "status.warning",
       "text.secondary",
       "text.secondary",
       "text.secondary",
       "status.dangerText",
-      "text.secondary",
-      "text.secondary",
-      "text.secondary",
-      "text.secondary",
-      "status.dangerText",
-      "status.dangerText",
-      "status.dangerText",
-      "text.secondary",
-      "accent.primary",
       "text.secondary",
       "accent.primary",
       "text.secondary"
     ],
     "src/features/gogo-room/gogo-room.style.tsx": [
       "surface.subtle",
-      "surface.canvas",
-      "surface.card",
-      "surface.subtle",
       "surface.subtle",
       "accent.soft",
       "status.infoSoft",
       "status.successSoft",
-      "status.warningSoft",
-      "surface.subtle",
-      "accent.primary",
-      "surface.subtle"
-    ],
-    "src/features/gogo-room/room-manage.view.tsx": [
-      "accent.primary",
-      "text.secondary",
-      "text.secondary",
-      "text.secondary",
-      "text.secondary",
-      "accent.primary",
-      "accent.primary",
-      "text.secondary",
-      "text.secondary",
-      "accent.primary",
-      "text.secondary",
-      "text.secondary",
-      "status.dangerText",
-      "accent.primary",
-      "text.secondary",
-      "text.secondary",
-      "status.dangerText",
-      "status.dangerText",
-      "text.secondary"
-    ],
-    "src/features/gogo-room/room-manage.style.tsx": [
-      "text.primary",
-      "surface.subtle",
-      "surface.subtle",
-      "status.dangerSoft",
-      "border.hairline",
-      "surface.subtle"
+      "status.warningSoft"
     ],
     "src/features/gogo-room/room-editor.view.tsx": [
       "status.warningText",
@@ -1271,7 +1223,6 @@
       "accent.primary",
       "text.secondary",
       "text.secondary",
-      "text.secondary",
       "accent.onSoft",
       "text.primary",
       "accent.onSoft"
@@ -1290,6 +1241,34 @@
       "accent.soft",
       "surface.subtle",
       "accent.primary"
+    ],
+    "src/features/gogo-room/room-members.view.tsx": [
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/room-members.style.tsx": [
+      "border.hairline",
+      "surface.subtle"
+    ],
+    "src/features/gogo-room/room-seeds.view.tsx": [
+      "accent.primary",
+      "accent.primary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/room-seeds.style.tsx": [],
+    "src/features/gogo-room/room-host-actions.view.tsx": [
+      "accent.primary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText"
+    ],
+    "src/features/gogo-room/room-host-actions.style.tsx": [
+      "surface.card",
+      "status.danger"
     ]
   },
   "workspace": {

@@ -187,6 +187,7 @@ export function systemPathFor(path: string): string {
   try {
     const hasScheme = path.includes('://')
     const segments = segmentsOf(hasScheme ? path : `gogo://${path.replace(/^\/+/, '')}`)
+    if (segments?.length === 3 && segments[0] === 'room' && segments[2] === 'manage') return `/room/${segments[1]}`
     if (!segments || segments.length !== 2) return path
     const [head, param] = segments
     if (head === 'create' && param === 'mood') return '/create/places'

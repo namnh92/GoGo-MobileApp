@@ -22,7 +22,7 @@ while the system preference is unknown.
 - Create date: final create-room step (`create-mood`); save draft; save/discard
   and exit (`wizard-actions`). Intermediate steps only update the local draft.
 - Join: join by code; guest join; Home quick join.
-- Room: title editor; schedule editor; room management; invitation/start actions
+- Room: title editor; schedule editor; lobby member/seed and host actions; invitation/start actions
   on the room screen.
 - Preferences/matching: room preference submit; match result finalization and
   regeneration.

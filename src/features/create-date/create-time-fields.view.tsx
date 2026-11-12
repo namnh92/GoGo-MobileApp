@@ -27,11 +27,10 @@ function hoursBetween(start: string, end: string): number {
  * contract has no duration field (see `duration-presets.ts`). It fills in the
  * end once a start exists, and Continue is never unlocked by an invented time.
  */
-export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, setEndTime, setPresetEndTime, durationPreset, setDurationPreset, scheduleDay, onDayChange, selectedEndDate, customSchedule = false, disabled = false, sectionTitle, mode = 'create', showDurationPresets = true }: {
+export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, setEndTime, setPresetEndTime, durationPreset, setDurationPreset, scheduleDay, onDayChange, selectedEndDate, disabled = false, sectionTitle, mode = 'create', showDurationPresets = true }: {
   mode?: 'create' | 'edit'
   showDurationPresets?: boolean
   sectionTitle?: string
-  customSchedule?: boolean
   disabled?: boolean
   roomType: 'couple' | 'group'
   startTime: string | null
@@ -155,7 +154,6 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
             </Text>
           ) : null}
         </View>
-        {customSchedule ? <Text testID="create-time-custom" variant="bodySmall" color="text.secondary">{t('createTime.customSchedule')}</Text> : null}
         {showDurationPresets && spanHours !== null ? (
           <Text variant="bodySmall" color="text.secondary" style={styles.estimate}>
             {t('createTime.estimated', { hours: spanHours })}

@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { prepareRoomInvite } from '@/features/gogo-room/prepare-room-invite'
 import { useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,6 +16,7 @@ import { budgetAmountSchema } from './budget-picker'
 /** One create transaction for wizard presenters, including persisted retry identity. */
 export function useCreateRoomDraft() {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const router = useRouter()
   const { status, session } = useSession()
   const rememberRoom = useRecentRoomsStore(state => state.remember)
@@ -54,6 +57,7 @@ export function useCreateRoomDraft() {
       if (session?.userId) await saveRoomDraft(session.userId, 'places')
       const room = await createRoom.mutateAsync(body)
       rememberRoom(room)
+      void prepareRoomInvite(queryClient, room.id).catch(() => undefined)
       // A created plan makes the GoGo AI introduction due on Home (#379).
       if (session?.userId) noteAssistantPlanCreated(session.userId)
       // Every member chooses preferences on the preference screen.

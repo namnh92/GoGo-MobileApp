@@ -90,7 +90,7 @@ export function SuggestionRunNotice({
         {adjust ? (
           <PrimaryBtn
             label={t('suggestionRun.adjustConstraints')}
-            onPress={() => router.push(`/room/${roomId}/manage`)}
+            onPress={() => router.push(`/room/${roomId}/edit`)}
           />
         ) : null}
         {isHost ? (

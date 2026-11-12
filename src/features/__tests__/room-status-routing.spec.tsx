@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AccessibilityInfo, Alert, AppState, Platform, Share, Text, type AlertButton } from 'react-native'
 
 import { roomFor } from './harness'
@@ -138,6 +139,7 @@ function PlanStub() {
 }
 
 async function renderRoom(initialUrl = LOBBY) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { gcTime: Infinity } } })
   const view = renderRouter(
     {
       _layout: () => <Stack />,
@@ -147,7 +149,7 @@ async function renderRoom(initialUrl = LOBBY) {
       'room/[roomId]/match-result': ResultStub,
       'plans/[planId]/index': PlanStub,
     },
-    { initialUrl },
+    { initialUrl, wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> },
   )
   await view
   // The lobby waits for the navigator before its first move.
@@ -517,7 +519,7 @@ describe('the host', () => {
     const view = await renderRoom()
 
     await act(async () => {
-      await fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
+      await fireEvent.press(screen.getByRole('button', { name: viMessages['gogoRoom.invite'] }))
     })
     await poll({ room: host({ status: 'ready' }, false), plan })
     expect(view.pathname()).toBe(LOBBY)
@@ -544,7 +546,7 @@ describe('the host', () => {
       const view = await renderRoom()
 
       await act(async () => {
-        await fireEvent.press(screen.getByText(viMessages['gogoRoom.invite']))
+        await fireEvent.press(screen.getByRole('button', { name: viMessages['gogoRoom.invite'] }))
       })
       await poll({ room: host({ status: 'ready' }, false), plan })
       // The module already resolved; the chooser is another activity.

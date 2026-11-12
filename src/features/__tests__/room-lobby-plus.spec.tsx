@@ -1,8 +1,8 @@
 import { within } from '@testing-library/react-native'
-import { StyleSheet } from 'react-native'
 
 import { loaded, loaded as mockLoaded, roomFor, renderScreen, type QueryLike } from './harness'
-import { text } from '@/shared/ui/tokens'
+import i18n from '@/shared/i18n'
+import { roomBudgetLabel } from '@/shared/pricing/budget-unit'
 
 const mockIdleMutation = {
   mutate: jest.fn(),
@@ -40,11 +40,13 @@ jest.mock('@/shared/api', () => ({
 
 import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
-it('renders the couple hero copy in a theme text colour without a fabricated partner', async () => {
+it('removes the couple hero and body invite card', async () => {
+  mockRoom.query = loaded(roomFor('couple'))
   const view = await renderScreen(<GoGoRoomScreen />)
-  const body = view.getByText('Hai người sẽ chọn riêng. Không ai thấy lựa chọn của người kia cho tới khi match.')
-  expect(StyleSheet.flatten(body.props.style).color).toBe(text.secondary)
-  expect(view.queryByText('+')).toBeNull()
+  expect(view.queryByText(i18n.t('gogoRoom.body', { context: 'couple' }))).toBeNull()
+  expect(view.queryByText('Tạo mã mời')).toBeNull()
+  expect(view.getAllByRole('button', { name: 'Mời người tham gia' })).toHaveLength(1)
+  expect(within(view.getByTestId('room-lobby-scroll')).queryByRole('button', { name: 'Mời người tham gia' })).toBeNull()
 })
 
 it.each(['couple', 'group-host'] as const)('shows manage only to the host in %s rooms', async audience => {
@@ -104,12 +106,34 @@ it.each(['Friday crew', '', '   ', undefined])('shows a group host name first on
   if (title?.trim()) {
     expect(view.getAllByTestId(/^room-fact-/)[0].props.testID).toBe('room-fact-name')
     expect(within(view.getByTestId('room-fact-name')).getByText(title)).toBeTruthy()
-    expect(view.getAllByText(title)).toHaveLength(1)
+    expect(view.getAllByText(title)).toHaveLength(2)
   } else expect(view.queryByTestId('room-fact-name')).toBeNull()
 })
-it.each(['couple', 'group-guest'] as const)('keeps the name only in the visible %s hero', async audience => {
-  mockRoom.query = mockLoaded(roomFor(audience, { title: 'Friday crew' }))
+it.each(['couple', 'group-host', 'group-guest'] as const)('uses a trimmed header title with type fallback for %s', async audience => {
+  for (const title of ['  Friday crew  ', '', '   ', undefined]) {
+    mockRoom.query = mockLoaded(roomFor(audience, { title }))
+    const view = await renderScreen(<GoGoRoomScreen />)
+    const header = view.getByTestId('room-lobby-header-title')
+    expect(header).toHaveTextContent(title?.trim() || i18n.t(audience === 'couple' ? 'roomLobby.coupleTitle' : audience === 'group-host' ? 'gogoRoom.title_group' : 'roomLobby.group'))
+    expect(header.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
+    await view.unmount()
+  }
+})
+it.each(['total', 'per_person'] as const)('uses the shared full budget formatter for %s', async budgetMode => {
+  const room = roomFor('couple', { constraints: { budgetMode, budgetAmount: 500000, currency: 'VND', administrativeArea: null } })
+  mockRoom.query = loaded(room)
   const view = await renderScreen(<GoGoRoomScreen />)
-  expect(view.getAllByText('Friday crew')).toHaveLength(1)
-  expect(view.queryByTestId('room-fact-name')).toBeNull()
+  expect(within(view.getByTestId('room-fact-budget')).getByText(roomBudgetLabel(room.constraints!, room.participantCount, i18n.t))).toBeTruthy()
+})
+it('omits the schedule fact when the room has no schedule', async () => {
+  mockRoom.query = loaded(roomFor('couple'))
+  const view = await renderScreen(<GoGoRoomScreen />)
+  expect(view.queryByTestId('room-fact-schedule')).toBeNull()
+})
+it('orders conditions, members, seeds and host management', async () => {
+  mockRoom.query = loaded(roomFor('group-host'))
+  const view = await renderScreen(<GoGoRoomScreen />)
+  expect(view.getAllByTestId(/^room-lobby-(conditions|members|seeds|management)$/).map(node => node.props.testID)).toEqual([
+    'room-lobby-conditions', 'room-lobby-members', 'room-lobby-seeds', 'room-lobby-management',
+  ])
 })

@@ -1,1 +1,1 @@
-export { default } from '@/features/gogo-room/room-manage.view'
+export { default } from '@/features/gogo-room/room-legacy-redirect.view'

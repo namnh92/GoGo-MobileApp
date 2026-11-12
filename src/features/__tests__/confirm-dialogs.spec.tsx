@@ -27,7 +27,9 @@ const mockRemoveMember = jest.fn()
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
 
+jest.mock('@/shared/navigation/deep-link', () => ({ ...jest.requireActual('@/shared/navigation/deep-link'), isUuid: () => true }))
 jest.mock('expo-router', () => ({
+  useNavigationContainerRef: () => ({ isReady: () => true }),
   useFocusEffect: () => undefined,
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
@@ -37,6 +39,9 @@ jest.mock('@/shared/providers/session-provider', () => ({
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
+  useRoomRealtime: () => ({ status: 'live' }),
+  useCurrentSuggestions: () => mockLoaded(undefined),
+  useCurrentPlan: () => mockLoaded(undefined),
   useRoom: () => mockRoomState.query,
   useRoomInvites: () => mockLoaded([]),
   useUpdateRoomConstraints: () => ({ mutateAsync: mockUpdateConstraints, isPending: mockConstraintsPending }),
@@ -47,7 +52,7 @@ jest.mock('@/shared/api', () => ({
   useRemoveRoomSeedPlace: () => ({ mutate: jest.fn() }),
 }))
 
-import RoomManageScreen from '@/features/gogo-room/room-manage.view'
+import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
 let alert: jest.SpyInstance
 beforeEach(() => {
@@ -67,20 +72,20 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 
 describe('room management', () => {
   it('confirms cancelling the room in the shared bottom sheet', async () => {
-    const view = await renderScreen(<RoomManageScreen />)
+    const view = await renderScreen(<GoGoRoomScreen />)
     await press(view.getByRole('button', { name: 'Huỷ phòng' }))
     expect(alert).not.toHaveBeenCalled()
-    expect(view.getByTestId('room-manage-confirm')).toBeTruthy()
+    expect(view.getByTestId('room-lobby-cancel-confirm')).toBeTruthy()
     expect(view.getByText('Huỷ phòng này?')).toBeTruthy()
     expect(mockTransition).not.toHaveBeenCalled()
 
-    await press(view.getAllByRole('button', { name: 'Huỷ phòng' }).at(-1)!)
+    await press(within(view.getByTestId('room-lobby-cancel-confirm')).getByRole('button', { name: 'Huỷ phòng' }))
     expect(mockTransition).toHaveBeenCalledWith({ status: 'cancelled' }, expect.anything())
   })
 
   it('confirms removing a member by name before removing them', async () => {
-    const view = await renderScreen(<RoomManageScreen />)
-    await press(view.getAllByRole('button', { name: 'Xoá' })[0])
+    const view = await renderScreen(<GoGoRoomScreen />)
+    await press(view.getAllByRole('button', { name: 'Mời Người 1 ra khỏi phòng' })[0])
     expect(alert).not.toHaveBeenCalled()
     expect(view.getByText('Xoá Người 1 khỏi phòng?')).toBeTruthy()
     await press(view.getByRole('button', { name: 'Huỷ' }))
@@ -93,18 +98,16 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
   const audiences: Audience[] = ['couple', 'group-host', 'group-guest']
   it.each(audiences.flatMap(audience => ['default', 'loading', 'empty', 'error'].map(state => [audience, state] as const)))('%s × %s', async (audience, state) => {
     mockRoomState.query = state === 'loading' ? pending() : state === 'error' ? failed() : mockLoaded(mockRoomFor(audience, state === 'empty' ? { members: [], seedPlaces: [] } : {}))
-    const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
     if (state === 'loading') {
       expect(view.queryByText('Huỷ phòng')).toBeNull()
-      const loading = view.getByTestId('room-manage-loading')
-      expect(loading.props.accessibilityRole).toBe('progressbar')
-      expect(loading.props.accessibilityLabel).toBe('Đang tải…')
-      expect(within(loading).getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(3)
+      expect(view.getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(3)
       expect(view.queryByTestId('loading-indicator')).toBeNull()
     }
     else if (state === 'error') expect(view.getByText('Thử lại')).toBeTruthy()
     else if (audience === 'group-guest') {
-      expect(view.getByText('Chỉ chủ phòng')).toBeTruthy()
+      expect(view.queryByText('Chỉ chủ phòng')).toBeNull()
+      expect(view.getByTestId('room-lobby-seeds')).toBeTruthy()
       expect(view.queryByText('Huỷ phòng')).toBeNull()
       expect(view.queryByText('Sửa')).toBeNull()
     } else {
@@ -129,25 +132,25 @@ describe('room management waits for network', () => {
 
   it('replaces the layout skeleton with offline state, then restores it on reconnect', async () => {
     mockRoomState.query = pausedOffline()
-    const view = await renderScreen(<RoomManageScreen />)
-    expect(view.getByTestId('room-manage-loading')).toBeTruthy()
+    const view = await renderScreen(<GoGoRoomScreen />)
+    expect(view.getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
     expect(view.queryByText('Không có kết nối')).toBeNull()
 
     await act(async () => onlineManager.setOnline(false))
     await act(async () => jest.advanceTimersByTime(OFFLINE_SIGNAL_DELAY_MS))
     expect(view.getByText('Không có kết nối')).toBeTruthy()
-    expect(view.queryByTestId('room-manage-loading')).toBeNull()
+    expect(view.queryAllByTestId('skeleton-block', { includeHiddenElements: true })).toHaveLength(0)
     expect(view.queryAllByTestId('skeleton-block', { includeHiddenElements: true })).toHaveLength(0)
 
     await act(async () => onlineManager.setOnline(true))
     expect(view.queryByText('Không có kết nối')).toBeNull()
-    expect(view.getByTestId('room-manage-loading')).toBeTruthy()
+    expect(view.getAllByTestId('skeleton-block', { includeHiddenElements: true }).length).toBeGreaterThan(0)
   })
 })
 
 
 it('595 opens the full-screen title editor route from manage', async () => {
-  const view = await renderScreen(<RoomManageScreen />)
+  const view = await renderScreen(<GoGoRoomScreen />)
   await press(view.getByRole('button', { name: 'Sửa' }))
   expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
   expect(view.queryByLabelText('Tên kèo')).toBeNull()
@@ -155,28 +158,29 @@ it('595 opens the full-screen title editor route from manage', async () => {
 
 describe.each(['orange', 'orangeDark'] as const)('room confirmation sheets / %s', theme => {
   it('keeps equal-width cancel left and danger right; cancel sends nothing', async () => {
-    const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
     await press(view.getByRole('button', { name: 'Huỷ phòng' }))
-    const sheet = view.getByTestId('room-manage-confirm')
+    const sheet = view.getByTestId('room-lobby-cancel-confirm')
     const actions = within(sheet).getAllByRole('button').filter(button => ['Huỷ', 'Huỷ phòng'].includes(button.props.accessibilityLabel))
     expect(actions.map(button => button.props.accessibilityLabel)).toEqual(['Huỷ', 'Huỷ phòng'])
     expect(actions.map(button => StyleSheet.flatten(button.props.style).flex)).toEqual([1, 1])
     await press(actions[0])
-    expect(view.queryByTestId('room-manage-confirm')).toBeNull()
+    expect(view.queryByTestId('room-lobby-cancel-confirm')).toBeNull()
     expect(mockTransition).not.toHaveBeenCalled()
   })
   it.each(['cancel', 'remove'] as const)('keeps %s busy in the sheet, blocks duplicates and shows existing error copy with retry', async kind => {
     const mutation = kind === 'cancel' ? mockTransition : mockRemoveMember
-    const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>)
     if (kind === 'cancel') await press(view.getByRole('button', { name: 'Huỷ phòng' }))
-    else await press(view.getAllByRole('button', { name: 'Xoá' })[0])
+    else await press(view.getAllByRole('button', { name: 'Mời Người 1 ra khỏi phòng' })[0])
     const label = kind === 'cancel' ? 'Huỷ phòng' : 'Xoá'
-    const action = () => within(view.getByTestId('room-manage-confirm')).getByRole('button', { name: label })
+    const sheetID = kind === 'cancel' ? 'room-lobby-cancel-confirm' : 'room-lobby-member-confirm'
+    const action = () => within(view.getByTestId(sheetID)).getByRole('button', { name: label })
     await press(action()); await press(action())
     expect(mutation).toHaveBeenCalledTimes(1)
     expect(action().props.accessibilityState).toMatchObject({ busy: true, disabled: true })
     expect(view.queryByTestId('blocking-loading-overlay')).toBeNull()
-    expect(within(view.getByTestId('room-manage-confirm')).getByRole('button', { name: 'Huỷ' })).toBeDisabled()
+    expect(within(view.getByTestId(sheetID)).getByRole('button', { name: 'Huỷ' })).toBeDisabled()
     const callbacks = mutation.mock.calls[0][1]
     await act(async () => { callbacks.onError(new Error('server')); callbacks.onSettled() })
     expect(view.getByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
@@ -185,7 +189,7 @@ describe.each(['orange', 'orangeDark'] as const)('room confirmation sheets / %s'
     expect(mutation).toHaveBeenCalledTimes(2)
     if (kind === 'remove') expect(mutation.mock.calls[0][0]).toBe('member-1')
     await act(async () => { mutation.mock.calls[1][1].onSuccess(); mutation.mock.calls[1][1].onSettled() })
-    expect(view.queryByTestId('room-manage-confirm')).toBeNull()
+    expect(view.queryByTestId(sheetID)).toBeNull()
     if (kind === 'cancel') expect(mockReplace).toHaveBeenCalledWith('/(tabs)/plans')
   })
 })

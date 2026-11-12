@@ -24,6 +24,7 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
+  testID?: string
   size?: ButtonSize
   variant?: 'pill' | 'default' | 'neutral' | 'neutralPill' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
@@ -80,7 +81,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && kind === 'primary' && styles.primaryPressed, disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
+function Button({ testID, kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -96,6 +97,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   const iconColor: TextColor = variant === 'area' && kind === 'secondary' && !greyed ? 'accent.text' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'text.primary' : look.label
   return (
     <Pressable
+      testID={testID}
       onPress={() => {
         haptic(HAPTIC[kind])
         onPress()
@@ -168,7 +170,8 @@ export function DangerBtn(props: ButtonProps) {
  * a screen reader announcing "button" and nothing else is a dead end. Drawn at
  * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
  */
-export function IconBtn({ children, onPress, accessibilityLabel, active = false, disabled = false, style, size = 'small' }: {
+export function IconBtn({ testID, children, onPress, accessibilityLabel, active = false, disabled = false, style, size = 'small' }: {
+  testID?: string
   size?: ButtonSize
   children: ReactNode
   onPress: () => void
@@ -178,7 +181,7 @@ export function IconBtn({ children, onPress, accessibilityLabel, active = false,
   style?: StyleProp<ViewStyle>
 }) {
   return (
-    <Pressable
+    <Pressable testID={testID}
       onPress={() => {
         haptic('select')
         onPress()

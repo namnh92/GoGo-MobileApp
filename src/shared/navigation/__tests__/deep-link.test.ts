@@ -121,3 +121,9 @@ describe('systemPathFor (GoGo-MobileApp#203)', () => {
     expect(routeForLink(systemPathFor(`gogo-dev://room/${CODE}`))).toBe(`/r/${CODE}`)
   })
 })
+
+describe('retired room management links (round 6h)', () => {
+  it.each([`/room/${ID}/manage`, `gogo://room/${ID}/manage`, `https://go-dev.gogo.id.vn/room/${ID}/manage`])('redirects %s to the lobby', path => {
+    expect(systemPathFor(path)).toBe(`/room/${ID}`)
+  })
+})

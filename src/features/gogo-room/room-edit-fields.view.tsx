@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { Text } from '@/shared/ui/text'
 import { TextInput } from '@/shared/ui/text-input'
-import { styles } from './room-manage.style'
 import { styles as fieldStyles } from './room-edit-fields.style'
 import { styles as wizardStyles } from '@/features/create-date/create-type.style'
 
@@ -17,7 +16,7 @@ export interface RoomEditFieldProps {
 export function RoomTitleField({ value, onChange, onBlur, disabled, invalid }: RoomEditFieldProps) {
   const { t } = useTranslation()
   return <View testID="room-title-field" style={fieldStyles.fieldGroup}>
-    <View style={styles.labelRow}>
+    <View style={fieldStyles.labelRow}>
       <Text variant="label">{t('roomTitle.title')}</Text>
       <Text variant="caption" color="text.secondary">{`${value.length}/80`}</Text>
     </View>

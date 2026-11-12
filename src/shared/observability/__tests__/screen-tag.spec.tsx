@@ -565,7 +565,12 @@ function routeFiles(dir: string, base = dir): RouteFile[] {
 
 describe('route templates', () => {
   const files = routeFiles(path.resolve(__dirname, '../../../app'))
-  const templates = files.map(f => f.template).sort()
+  // The retired manage route is a redirect, never a tagged screen.
+  const templates = files.filter(f => f.template !== '/room/[roomId]/manage').map(f => f.template).sort()
+
+  it('does not tag the retired manage redirect as a screen', () => {
+    expect(isScreenTemplate('/room/[roomId]/manage')).toBe(false)
+  })
 
   it('is exactly the list the tag may send', () => {
     expect(templates).toEqual(expect.arrayContaining(['/', '/(tabs)', '/r/[inviteCode]', '/l/[slug]', '/+not-found']))

@@ -45,7 +45,6 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/r/[inviteCode]',
   '/room/[roomId]',
   '/room/[roomId]/edit',
-  '/room/[roomId]/manage',
   '/room/[roomId]/match-result',
   '/room/[roomId]/matching',
   '/room/[roomId]/preference',

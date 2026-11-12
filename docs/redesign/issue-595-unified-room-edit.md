@@ -24,7 +24,7 @@ trong `/private/tmp` với production sources từ `git show HEAD`, không đổ
   Wizard giữ validation, preset và estimate cũ.
 - Giữ `BlockingLoadingOverlay` chung từ request đầu đến cuối, sau khi stale sheet
   đóng theo F-18. Thành công toàn bộ đợi overlay native đóng, tắt removal guard rồi
-  `router.back()` đúng một lần; không có back stack thì replace manage route.
+  `router.back()` đúng một lần; không có back stack thì replace lobby route `/room/${roomId}`.
   Lỗi/partial failure ở lại, giữ lỗi và chỉ retry phần còn thiếu; 409 không đổi.
 - Bỏ unused import và dùng guard assertion trong F-18 test; lint về baseline.
 
@@ -139,7 +139,7 @@ Kiểm chứng round 6e (cây dirty trên `cf2af48b`):
 - `pnpm lint`: PASS, 0 errors; 4 warning require-import có sẵn ở hai
   assistant specs không đổi.
 - Jest: **22 suites / 499 tests PASS**, gồm toàn bộ create-date specs, room
-  edit-screen/regressions, room-manage-feedback, room-state-matrix, prefill,
+  edit-screen/regressions, room-lobby-feedback, room-state-matrix, prefill,
   confirm dialogs, guest join/replacement, wizard exit và session purge.
 - Vitest: **11 files / 191 tests PASS**, gồm budget-picker pure logic,
   room-editor/schedule, post-auth route, room draft/saved draft, header và
@@ -243,11 +243,11 @@ Không gửi trần giá thì predicate này không được thêm.
 
 | Confirm đã thay | File / testID | Hành vi |
 | --- | --- | --- |
-| Huỷ phòng | `room-manage.view.tsx` / `room-manage-confirm` | warning ResultSheet; giữ title/body, “Huỷ” secondary trái, “Huỷ phòng” danger phải, cùng flex=1. Danger busy khi request chạy; khoá duplicate/close/cancel; lỗi dùng roomManage.saveFailed, ở lại sheet và retry được; success về Plans. |
-| Xoá thành viên | `room-manage.view.tsx` / `room-manage-confirm` | giữ tên/copy, danger “Xoá”, cùng busy/error/retry và cancel path. |
+| Huỷ phòng | `room-host-actions.view.tsx` / `room-lobby-cancel-confirm` | warning ResultSheet; giữ title/body, “Huỷ” secondary trái, “Huỷ phòng” danger phải, cùng flex=1. Danger busy khi request chạy; khoá duplicate/close/cancel; lỗi dùng roomManage.saveFailed, ở lại sheet và retry được; success về Plans. |
+| Xoá thành viên | `room-members.view.tsx` / `room-lobby-member-confirm` | giữ tên/copy, danger “Xoá”, cùng busy/error/retry và cancel path. |
 | Thay phiên khách (cả link mời và nhập mã) | `guest-replace-notice.view.tsx` / `guest-replace-confirm` | secondary giữ phiên/danger thay và tham gia; dismiss = false. Resolve sau native onClosed; chỉ sau đó join screen bật submit overlay/request. Cả hai màn có synchronous guard chống submit trùng. |
 
-Bỏ transition/remove-member khỏi blocking overlay của manage để busy hiển thị
+Transition/remove-member không dùng blocking overlay của lobby; busy hiển thị
 ngay trên danger button trong sheet. Các mutation khác vẫn dùng overlay cũ.
 Invite replacement và stale-conditions confirmation đã dùng ResultSheet, giữ lại.
 Không tìm thấy centred leave-room confirm riêng trong gogo-room hiện tại.
@@ -319,7 +319,7 @@ use-room-edit-preferences chưa tracked ở round 6 đã được xoá khỏi c�
 - `src/features/gogo-room/room-edit-sheet.view.tsx`
 - `src/features/gogo-room/room-editor.style.tsx`
 - `src/features/gogo-room/room-editor.view.tsx`
-- `src/features/gogo-room/room-manage.view.tsx`
+- `src/features/gogo-room/room-host-actions.view.tsx`
 - `src/features/matching/preference.view.tsx`
 - `src/features/search/search.view.tsx`
 - `src/shared/analytics/index.ts`
@@ -356,7 +356,7 @@ use-room-edit-preferences chưa tracked ở round 6 đã được xoá khỏi c�
 - `src/features/__tests__/guest-replace-confirm.spec.tsx`
 - `src/features/__tests__/prefill-budget.spec.tsx`
 - `src/features/__tests__/prefill-preference.spec.tsx`
-- `src/features/__tests__/room-manage-feedback.spec.tsx`
+- `src/features/__tests__/room-lobby-feedback.spec.tsx`
 - `src/features/__tests__/room-state-matrix.spec.tsx`
 - `src/features/__tests__/session-invite-purge.spec.tsx`
 - `src/features/__tests__/wizard-exit.spec.tsx`
@@ -379,3 +379,49 @@ use-room-edit-preferences chưa tracked ở round 6 đã được xoá khỏi c�
 - `src/features/__tests__/room-edit-screen.spec.tsx`
 - `src/features/create-date/__tests__/create-places.spec.tsx`
 - `src/features/gogo-room/__tests__/room-editor.test.ts`
+
+
+## Round 6h — quyết định owner 2026-11-12 (§10 thay màn Quản lý phòng)
+
+- Xoá implementation/style Quản lý phòng. `/room/[roomId]/manage` chỉ còn shim
+  redirect về `/room/${roomId}` để phục hồi stack/deep link cũ; native-intent
+  cũng đổi đường này trước route matching. SCREEN_TEMPLATES không còn manage.
+- Sảnh: header lấy tên phòng đã trim hoặc tên mặc định theo loại; một dòng,
+  ellipsis. Bỏ hero và thẻ mời trong body. Mời nằm cạnh chuông, host-only.
+- Thứ tự nội dung: Điều kiện phòng → Thành viên → Địa điểm gợi ý → Quản lý
+  (host-only: Đổi link mời, Huỷ phòng và trạng thái link).
+- Sửa điều kiện đi thẳng `/room/${roomId}/edit`; lưu thành công back về sảnh,
+  không có stack thì replace sảnh. Suggestion notice sửa điều kiện cũng đi edit.
+- Facts theo Tên (nếu có) → Khu vực → Ngân sách → Ngày giờ; ngân sách dùng
+  `roomBudgetLabel`, số tiền đầy đủ và đơn vị total/per_person. Thiếu lịch thì
+  bỏ hàng; edit bỏ caption “Lịch tùy chỉnh”, wizard cũng bỏ caption khi không có preset được chọn.
+- `RoomMembers` dùng chung hàng/sheet: tối đa 5 hàng, group >5 có Xem tất cả;
+  host có xác nhận mời thành viên khác ra khỏi phòng, request rồi refresh.
+- `RoomSeeds` giữ PlaceCardSmall/detail hydration, skeleton/retry, scope picker,
+  confirm/remove và refresh; mọi thành viên đọc được, host mới thấy +/X.
+  Chờ BE#878 cho member thêm/xoá của mình; không có control chuyển host (BE#879).
+- Sau create room, prepare invite chạy nền, không chặn navigation, không báo lỗi
+  ở lobby. Kiểm tra active invite trước create, dùng chung pending task/key khi
+  retry hoặc chạm nút header sớm. Mã mới chỉ ở session query cache, không ghi
+  SecureStore/AsyncStorage, log hay analytics. Link cũ trong SecureStore vẫn đọc
+  được để chuyển tiếp. API metadata không trả secret: link của thiết bị khác
+  phải xác nhận Đổi link trước revoke/create/share; không tự tạo bản trùng.
+- Đổi link dùng ResultSheet; chỉ share sau overlay/modal dismiss trên iOS.
+  Huỷ phòng và remove member dùng ResultSheet với busy/error/retry; cancel
+  thành công về Plans như cũ. CTA sở thích trong GlassBar giữ nguyên.
+
+Hero bị bỏ có copy giải thích lựa chọn riêng tư tới khi match (couple) và cách
+nhóm chọn. Onboarding vẫn giải thích sở thích riêng tư, nhưng hero là nơi duy nhất
+trong sảnh nói rõ mốc “tới khi match/có kết quả”; round này không tạo
+hero thay thế. Đây là thay đổi copy theo quyết định owner, không đổi quyền.
+
+TestIDs chính: `room-lobby-header-title`, `room-lobby-invite`,
+`room-lobby-change-invite`, `room-lobby-cancel`, `room-lobby-members-all`,
+`room-lobby-members-sheet`, `room-lobby-member-confirm`, `room-lobby-seeds`,
+`room-lobby-seeds-add`, `room-lobby-seed-confirm`, `room-lobby-invite-confirm`,
+`room-lobby-cancel-confirm`.
+
+Spec manage feedback/invites đã chuyển sang `room-lobby-feedback` và
+`room-lobby-invites`. Các assertion hero/thẻ mời/copy code/permission-denied của
+màn manage bị bỏ theo scope mới, thay bằng header sharing, roster/seed quyền và
+redirect; không xem kết quả simulator cũ là nghiệm thu UI mới.

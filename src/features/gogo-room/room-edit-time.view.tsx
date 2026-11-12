@@ -28,7 +28,7 @@ export function RoomEditTime({ form, values, roomType, disabled = false }: { dis
     const next = scheduleToIso(field === 'start' ? slot : currentStart ? currentStart.slice(-5) : null, field === 'end' ? slot : endTime, day ?? localDayKey(new Date()))
     form.setValue(field, isoToLocalSchedule((field === 'start' ? next.startAt : next.endAt) ?? undefined), { shouldValidate: true })
   }
-  return <CreateTimeFields mode="edit" showDurationPresets={false} sectionTitle={t('roomSchedule.title')} customSchedule={startTime !== null} disabled={disabled} key={`${day ?? ''}`} roomType={roomType} startTime={startTime} endTime={endTime}
+  return <CreateTimeFields mode="edit" showDurationPresets={false} sectionTitle={t('roomSchedule.title')} disabled={disabled} key={`${day ?? ''}`} roomType={roomType} startTime={startTime} endTime={endTime}
     scheduleDay={day} selectedEndDate={endDate ?? undefined} durationPreset={null} setDurationPreset={() => {}}
     setStartTime={slot => setTime('start', slot)} setEndTime={slot => setTime('end', slot)}
     onDayChange={nextDay => {

@@ -1,3 +1,8 @@
+> Cập nhật round 6h (2026-11-12): màn Quản lý phòng đã bỏ; các ghi nhận
+> manage bên dưới là bằng chứng lịch sử. Chức năng hiện tại nằm ở sảnh phòng;
+> `/room/[roomId]/manage` chỉ redirect về sảnh. Xem
+> [quyết định hiện hành](../redesign/issue-595-unified-room-edit.md#round-6h--quyết-định-owner-2026-11-12-10-thay-màn-quản-lý-phòng).
+
 # GoGo-MobileApp #595 — nhóm 05B
 
 Ngày: 2026-11-10, round 2 trên `379a5eb`. Phạm vi: UI-only, không commit, không push.

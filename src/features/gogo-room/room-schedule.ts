@@ -88,7 +88,7 @@ export function roomScheduleRange(
   }
 }
 
-/** Shared lobby/manage label, preserving overnight dates and clock changes. */
+/** Shared room schedule label, preserving overnight dates and clock changes. */
 export function roomScheduleRangeLabel(
   room: Pick<RoomSummary, 'constraints' | 'scheduledDate'>,
   locale: string,

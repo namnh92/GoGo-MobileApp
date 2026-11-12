@@ -1,3 +1,8 @@
+> Cập nhật round 6h (2026-11-12): màn Quản lý phòng đã bỏ; các ghi nhận
+> manage bên dưới là bằng chứng lịch sử. Chức năng hiện tại nằm ở sảnh phòng;
+> `/room/[roomId]/manage` chỉ redirect về sảnh. Xem
+> [quyết định hiện hành](../redesign/issue-595-unified-room-edit.md#round-6h--quyết-định-owner-2026-11-12-10-thay-màn-quản-lý-phòng).
+
 # GoGo-MobileApp #584 — loading indicator return
 
 UI-only implementation on `feature/GOGO-584-loading`; base HEAD and local `origin/re-design` are `c0ac8fb6dec790e45c04cff46560804809c20c74`. No commit or push.
