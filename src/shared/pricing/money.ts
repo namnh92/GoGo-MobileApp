@@ -23,11 +23,12 @@ export function toMajorUnits(amount: number, currency: string): number {
  * "450k", "1.2tr" — the compact Vietnamese money style the screens use.
  * Never called with a raw major-unit number; always minor units + currency.
  */
-export function formatMoney(amount: number, currency = DEFAULT_CURRENCY): string {
+export function formatMoney(amount: number, currency = DEFAULT_CURRENCY, notation: 'compact' | 'standard' = 'compact'): string {
   const major = toMajorUnits(amount, currency)
   if (currency.toUpperCase() !== 'VND') {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency }).format(major)
   }
+  if (notation === 'standard') return `${new Intl.NumberFormat('vi-VN').format(major)}đ`
   if (major >= 1_000_000) {
     const millions = major / 1_000_000
     const rendered = Number.isInteger(millions) ? String(millions) : millions.toFixed(1)

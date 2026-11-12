@@ -4,11 +4,11 @@ import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
 import i18n from '@/shared/i18n'
 import { useRoomStore, toCreateRoomBody } from '@/shared/store/roomStore'
 import { styles as typeStyles } from '../create-type.style'
+import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { themes } from '@/shared/ui/theme'
 import { WHEEL_ROW } from '@/shared/ui/time-wheel.style'
 import CreateTypeScreen from '../create-type.view'
 import CreateBudgetScreen from '../create-budget.view'
-import CreateMoodScreen from '../create-mood.view'
 import CreateTimeScreen from '../create-time.view'
 
 // Preserve KAV's declarative configuration while rendering its children as hosts.
@@ -77,33 +77,14 @@ it.each(['couple', 'group-host'] as const)('keeps one budget scope subtitle for 
   const view = await renderScreen(<CreateBudgetScreen />)
   expect(view.queryByText('Tổng ngân sách cho hai người')).toBeNull()
   if (audience === 'group-host') expect(view.getAllByText(i18n.t('groupSetup.groupTotal'))).toHaveLength(1)
-  const unit = i18n.t(audience === 'couple' ? 'createBudget.unit.couple' : 'price.unit.per_group')
-  const tier = view.getByRole('button', { name: /^300.000đ – 500.000đ / })
+  const unit = audience === 'couple' ? i18n.t('createBudget.unit.couple') : budgetUnitLabel('total', 'group', i18n.t)
+  await fireEvent.press(view.getByTestId('create-budget-card'))
+  const tier = view.getByRole('radio', { name: /^300.000đ – 500.000đ / })
   expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
   await fireEvent.press(tier)
+  await fireEvent.press(view.getByText('Xác nhận'))
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({ budgetAmount: 500_000, budgetMode: 'total' })
-})
-
-it('uses shared checkboxes, enforces max 3 with feedback, and permits deselection (#594 owner 8)', async () => {
-  const view = await renderScreen(<CreateMoodScreen />)
-  expect(view.getAllByRole('checkbox')).toHaveLength(8)
-  for (const name of ['Mood a', 'Mood b', 'Mood c']) await fireEvent.press(view.getByRole('checkbox', { name }))
-  expect(useRoomStore.getState().moodKeys).toEqual(['a', 'b', 'c'])
-  const fourth = view.getByRole('checkbox', { name: 'Mood d' })
-  expect(fourth.props.accessibilityState).toEqual({ checked: false, disabled: true })
-  expect(view.getByText(i18n.t('placeWizard.selectionLimitHint', { max: 3 }))).toBeTruthy()
-  await fireEvent.press(fourth)
-  expect(useRoomStore.getState().moodKeys).toHaveLength(3)
-  await fireEvent.press(view.getByRole('checkbox', { name: 'Mood a' }))
-  await fireEvent.press(view.getByRole('checkbox', { name: 'Mood d' }))
-  expect(useRoomStore.getState().moodKeys).toEqual(['b', 'c', 'd'])
-  for (const name of ['inside', 'outside', 'quiet']) await fireEvent.press(view.getByRole('checkbox', { name }))
-  expect(useRoomStore.getState().settingKeys).toEqual(['inside', 'outside'])
-  await fireEvent.press(view.getByRole('checkbox', { name: 'Tiết kiệm' }))
-  expect(useRoomStore.getState().spendingStyleKey).toBe('value')
-  await fireEvent.press(view.getByRole('checkbox', { name: 'Tiết kiệm' }))
-  expect(useRoomStore.getState().spendingStyleKey).toBeNull()
 })
 
 it('shows one week, expands/collapses with selection preserved, and removes quick date chips (#594 owner 5)', async () => {
@@ -140,7 +121,7 @@ it('stages a start-row wheel pick until Done (#594 owner 6, round 2)', async () 
   expect(useRoomStore.getState().startTime).toBe('22:15')
 })
 
-it('localizes new calendar, wheel, and checkbox controls in English', async () => {
+it('localizes new calendar and wheel controls in English', async () => {
   await act(async () => { await i18n.changeLanguage('en') })
   const view = await renderScreen(<CreateTimeScreen />)
   expect(view.getByRole('button', { name: 'Expand month calendar' })).toBeTruthy()
@@ -148,8 +129,6 @@ it('localizes new calendar, wheel, and checkbox controls in English', async () =
   expect(view.getByRole('adjustable', { name: 'Hours' })).toBeTruthy()
   expect(view.getByRole('adjustable', { name: 'Minutes' })).toBeTruthy()
   await view.unmount()
-  const mood = await renderScreen(<CreateMoodScreen />)
-  expect(mood.getByRole('checkbox', { name: 'Value' })).toBeTruthy()
   await act(async () => { await i18n.changeLanguage('vi') })
 })
 

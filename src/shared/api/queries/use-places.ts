@@ -1,6 +1,6 @@
 import { firstPageRefetch } from './first-page-refetch'
 import { captureSessionScope } from '../session'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 
 import { getAssistantStatus } from '../endpoints/assistant'
@@ -40,6 +40,22 @@ export function usePlaceDetail(placeId: string | undefined) {
     enabled: Boolean(placeId),
     staleTime: 0,
   })
+}
+
+/** Cached details for a changing seed list, with one refresh for all current seeds. */
+export function useSeedPlaceDetails(seeds: readonly { placeId?: string | null }[]) {
+  const placeIds = [...new Set(seeds.flatMap(seed => seed.placeId ? [seed.placeId] : []))]
+  const details = useQueries({
+    queries: placeIds.map(placeId => ({
+      queryKey: queryKeys.place(placeId),
+      queryFn: () => placesApi.getPlaceDetail(placeId),
+      staleTime: 0,
+    })),
+  })
+  return {
+    byPlaceId: new Map(placeIds.map((placeId, index) => [placeId, details[index]])),
+    refetchAll: () => Promise.all(details.map(detail => detail.refetch())),
+  }
 }
 
 /**

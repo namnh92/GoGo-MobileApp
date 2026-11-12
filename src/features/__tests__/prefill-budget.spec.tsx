@@ -35,6 +35,8 @@ const CHIP = /Dùng ngân sách thường dùng: 300.000đ – 500.000đ \/ngư�
 
 beforeEach(() => {
   useRoomStore.getState().resetDraft()
+  // Budget prefill starts after the required time step.
+  useRoomStore.setState({ scheduleDay: '2031-01-14', startTime: '19:00', startAt: new Date(2031, 0, 14, 19).toISOString() })
   // APP-037 (#189): the saved amount is per person, so the chip belongs to a
   // room whose budget is per person — a group whose host chose that unit. A
   // couple room is a total for two and gets its own case below.
@@ -70,7 +72,7 @@ describe('usual budget prefill on the budget step', () => {
       await fireEvent.press(view.getByText('Tiếp tục'))
     })
     expect(useRoomStore.getState().budgetAmount).toBe(500_000)
-    expect(mockPush).toHaveBeenCalledWith('/create/mood')
+    expect(mockPush).toHaveBeenCalledWith('/create/places')
   })
 
   it('is not offered when the room budget is a group total', async () => {
@@ -114,26 +116,29 @@ describe('usual budget prefill on the budget step', () => {
 
 // #333: at 375pt the last tier sat under the bottom bar of a step that could
 // not scroll. The step's content now lives in a scroll view.
-it('keeps the last tier inside the step scroll view (#333)', async () => {
+it('keeps the last tier inside the shared sheet scroll view (#333)', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
   // A real scroll view (host RCTScrollView), not a View that kept the test ID.
   const scroll = view.getByTestId('create-budget-scroll')
   expect(scroll.type).toBe('RCTScrollView')
-  expect(within(scroll).getByText('Không quan trọng')).toBeTruthy()
+  await fireEvent.press(view.getByTestId('create-budget-card'))
+  expect(within(view.getByTestId('room-budget-sheet-scroll')).getByText('Không quan trọng')).toBeTruthy()
 })
 
 // #594: the same stored tier keeps its scope on every rendered amount.
 it.each([
   ['couple', 'per_person', '/ cả phòng (2 người)', 'total'],
   ['group-host', 'per_person', '/người', 'per_person'],
-  ['group-host', 'total', ' · tổng nhóm', 'total'],
+  ['group-host', 'total', 'tổng nhóm', 'total'],
 ] as const)('shows units for %s / %s without changing the submitted amount', async (audience, mode, unit, expectedMode) => {
   useRoomStore.getState().setAudience(audience)
   useRoomStore.getState().setBudgetMode(mode)
   const view = await renderScreen(<CreateBudgetScreen />)
-  const tier = view.getByRole('button', { name: /^300.000đ – 500.000đ / })
+  await fireEvent.press(view.getByTestId('create-budget-card'))
+  const tier = view.getByRole('radio', { name: /^300.000đ – 500.000đ / })
   expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
   await fireEvent.press(tier)
+  await fireEvent.press(view.getByText('Xác nhận'))
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({ budgetMode: expectedMode, budgetAmount: 500_000 })
   if (audience === 'group-host') expect(view.queryByText(/cả hai|hai người/)).toBeNull()

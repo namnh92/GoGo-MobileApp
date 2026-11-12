@@ -23,11 +23,12 @@ type CurrentAreaSheetProps = {
   onLocationFailure?: () => void
   /** Wait for native dismissal before presenting a recovery dialog. */
   onClosed?: () => void
+  onPositionApplied?: (position: { lat: number; lng: number; label: string | null }) => void
   selection?: { value: AdministrativeSelection | null; onApply: (value: AdministrativeSelection) => void }
 }
 
 /** Shared #524 picker. A controlled selection edits a caller draft without changing the app-wide area. */
-export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLocationFailure, onClosed, mode = 'default' }: CurrentAreaSheetProps) {
+export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLocationFailure, onClosed, onPositionApplied, mode = 'default' }: CurrentAreaSheetProps) {
   const { t } = useTranslation()
   const location = useCurrentLocation()
   const appArea = useAppAreaStore()
@@ -53,7 +54,7 @@ export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLoc
   async function requestDeviceLocation() {
     const result = await location.request()
     if (!mounted.current || !visibleRef.current) return
-    if (result.status === 'granted') { onApplied(); onClose() }
+    if (result.status === 'granted') { onPositionApplied?.(result); onApplied(); onClose() }
     else if (result.status === 'denied' || result.status === 'unavailable') onLocationFailure?.()
   }
   function confirm() {
@@ -66,13 +67,13 @@ export function CurrentAreaSheet({ visible, onClose, onApplied, selection, onLoc
   return <Sheet swipeToClose appearance="discovery" visible={visible} onClose={onClose} onClosed={onClosed} testID="discovery-location-sheet"
     size={choosing ? 'full' : 'content'} scroll={false}
     footer={!choosing ? <SheetActions>
-      {!selection ? <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} onPress={() => { setDraftArea(null); setArea(null) }} /> : null}
-      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} disabled={!draftArea || !valid || (!selection && location.state.status === 'asking')} onPress={confirm} />
+      {!selection || onPositionApplied ? <SecondaryBtn variant="area" label={t('administrative.clear')} disabled={location.state.status === 'asking'} onPress={() => { setDraftArea(null); if (!selection) setArea(null) }} /> : null}
+      <PrimaryBtn variant="area" label={t('areaPicker.confirm')} disabled={!draftArea || !valid || ((!selection || !!onPositionApplied) && location.state.status === 'asking')} onPress={confirm} />
     </SheetActions> : undefined}
     header={!choosing ? <AppHeader variant="sheet" safeArea={false} title={t('home.chooseArea')}
       rightAction={<AppHeaderAction accessibilityLabel={t('common.close')} onPress={onClose}><MaterialIcon name="close" /></AppHeaderAction>} /> : undefined}>
     <View style={choosing ? styles.list : styles.content}>
-      {!choosing && !selection && mode !== 'manualOnly' ? <>
+      {!choosing && (!selection || onPositionApplied) && mode !== 'manualOnly' ? <>
         <SecondaryBtn variant="area" leadingIcon="location" label={t('home.useLocation')} onPress={() => void requestDeviceLocation()} loading={location.state.status === 'asking'} />
         {location.state.status === 'denied' || location.state.status === 'unavailable' ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t(location.state.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable')}</Text> : null}
       </> : null}

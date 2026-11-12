@@ -28,7 +28,7 @@ has a 48pt touch height, and its 24pt horizontal padding alone gives 44pt width.
 - Match result: reason chips, run-constraint chips, and place cards.
 - Swipe/vote: run-constraint chips and place cards.
 - Room lobby: role/guest/status badge spacing.
-- Room management: budget-tier chips.
+- Room edit: budget-tier chips (round 6h removed the manage screen).
 - Add place by link: contribution-wizard choices, existing-place result, resolved/submitted place cards.
 - Place detail: taxonomy tags, ratings, and AI starter-question chips.
 - Place reviews: sort chips.

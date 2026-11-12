@@ -1,4 +1,6 @@
-import { fireEvent, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
+import i18n from '@/shared/i18n'
 import { ApiError } from '@/shared/api/errors'
 import { failed, loaded, renderScreen, type QueryLike } from './harness'
 
@@ -20,6 +22,22 @@ beforeEach(() => {
   mockStatus = 'user'
   mockDetail = loaded({ id: 'canonical', name: 'Quán GoGo', gogoRatingCount: 0 })
   jest.clearAllMocks()
+})
+
+it.each(['vi', 'en'])('F-22 keeps add-place result rating facts in %s', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  try {
+    mockDetail = loaded({ id: 'canonical', name: 'Quán GoGo', rating: 4.5, ratingCount: 1395, gogoRatingCount: 0 })
+    await renderScreen(<ExistingPlaceResult placeId="canonical" onReset={() => {}} />)
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(language === 'vi' ? 'GoGo · 0 đánh giá' : 'GoGo · 0 reviews')
+    expect(screen.getByTestId('place-google-rating')).toHaveTextContent(language === 'vi' ? '★ 4,5 (1.395) Google' : '★ 4.5 (1,395) Google')
+    for (const id of ['place-gogo-rating-count', 'place-gogo-rating-source', 'place-google-rating-count', 'place-google-rating-source']) {
+      const fact = screen.getByTestId(id)
+      expect(fact.props.numberOfLines).toBeUndefined()
+      expect(fact.props.ellipsizeMode).toBeUndefined()
+      expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
+    }
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })
 
 it('opens and saves only the canonical GoGo ID', async () => {

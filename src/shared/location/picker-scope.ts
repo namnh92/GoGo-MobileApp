@@ -26,11 +26,11 @@ export function draftPickerScope(draft: Pick<RoomDraft, 'administrativeArea' | '
 }
 
 // Only one wizard picker is active. Never persist this snapshot or put it in a URL.
-let activeScope: { id: string; scope: PickerScope } | null = null
+let activeScope: { id: string; scope: PickerScope; priceMaxPerPerson?: number } | null = null
 
-export function savePickerScope(scope: PickerScope): string {
+export function savePickerScope(scope: PickerScope, priceMaxPerPerson?: number): string {
   const id = randomUUID()
-  activeScope = { id, scope: pickerScopeSchema.parse(scope) }
+  activeScope = { id, scope: pickerScopeSchema.parse(scope), priceMaxPerPerson }
   return id
 }
 
@@ -42,4 +42,9 @@ export function readPickerScope(id: string | undefined): PickerScope | null {
 /** Both the picker and its wizard owner release the transient snapshot on exit. */
 export function clearPickerScope(id: string | null | undefined): void {
   if (activeScope?.id === id) activeScope = null
+}
+
+/** Initial filter for this opaque picker session; normal search remains independent. */
+export function readPickerPriceMax(id: string | undefined): number | undefined {
+  return activeScope?.id === id ? activeScope?.priceMaxPerPerson : undefined
 }

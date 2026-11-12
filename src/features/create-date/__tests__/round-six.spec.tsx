@@ -9,10 +9,9 @@ import { useRoomStore } from '@/shared/store/roomStore'
 import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import type { LocationState } from '@/shared/location/native-location'
 import CreateType from '../create-type.view'
-import GroupSetup from '../group-setup.view'
 import CreateTime from '../create-time.view'
 import CreateBudget from '../create-budget.view'
-import CreateMood from '../create-mood.view'
+import CreatePlaces from '../create-places.view'
 import { TimePickerSheet } from '../time-picker-sheet.view'
 import { DiscoveryLocationSheet } from '@/features/search/discovery-location.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
@@ -27,7 +26,7 @@ let mockContent: ReactElement
 let mockStep = 'type'
 function wizard(element: ReactElement) {
   mockContent = element
-  mockStep = element.type === GroupSetup ? 'group-setup' : element.type === CreateTime ? 'time' : element.type === CreateBudget ? 'budget' : element.type === CreateMood ? 'mood' : 'type'
+  mockStep = element.type === CreateTime ? 'time' : element.type === CreateBudget ? 'budget' : element.type === CreatePlaces ? 'places' : 'type'
   const path = resolve(__dirname, '../../../app/create/_layout.tsx')
   if (!existsSync(path)) return element // same regression file runs on dc52c94
   const Layout = jest.requireActual(path).default
@@ -398,14 +397,14 @@ it('Home/Discovery sheet keeps its inline failure fallback without a wizard popu
   expect(view.queryByText(title())).toBeNull()
 })
 it.each([
-  ['type', CreateType], ['group-setup', GroupSetup], ['time', CreateTime], ['budget', CreateBudget], ['mood', CreateMood],
+  ['type', CreateType], ['time', CreateTime], ['budget', CreateBudget], ['places', CreatePlaces],
 ] as const)('%s keeps navigation + progress outside a bounded scrolling body, with footer preserved', async (step, Screen) => {
   const view = await renderScreen(<Screen />)
   const chrome = view.getByTestId('wizard-chrome')
   const body = view.getByTestId('wizard-content')
   expect(StyleSheet.flatten(chrome.props.style).flexShrink).toBe(0)
   expect(StyleSheet.flatten(body.props.style)).toMatchObject({ flex: 1, minHeight: 0, overflow: 'hidden' })
-  const scroll = view.getByTestId(`create-${step}-scroll`)
+  const scroll = view.getByTestId(step === 'places' ? 'create-places-list' : `create-${step}-scroll`)
   expect(within(scroll).queryByTestId('app-header')).toBeNull()
   expect(within(scroll).queryByText(/Bước \d \/ \d/)).toBeNull()
   expect(within(chrome).getByRole('button', { name: i18n.t('common.back') })).toBeTruthy()

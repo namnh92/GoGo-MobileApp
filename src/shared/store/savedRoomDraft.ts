@@ -4,8 +4,8 @@ import { z } from 'zod'
 import { captureSessionScope } from '@/shared/api/session'
 import { useRoomStore } from './roomStore'
 
-export const draftStepSchema = z.enum(['type', 'group-setup', 'location', 'time', 'budget', 'mood'])
-// `location` remains readable for snapshots written before owner round 3.
+export const draftStepSchema = z.enum(['type', 'group-setup', 'location', 'time', 'budget', 'places', 'mood'])
+// Retired `location` and `mood` remain readable for older snapshots.
 export type DraftStep = z.infer<typeof draftStepSchema>
 const nullableNumber = z.number().finite().nullable()
 const code = z.string().regex(/^\d{2,5}$/)
@@ -24,8 +24,7 @@ const commonFields = {
   startTime: z.string().nullable(), endTime: z.string().nullable(),
   // APP-051 (#204): optional length preset. Drafts written before it existed (v1 or v2) restore with none.
   durationPreset: z.enum(['upTo2h', 'upTo3h', 'upTo4h', 'evening']).nullable().default(null),
-  moodKeys: z.array(z.string()).max(3), settingKeys: z.array(z.string()).max(2),
-  spendingStyleKey: z.string().nullable(),
+  // Zod strips retired mood/setting/spending fields from older snapshots.
   seedPlaces: z.array(z.object({ placeId: z.string(), name: z.string() })).max(10),
 }
 export const savedRoomDraftSchema = z.object({
@@ -82,7 +81,7 @@ export async function loadRoomDraft(ownerId: string | null): Promise<void> {
 }
 
 export async function saveRoomDraft(ownerId: string, step: DraftStep): Promise<void> {
-  const snapshot = savedRoomDraftSchema.parse({ version: 2, ownerId, step: step === 'location' ? 'type' : step, fields: useRoomStore.getState() })
+  const snapshot = savedRoomDraftSchema.parse({ version: 2, ownerId, step: currentDraftStep(step), fields: useRoomStore.getState() })
   const saveGeneration = ++generation
   await write(() => AsyncStorage.setItem(KEY, JSON.stringify(snapshot)))
   if (saveGeneration === generation) useSavedRoomDraft.setState({ draft: snapshot })
@@ -107,7 +106,7 @@ export async function clearSavedRoomDraft(scope = captureSessionScope()): Promis
 export function migrateLegacyDraft(legacy: z.infer<typeof legacyDraftSchema>): SavedDraft {
   const { areaKey, ...fields } = legacy.fields
   const pickedArea = areaKey !== null
-  const step = pickedArea || legacy.step === 'location' ? 'type' : legacy.step
+  const step = pickedArea ? 'type' : currentDraftStep(legacy.step)
   return {
     version: 2,
     ownerId: legacy.ownerId,
@@ -125,7 +124,7 @@ export function restoreRoomDraft(ownerId: string): DraftStep | null {
   if (!snapshot || snapshot.ownerId !== ownerId) return null
   useRoomStore.getState().resetDraft()
   useRoomStore.setState(snapshot.fields)
-  return snapshot.step === 'location' ? 'type' : snapshot.step
+  return currentDraftStep(snapshot.step)
 }
 
 /**
@@ -134,10 +133,13 @@ export function restoreRoomDraft(ownerId: string): DraftStep | null {
  * Back returns to the previous step with restored data instead of leaving
  * the wizard — the same shape the stack has when the user got there by hand.
  */
-export function draftStepPath(step: DraftStep, audience: 'couple' | 'group-host' | 'group-guest'): DraftStep[] {
-  const order: DraftStep[] = audience === 'couple'
-    ? ['type', 'time', 'budget', 'mood']
-    : ['type', 'group-setup', 'time', 'budget', 'mood']
-  const index = order.indexOf(step)
+export function draftStepPath(step: DraftStep, _audience: 'couple' | 'group-host' | 'group-guest'): DraftStep[] {
+  const order: DraftStep[] = ['type', 'time', 'budget', 'places']
+  const index = order.indexOf(currentDraftStep(step))
   return index < 0 ? ['type'] : order.slice(0, index + 1)
+}
+
+/** Retired routes stay readable, but are never emitted by resume/save. */
+export function currentDraftStep(step: DraftStep): DraftStep {
+  return step === 'mood' ? 'places' : step === 'location' ? 'type' : step === 'group-setup' ? 'budget' : step
 }

@@ -1,11 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 
 import {
   forgetInviteCode,
   inviteCodeGeneration,
   loadInviteCode,
-  saveInviteCode,
   type StoredInvite,
 } from '@/shared/storage/invite-codes'
 
@@ -263,16 +262,58 @@ export function useRemoveRoomMember(roomId: string) {
 const inviteCodeKey = (roomId: string, userId: string) => ['session-invite-code', roomId, userId] as const
 const inviteAttemptKey = (roomId: string) => ['session-invite-attempt', roomId] as const
 
-/**
- * The API returns a plaintext code exactly once and keeps only its hash
- * (GoGo-BE ADR-0018). The code is kept in Keychain/Keystore so the host still
- * has it after a reopen or a cold start (#199), and in memory under a key the
- * query persister never writes — never in AsyncStorage, a log or analytics.
- * Each entry names the account that created it and is read back only for it.
- *
- * `stored` is `undefined` until the device store has been read, then the
- * stored invite or `null`.
- */
+export const sessionRoomInvite = (client: QueryClient, roomId: string) => client.getQueryData<StoredInvite | null>(inviteCodeKey(roomId, getSession()?.userId ?? ''))
+
+/** One create transaction; secrets stay in the non-persisted session query cache. */
+export async function createRoomInviteInSession(queryClient: QueryClient, id: string, body: OpBody<'createRoomInvite'>) {
+  const generation = inviteCodeGeneration()
+  const userId = getSession()?.userId ?? ''
+  let invite: Awaited<ReturnType<typeof roomsApi.createRoomInvite>>
+  const scope = captureSessionScope()
+  const previous = queryClient.getQueryData<{ key: string; error?: unknown }>(inviteAttemptKey(id))
+  if (isApiError(previous?.error) && previous.error.retryAt > Date.now()) throw previous.error
+  const key = previous?.key ?? newIdempotencyKey()
+  queryClient.setQueryData(inviteAttemptKey(id), { key })
+  try {
+    invite = await roomsApi.createRoomInvite(id, body, key)
+  } catch (error) {
+    scope.assert()
+    queryClient.setQueryData(inviteAttemptKey(id), { key, error })
+    throw error
+  }
+  scope.assert()
+  queryClient.removeQueries({ queryKey: inviteAttemptKey(id) })
+  if (generation !== inviteCodeGeneration()) throw new Error('Session changed')
+  const record: StoredInvite = {
+    roomId: id,
+    inviteId: invite.inviteId,
+    code: invite.code,
+    expiresAt: invite.expiresAt,
+    userId,
+    savedAt: Date.now(),
+  }
+  scope.assert()
+  await queryClient.cancelQueries({ queryKey: inviteCodeKey(id, userId) })
+  scope.assert()
+  queryClient.setQueryData(inviteCodeKey(id, userId), record)
+  // A list refetch already in flight would land without this invite and make
+  // the screen forget the code it just showed. The list is refetched by the
+  // lobby poll (it invalidates the whole `['rooms', id]` prefix), on focus,
+  // and before the code is copied or shared.
+  await queryClient.cancelQueries({ queryKey: queryKeys.roomInvites(id) })
+  scope.assert()
+  queryClient.setQueryData<unknown>(queryKeys.roomInvites(id), (list: unknown) =>
+    Array.isArray(list)
+      ? [
+          ...list.filter(row => (row as { inviteId?: string } | null)?.inviteId !== invite.inviteId),
+          { inviteId: invite.inviteId, expiresAt: invite.expiresAt, revoked: false, useCount: 0, maxUses: invite.maxUses },
+        ]
+      : list,
+  )
+  void queryClient.invalidateQueries({ queryKey: queryKeys.roomInvites(id) })
+  return invite
+}
+
 export function useCreateRoomInvite(roomId: string | undefined) {
   const queryClient = useQueryClient()
   const userId = getSession()?.userId ?? ''
@@ -289,60 +330,7 @@ export function useCreateRoomInvite(roomId: string | undefined) {
   })
   const mutation = useMutation({
     retry: false,
-    // Captured before the request: a logout while it is in flight must not
-    // leave the code it returns behind on the device.
-    onMutate: () => ({ generation: inviteCodeGeneration() }),
-    mutationFn: async (body: OpBody<'createRoomInvite'>) => {
-      const scope = captureSessionScope()
-      const id = roomId as string
-      const previous = queryClient.getQueryData<{ key: string; error?: unknown }>(inviteAttemptKey(id))
-      if (isApiError(previous?.error) && previous.error.retryAt > Date.now()) throw previous.error
-      const key = previous?.key ?? newIdempotencyKey()
-      queryClient.setQueryData(inviteAttemptKey(id), { key })
-      try {
-        return await roomsApi.createRoomInvite(id, body, key)
-      } catch (error) {
-        scope.assert()
-        queryClient.setQueryData(inviteAttemptKey(id), { key, error })
-        throw error
-      }
-    },
-    onSuccess: async (invite, _body, context) => {
-      const scope = captureSessionScope()
-      const id = roomId as string
-      queryClient.removeQueries({ queryKey: inviteAttemptKey(id) })
-      if (context && context.generation !== inviteCodeGeneration()) return
-      const record: StoredInvite = {
-        roomId: id,
-        inviteId: invite.inviteId,
-        code: invite.code,
-        expiresAt: invite.expiresAt,
-        userId,
-        savedAt: Date.now(),
-      }
-      // A refused keychain write still shows the code for this session; after a
-      // reopen the room reports the invite as active and offers a new one.
-      if (userId) await saveInviteCode(record, context?.generation).catch(() => undefined)
-      scope.assert()
-      await queryClient.cancelQueries({ queryKey: inviteCodeKey(id, userId) })
-      scope.assert()
-      queryClient.setQueryData(inviteCodeKey(id, userId), record)
-      // A list refetch already in flight would land without this invite and make
-      // the screen forget the code it just showed. The list is refetched by the
-      // lobby poll (it invalidates the whole `['rooms', id]` prefix), on focus,
-      // and before the code is copied or shared.
-      await queryClient.cancelQueries({ queryKey: queryKeys.roomInvites(id) })
-      scope.assert()
-      queryClient.setQueryData<unknown>(queryKeys.roomInvites(id), (list: unknown) =>
-        Array.isArray(list)
-          ? [
-              ...list.filter(row => (row as { inviteId?: string } | null)?.inviteId !== invite.inviteId),
-              { inviteId: invite.inviteId, expiresAt: invite.expiresAt, revoked: false, useCount: 0, maxUses: invite.maxUses },
-            ]
-          : list,
-      )
-      void queryClient.invalidateQueries({ queryKey: queryKeys.roomInvites(id) })
-    },
+    mutationFn: (body: OpBody<'createRoomInvite'>) => createRoomInviteInSession(queryClient, roomId as string, body),
   })
   const forget = useCallback(
     async (inviteId: string) => {

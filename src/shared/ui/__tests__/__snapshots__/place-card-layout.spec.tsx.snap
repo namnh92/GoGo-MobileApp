@@ -118,12 +118,44 @@ exports[`owner 2026-11-08 two common cards / orange LARGE pins full-data structu
                   {
                     "children": [
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-google-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-google-rating",
                         "lines": undefined,
                       },
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-gogo-rating",
                         "lines": undefined,
                       },
@@ -312,12 +344,44 @@ exports[`owner 2026-11-08 two common cards / orange SMALL pins full-data structu
                   {
                     "children": [
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-gogo-rating",
                         "lines": undefined,
                       },
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-google-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-google-rating",
                         "lines": undefined,
                       },
@@ -535,12 +599,44 @@ exports[`owner 2026-11-08 two common cards / orangeDark LARGE pins full-data str
                   {
                     "children": [
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-google-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-google-rating",
                         "lines": undefined,
                       },
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-gogo-rating",
                         "lines": undefined,
                       },
@@ -729,12 +825,44 @@ exports[`owner 2026-11-08 two common cards / orangeDark SMALL pins full-data str
                   {
                     "children": [
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-gogo-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-gogo-rating",
                         "lines": undefined,
                       },
                       {
-                        "children": [],
+                        "children": [
+                          {
+                            "children": [],
+                            "id": "place-google-rating-score",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-count",
+                            "lines": undefined,
+                          },
+                          {
+                            "children": [],
+                            "id": "place-google-rating-source",
+                            "lines": undefined,
+                          },
+                        ],
                         "id": "place-google-rating",
                         "lines": undefined,
                       },

@@ -85,7 +85,7 @@ describe.each(SCREENS)('%s × run state × role', (_name, element, waitingCopy) 
     await act(async () => { await fireEvent.press(view.getByText(REFRESH)) })
     expect(mockRegenerate).toHaveBeenCalledTimes(1)
     await act(async () => { await fireEvent.press(view.getByText(ADJUST)) })
-    expect(mockPush).toHaveBeenCalledWith('/room/room-1/manage')
+    expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
   })
 
   it('tells a member the run found nothing and to wait for the host, with no host actions', async () => {

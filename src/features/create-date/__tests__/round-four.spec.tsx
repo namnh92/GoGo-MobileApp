@@ -7,7 +7,7 @@ import { useAppAreaStore } from '@/shared/location/app-area'
 import { readPickerScope, savePickerScope, type PickerScope } from '@/shared/location/picker-scope'
 import * as pickerScopes from '@/shared/location/picker-scope'
 import type { ChipProps } from '@/shared/ui/chip.view'
-import CreateMoodScreen from '../create-mood.view'
+import CreatePlacesScreen from '../create-places.view'
 import { DateTimeSheet } from '../date-time-sheet.view'
 import SearchScreen from '@/features/search/search.view'
 
@@ -52,6 +52,8 @@ jest.mock('@/shared/api', () => ({
 }))
 
 beforeEach(async () => {
+  // VirtualizedList batches cell updates on timers; keep them inside test act boundaries.
+  jest.useFakeTimers()
   mockFocus.mockClear()
   mockPush.mockClear(); mockQueries.length = 0; mockPreviews.length = 0; mockResults = []; mockSearch.data = { pages: [{ results: mockResults, nextCursor: null }] }; mockParams = {}
   mockSparseDetail = mockLoaded(undefined)
@@ -60,31 +62,33 @@ beforeEach(async () => {
   await act(async () => { await i18n.changeLanguage('vi') })
 })
 
-it.each(['area', 'gps'] as const)('F-10: synchronous Add presses open one %s picker until Mood regains focus', async source => {
+afterEach(() => jest.useRealTimers())
+
+it.each(['area', 'gps'] as const)('F-10: synchronous Add presses open one %s picker until Places regains focus', async source => {
   useRoomStore.getState().patchDraft(source === 'area'
     ? { administrativeArea: mockArea }
     : { originLat: 10.77123, originLng: 106.71234, radiusM: 5000 })
   const saveScope = jest.spyOn(pickerScopes, 'savePickerScope')
   try {
-    const view = await renderScreen(<CreateMoodScreen />)
+    const view = await renderScreen(<CreatePlacesScreen />)
     // Invoke the same rendered handler twice before React can render disabled state.
     const press = mockAddPress
     await act(async () => { press(); press() })
     expect({ saves: saveScope.mock.calls.length, pushes: mockPush.mock.calls.length }).toEqual({ saves: 1, pushes: 1 })
     const firstId = mockPush.mock.calls[0][0].params.pickerScope
     expect(readPickerScope(firstId)).not.toBeNull()
-    expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeDisabled()
+    expect(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeDisabled()
 
     // An unrelated draft render must not reopen the guard while the picker is away.
-    await act(async () => useRoomStore.getState().patchDraft({ moodKeys: ['a'] }))
+    await act(async () => useRoomStore.getState().patchDraft({ title: 'Changed title' }))
     await act(async () => { mockAddPress() })
     expect(saveScope).toHaveBeenCalledTimes(1)
     expect(mockPush).toHaveBeenCalledTimes(1)
 
     // Replay the registered focus callback as navigation does when the picker returns.
     await act(async () => { mockFocus.mock.calls.at(-1)![0]() })
-    expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeEnabled()
-    await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+    expect(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeEnabled()
+    await fireEvent.press(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
     expect(saveScope).toHaveBeenCalledTimes(2)
     expect(mockPush).toHaveBeenCalledTimes(2)
     const nextId = mockPush.mock.calls[1][0].params.pickerScope
@@ -93,67 +97,12 @@ it.each(['area', 'gps'] as const)('F-10: synchronous Add presses open one %s pic
   } finally { saveScope.mockRestore() }
 })
 
-it.each(['vi', 'en'])('round 5: shared icon-only mood toggles follow the last option, like the calendar (%s)', async locale => {
-  await act(async () => { await i18n.changeLanguage(locale) })
-  let view = await renderScreen(<CreateMoodScreen />)
-  const toggles = view.getAllByRole('button', { name: i18n.t('createMood.showAll') })
-  expect(toggles).toHaveLength(3)
-  for (const toggle of toggles) {
-    expect(within(toggle).queryByText(i18n.t('createMood.showAll'))).toBeNull()
-    expect(within(toggle).getByTestId('material-icon-keyboardDoubleArrowDown', { includeHiddenElements: true })).toBeTruthy()
-    const style = StyleSheet.flatten(toggle.props.style)
-    expect(style.minHeight).toBeGreaterThanOrEqual(44); expect(style.minWidth).toBeGreaterThanOrEqual(44)
-    expect(toggle.props.accessibilityState.expanded).toBe(false)
-    expect(style.alignSelf).toBe('center')
-    const section = toggle.parent!
-    expect(section.children.at(-1)).toBe(toggle)
-    const header = section.children[0]
-    expect(typeof header).toBe('object')
-    if (typeof header === 'object') {
-      expect(within(header).queryAllByRole('button')).toHaveLength(0)
-      expect(within(header).getAllByText(/.+/)).toHaveLength(1)
-    }
-    const options = section.children[1]
-    expect(typeof options).toBe('object')
-    if (typeof options === 'object') expect(within(options).getAllByRole('checkbox')).toHaveLength(5)
-  }
-  await fireEvent.press(toggles[0])
-  const collapse = view.getByRole('button', { name: i18n.t('createMood.showLess') })
-  expect(collapse.props.accessibilityState.expanded).toBe(true)
-  expect(within(collapse).getByTestId('material-icon-keyboardDoubleArrowUp', { includeHiddenElements: true })).toBeTruthy()
-  expect(view.getAllByRole('checkbox')).toHaveLength(17)
-  await fireEvent.press(collapse)
-  expect(view.getAllByRole('checkbox')).toHaveLength(15)
-  await view.unmount()
-  view = await renderScreen(<DateTimeSheet initialDay={null} onDayChange={jest.fn()} />)
-  const calendar = view.getByRole('button', { name: i18n.t('createTime.expandCalendar') })
-  expect(calendar.parent!.children.at(-1)).toBe(calendar)
-  expect(within(calendar).queryByText(i18n.t('createTime.expandCalendar'))).toBeNull()
-  expect(within(calendar).getByTestId('material-icon-keyboardDoubleArrowDown', { includeHiddenElements: true })).toBeTruthy()
-  expect(StyleSheet.flatten(calendar.props.style).minHeight).toBeGreaterThanOrEqual(44)
-  await fireEvent.press(calendar)
-  expect(within(view.getByRole('button', { name: i18n.t('createTime.collapseCalendar') })).getByTestId('material-icon-keyboardDoubleArrowUp', { includeHiddenElements: true })).toBeTruthy()
-})
-
-it('round 5: collapsing keeps five options in stable taxonomy order including an overflow selection', async () => {
-  useRoomStore.getState().patchDraft({ moodKeys: ['g'] })
-  const view = await renderScreen(<CreateMoodScreen />)
-  const labels = () => view.getAllByRole('checkbox').slice(0, 5).map(option => option.props.accessibilityLabel)
-  const collapsed = ['mood a', 'mood b', 'mood c', 'mood d', 'mood g']
-  expect(labels()).toEqual(collapsed)
-  await fireEvent.press(view.getAllByRole('button', { name: i18n.t('createMood.showAll') })[0])
-  expect(view.getAllByRole('checkbox').slice(0, 7).map(option => option.props.accessibilityLabel)).toEqual('abcdefg'.split('').map(key => `mood ${key}`))
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.showLess') }))
-  expect(labels()).toEqual(collapsed)
-  expect(useRoomStore.getState().moodKeys).toEqual(['g'])
-})
-
 it.each(['area', 'gps'] as const)('round 4: opens picker with explicit wizard %s scope independent of global scope', async source => {
   useRoomStore.getState().patchDraft(source === 'area'
     ? { administrativeArea: mockArea, originLat: 10, originLng: 106, radiusM: 2000 }
     : { originLat: 10.77, originLng: 106.7, radiusM: 5000 })
-  const wizard = await renderScreen(<CreateMoodScreen />)
-  await fireEvent.press(wizard.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+  const wizard = await renderScreen(<CreatePlacesScreen />)
+  await fireEvent.press(wizard.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
   const href = mockPush.mock.calls[0][0]
   expect(href.pathname).toBe('/places/search')
   expect(href.params.picker).toBe('1')
@@ -177,8 +126,8 @@ it.each(['area', 'gps'] as const)('F-08: routes only an opaque id for the wizard
   useRoomStore.getState().patchDraft(source === 'area'
     ? { administrativeArea: mockArea, originLat: 10.77123, originLng: 106.71234, radiusM: 2000 }
     : { originLat: 10.77123, originLng: 106.71234, radiusM: 5000 })
-  const view = await renderScreen(<CreateMoodScreen />)
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+  const view = await renderScreen(<CreatePlacesScreen />)
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: {
     picker: '1', pickerScope: expect.stringMatching(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i),
   } })
@@ -187,8 +136,8 @@ it.each(['area', 'gps'] as const)('F-08: routes only an opaque id for the wizard
 
 it.each(['picker', 'wizard'] as const)('F-08: expires the snapshot when the %s closes; reopening a stale id fails closed', async closing => {
   useRoomStore.getState().patchDraft({ originLat: 10.77123, originLng: 106.71234, radiusM: 5000 })
-  const wizard = await renderScreen(<CreateMoodScreen />)
-  await fireEvent.press(wizard.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+  const wizard = await renderScreen(<CreatePlacesScreen />)
+  await fireEvent.press(wizard.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
   mockParams = mockPush.mock.calls[0][0].params
   expect(readPickerScope(mockParams.pickerScope)).toMatchObject({ source: 'gps', position: { lat: 10.77123, lng: 106.71234 }, radiusM: 5000 })
   if (closing === 'picker') {
@@ -232,8 +181,8 @@ it('round 4: malformed explicit picker scope never falls back to global search',
 it.each([mockArea, { ...mockArea, communeCode: null, communeName: null }])('GPS anywhere: resolved administrative area becomes the opaque picker scope (%j)', async area => {
   useRoomStore.getState().patchDraft({ originLat: 10.77123, originLng: 106.71234, radiusM: null })
   useAppAreaStore.setState({ area, scope: { status: 'ready', source: 'gps', position: { lat: 10.77123, lng: 106.71234 } } })
-  const wizard = await renderScreen(<CreateMoodScreen />)
-  const add = wizard.getByRole('button', { name: i18n.t('createMood.addPlace') })
+  const wizard = await renderScreen(<CreatePlacesScreen />)
+  const add = wizard.getByRole('button', { name: i18n.t('createPlaces.addPlace') })
   expect(add).toBeEnabled()
   await fireEvent.press(add)
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/places/search', params: {
@@ -264,10 +213,10 @@ it.each(['pending', 'failed', 'different-position', 'manual'] as const)('GPS any
       : resolution === 'different-position'
         ? { area: mockArea, scope: { status: 'ready', source: 'gps', position: { lat: 11, lng: 106 } } }
         : { area: mockGlobal, scope: { status: 'ready', source: 'selected_area', area: mockGlobal } })
-  const view = await renderScreen(<CreateMoodScreen />)
-  const add = view.getByRole('button', { name: i18n.t('createMood.addPlace') })
+  const view = await renderScreen(<CreatePlacesScreen />)
+  const add = view.getByRole('button', { name: i18n.t('createPlaces.addPlace') })
   expect(add).toBeDisabled()
-  expect(view.getByText(i18n.t('createMood.seedScopeUnavailable'))).toBeTruthy()
+  expect(view.getByText(i18n.t('createPlaces.seedScopeUnavailable'))).toBeTruthy()
   await fireEvent.press(add)
   expect(mockPush).not.toHaveBeenCalled()
 })
@@ -275,12 +224,12 @@ it.each(['pending', 'failed', 'different-position', 'manual'] as const)('GPS any
 it('GPS anywhere: pending resolution enables Add when the matching area arrives', async () => {
   useRoomStore.getState().patchDraft({ originLat: 10, originLng: 106, radiusM: null })
   useAppAreaStore.setState({ area: null, scope: { status: 'resolving' } })
-  const view = await renderScreen(<CreateMoodScreen />)
-  expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeDisabled()
+  const view = await renderScreen(<CreatePlacesScreen />)
+  expect(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeDisabled()
   await act(async () => useAppAreaStore.setState({ area: mockArea, scope: { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } } }))
-  const add = view.getByRole('button', { name: i18n.t('createMood.addPlace') })
+  const add = view.getByRole('button', { name: i18n.t('createPlaces.addPlace') })
   expect(add).toBeEnabled()
-  expect(view.queryByText(i18n.t('createMood.seedScopeUnavailable'))).toBeNull()
+  expect(view.queryByText(i18n.t('createPlaces.seedScopeUnavailable'))).toBeNull()
   await fireEvent.press(add)
   expect(readPickerScope(mockPush.mock.calls[0][0].params.pickerScope)).toEqual({ status: 'ready', source: 'selected_area', area: mockArea })
 })
@@ -288,18 +237,25 @@ it('GPS anywhere: pending resolution enables Add when the matching area arrives'
 it('GPS finite radius: resolved administrative area does not replace coordinates and radius', async () => {
   useRoomStore.getState().patchDraft({ originLat: 10, originLng: 106, radiusM: 5000 })
   useAppAreaStore.setState({ area: mockArea, scope: { status: 'ready', source: 'gps', position: { lat: 10, lng: 106 } } })
-  const view = await renderScreen(<CreateMoodScreen />)
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.addPlace') }))
+  const view = await renderScreen(<CreatePlacesScreen />)
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
   expect(readPickerScope(mockPush.mock.calls[0][0].params.pickerScope)).toEqual({ status: 'ready', source: 'gps', position: { lat: 10, lng: 106 }, radiusM: 5000 })
 })
 
-it('round 5: seed remove is inside each full-width small card and only removes that seed', async () => {
+it('round 6t: seed remove overlaps each full-width small card and only removes that seed', async () => {
   useRoomStore.getState().addSeedPlace({ placeId: 'full', name: 'Verified cafe' })
   useRoomStore.getState().addSeedPlace({ placeId: 'sparse', name: 'Sparse cafe' })
-  const view = await renderScreen(<CreateMoodScreen />)
+  const view = await renderScreen(<CreatePlacesScreen />)
   const cards = view.getAllByTestId('place-card-small')
   expect(cards).toHaveLength(2)
-  expect(view.getByTestId('create-mood-seed-list').props.style.flexDirection).toBe('column')
+  const listStyle = StyleSheet.flatten(view.getByTestId('create-places-seed-list').props.style)
+  expect(listStyle.flexDirection).toBe('column')
+  expect(listStyle.paddingTop).toBe(12)
+  expect(listStyle.paddingBottom ?? 0).toBe(0)
+  expect(listStyle.overflow).toBe('visible')
+  expect(listStyle.gap).toBeGreaterThanOrEqual(24)
+  const listPadding = StyleSheet.flatten(view.getByTestId('create-places-list').props.contentContainerStyle)
+  expect(listPadding.paddingHorizontal).toBeGreaterThanOrEqual(12)
   expect(within(cards[0]).getByTestId('place-google-rating')).toBeTruthy()
   expect(within(cards[1]).queryByTestId('place-google-rating')).toBeNull()
   expect(within(cards[1]).queryByTestId('place-gogo-rating')).toBeNull()
@@ -307,29 +263,30 @@ it('round 5: seed remove is inside each full-width small card and only removes t
   expect(within(cards[1]).queryByText('—')).toBeNull()
   expect(within(cards[1]).queryByTestId('place-card-address')).toBeNull()
   for (const [index, name] of ['Verified cafe', 'Sparse cafe'].entries()) {
-    const remove = view.getByRole('button', { name: i18n.t('createMood.removePlace', { name }) })
+    const remove = view.getByRole('button', { name: i18n.t('createPlaces.removePlace', { name }) })
     const surface = view.getAllByTestId('place-card-surface')[index]
-    expect(within(surface).getByRole('button', { name: i18n.t('createMood.removePlace', { name }) })).toBe(remove)
-    expect(surface.parent?.props.testID).toBe('create-mood-seed-list')
+    expect(within(surface).getByRole('button', { name: i18n.t('createPlaces.removePlace', { name }) })).toBe(remove)
+    expect(surface.parent?.props.testID).toBe('create-places-seed-list')
     expect(StyleSheet.flatten(surface.props.style).flex).toBeUndefined()
+    expect(StyleSheet.flatten(surface.props.style).overflow).toBe('visible')
     expect(within(remove).queryByText(name)).toBeNull()
     const style = StyleSheet.flatten(remove.props.style)
     expect(style.position).toBe('absolute')
-    expect(style.top).toBeGreaterThanOrEqual(0); expect(style.right).toBeGreaterThanOrEqual(0)
+    expect(style.top).toBe(-style.height / 2); expect(style.right).toBe(-style.width / 2)
     expect(style.width + remove.props.hitSlop.left + remove.props.hitSlop.right).toBeGreaterThanOrEqual(44)
     expect(style.height + remove.props.hitSlop.top + remove.props.hitSlop.bottom).toBeGreaterThanOrEqual(44)
   }
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.removePlace', { name: 'Verified cafe' }) }))
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createPlaces.removePlace', { name: 'Verified cafe' }) }))
   expect(view.getAllByTestId('place-card-small')).toHaveLength(1)
   expect(useRoomStore.getState().seedPlaces).toEqual([{ placeId: 'sparse', name: 'Sparse cafe' }])
   expect(mockPush).not.toHaveBeenCalled()
-  expect(view.getByRole('button', { name: i18n.t('createMood.addPlace') })).toBeTruthy()
+  expect(view.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeTruthy()
 })
 
 it.each(['offline', 'failed'] as const)('F-09: seed without cached detail keeps only known facts when %s', async state => {
   mockSparseDetail = state === 'offline' ? mockPausedOffline() : mockFailed()
   useRoomStore.getState().addSeedPlace({ placeId: 'sparse', name: 'Sparse cafe' })
-  const view = await renderScreen(<CreateMoodScreen />)
+  const view = await renderScreen(<CreatePlacesScreen />)
   const card = within(view.getByTestId('place-card-small'))
   expect(card.getByText('Sparse cafe')).toBeTruthy()
   for (const id of ['place-google-rating', 'place-gogo-rating', 'place-card-ratings']) expect(card.queryByTestId(id)).toBeNull()
@@ -355,7 +312,43 @@ it.each(['area', 'gps'] as const)('round 4: filter previews and map panning reta
   const map = view.getByTestId('round-four-map')
   await act(async () => {
     map.props.onRegionChangeComplete({ latitude: 22, longitude: 104, latitudeDelta: 0.1, longitudeDelta: 0.1 })
-    await new Promise(resolve => setTimeout(resolve, 450))
+    await jest.advanceTimersByTimeAsync(450)
   })
   for (const { query } of mockQueries.filter(call => call.enabled)) expect(query).toMatchObject(expected)
+})
+
+it.each(['vi', 'en'])('retains the calendar-only expander regression after retiring Mood (%s)', async locale => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  const view = await renderScreen(<DateTimeSheet initialDay={null} onDayChange={jest.fn()} />)
+  const calendar = view.getByRole('button', { name: i18n.t('createTime.expandCalendar') })
+  expect(calendar.parent!.children.at(-1)).toBe(calendar)
+  expect(within(calendar).queryByText(i18n.t('createTime.expandCalendar'))).toBeNull()
+  expect(within(calendar).getByTestId('material-icon-keyboardDoubleArrowDown', { includeHiddenElements: true })).toBeTruthy()
+  expect(StyleSheet.flatten(calendar.props.style).minHeight).toBeGreaterThanOrEqual(44)
+  await fireEvent.press(calendar)
+  expect(within(view.getByRole('button', { name: i18n.t('createTime.collapseCalendar') })).getByTestId('material-icon-keyboardDoubleArrowUp', { includeHiddenElements: true })).toBeTruthy()
+})
+
+it.each([
+  ['couple', 'per_person', 600001, 6, 300000],
+  ['group-host', 'total', 800003, 4, 200000],
+  ['group-host', 'per_person', 200001, 6, 200001],
+  ['group-host', 'total', null, 4, undefined],
+] as const)('round 6v: full picker receives price ceiling for %s / %s', async (audience, budgetMode, budgetAmount, participantCount, ceiling) => {
+  useRoomStore.setState({ audience, budgetMode, budgetAmount, participantCount, administrativeArea: mockArea })
+  const wizard = await renderScreen(<CreatePlacesScreen />)
+  expect(mockQueries).toHaveLength(0)
+  await fireEvent.press(wizard.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
+  mockParams = mockPush.mock.calls[0][0].params
+  const search = await renderScreen(<SearchScreen />)
+  expect(mockQueries.filter(call => call.enabled && call.query.limit === 10).length).toBeGreaterThan(0)
+  for (const { query } of mockQueries.filter(call => call.enabled && call.query.limit === 10)) {
+    expect(query.priceMaxPerPerson).toBe(ceiling)
+    expect(query).toMatchObject({ datasetVersion: mockArea.datasetVersion, provinceCode: mockArea.provinceCode, communeCode: mockArea.communeCode })
+  }
+  await search.unmount()
+  mockParams = {}
+  mockQueries.length = 0
+  await renderScreen(<SearchScreen />)
+  expect(mockQueries.filter(call => call.enabled && call.query.limit === 10).every(call => call.query.priceMaxPerPerson === undefined)).toBe(true)
 })

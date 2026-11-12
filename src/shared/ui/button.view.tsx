@@ -24,9 +24,11 @@ import { styles } from './button.style'
  */
 
 export interface ButtonProps {
+  testID?: string
   size?: ButtonSize
   variant?: 'pill' | 'default' | 'neutral' | 'neutralPill' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
+  accessibilityLabel?: string
   /** Allow full action labels to wrap in narrow shared layouts. */
   wrapLabel?: boolean
   onPress: () => void
@@ -80,7 +82,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && kind === 'primary' && styles.primaryPressed, disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
+function Button({ testID, kind, label, accessibilityLabel, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -96,6 +98,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
   const iconColor: TextColor = variant === 'area' && kind === 'secondary' && !greyed ? 'accent.text' : greyed ? look.disabledLabel : variant === 'discoveryJoin' ? 'text.primary' : look.label
   return (
     <Pressable
+      testID={testID}
       onPress={() => {
         haptic(HAPTIC[kind])
         onPress()
@@ -105,7 +108,7 @@ function Button({ kind, label, onPress, accessibilityHint, disabled = false, loa
       accessibilityRole="button"
       // #271: Android writes contentDescription only when label + state is
       // non-empty, so without a label a button kept saying "busy" after loading.
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
@@ -167,18 +170,23 @@ export function DangerBtn(props: ButtonProps) {
  * Icon-only. The glyph is not a label, so `accessibilityLabel` is required —
  * a screen reader announcing "button" and nothing else is a dead end. Drawn at
  * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
+ * The plain variant reserves 44pt; plainCompact uses 20pt plus hitSlop for dense headings.
  */
-export function IconBtn({ children, onPress, accessibilityLabel, active = false, disabled = false, style, size = 'small' }: {
+export function IconBtn({ testID, children, onPress, accessibilityLabel, accessibilityHint, active = false, disabled = false, style, size = 'small', variant = 'default' }: {
+  testID?: string
   size?: ButtonSize
+  /** Unframed actions; plainCompact keeps a 44pt touch target with hitSlop. */
+  variant?: 'default' | 'plain' | 'plainCompact'
   children: ReactNode
   onPress: () => void
   accessibilityLabel: string
+  accessibilityHint?: string
   active?: boolean
   disabled?: boolean
   style?: StyleProp<ViewStyle>
 }) {
   return (
-    <Pressable
+    <Pressable testID={testID}
       onPress={() => {
         haptic('select')
         onPress()
@@ -186,13 +194,18 @@ export function IconBtn({ children, onPress, accessibilityLabel, active = false,
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled, selected: active }}
-      hitSlop={hitSlop}
+      hitSlop={variant === 'plainCompact' ? { top: 12, bottom: 12, left: 12, right: 12 } : hitSlop}
       style={[
         styles.icon,
         size === 'regular' ? styles.iconRegular : styles.iconSmall,
         active && styles.iconActive,
         disabled && styles.iconDisabled,
+        variant !== 'default' && styles.iconPlain,
+        variant === 'plain' && size === 'small' && styles.iconPlainSmall,
+        variant !== 'default' && disabled && styles.iconPlainDisabled,
+        variant === 'plainCompact' && styles.iconPlainCompact,
         style,
       ]}
     >

@@ -19,7 +19,7 @@ import { isAssistantEntryOn } from '@/shared/config/features'
 import { track } from '@/shared/analytics'
 import { openGoogleMapsDirections } from '@/shared/navigation/directions'
 import { scopeSearchParams, useDiscoveryScope, type DiscoveryScope } from '@/shared/location/use-discovery-scope'
-import { clearPickerScope, readPickerScope } from '@/shared/location/picker-scope'
+import { clearPickerScope, readPickerPriceMax, readPickerScope } from '@/shared/location/picker-scope'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
@@ -82,13 +82,13 @@ export default function SearchScreen() {
     if (explicitPicker) return () => clearPickerScope(pickerScope)
   }, [explicitPicker, pickerScope])
   const scope = useMemo<DiscoveryScope>(() => explicitPicker
-    ? wizardScope ?? { status: 'unavailable', offline: false, error: new Error(t('createMood.seedScopeUnavailable')) }
+    ? wizardScope ?? { status: 'unavailable', offline: false, error: new Error(t('createPlaces.seedScopeUnavailable')) }
     : !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope,
   [explicitPicker, wizardScope, t, isPicker, scopeOverridden, savedScope, area, entryArea, resolvedScope])
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)
   const [query, setQuery] = useState(q ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(q ?? '')
-  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), moods: moods?.split(',').filter(Boolean) ?? [], categories: categories?.split(',').filter(Boolean) ?? [] }))
+  const [committed, setCommitted] = useState<DiscoveryFilters>(() => ({ ...emptyFilters(), priceTo: explicitPicker && readPickerPriceMax(pickerScope) !== undefined ? String(readPickerPriceMax(pickerScope)! / 1000) : '', moods: moods?.split(',').filter(Boolean) ?? [], categories: categories?.split(',').filter(Boolean) ?? [] }))
   const [draft, setDraft] = useState<DiscoveryFilters>(emptyFilters)
   const [sheetOpen, setSheetOpen] = useState(filters === '1')
   const [locationOpen, setLocationOpen] = useState(false)

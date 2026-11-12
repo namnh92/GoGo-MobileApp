@@ -97,3 +97,15 @@ it.each(['vi', 'en'])('keeps every result action concise and both import actions
   expect(StyleSheet.flatten(actions[0].parent!.props.style).flexDirection).toBe('row')
   for (const key of ['placeResult.viewContributions', 'placeResult.addAnother']) expect(screen.getByText(i18n.t(key, { lng })).props.numberOfLines).toBe(1)
 })
+
+it('embeds the shared warning in an existing sheet without creating another native Modal', async () => {
+  const props = { embedded: true, variant: 'warning' as const, title: 'Confirm?', body: 'Changes make plans stale.',
+    primaryAction: { label: 'Confirm', onPress: jest.fn() }, secondaryAction: { label: 'Cancel', onPress: jest.fn() }, onClose: jest.fn() }
+  const view = await render(<ResultSheet visible {...props} />)
+  expect(screen.getByTestId('result-sheet')).toBeTruthy()
+  expect(screen.queryByTestId('result-sheet-modal', { includeHiddenElements: true })).toBeNull()
+  await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }))
+  expect(props.secondaryAction.onPress).toHaveBeenCalledTimes(1)
+  await view.rerender(<ResultSheet visible={false} {...props} />)
+  expect(screen.queryByTestId('result-sheet')).toBeNull()
+})

@@ -86,14 +86,14 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     await render(<ThemeScopeProvider name={theme}><Component place={full} saved onToggleSave={jest.fn()} /></ThemeScopeProvider>)
     expect(structure(screen.getByTestId('place-card-surface'))).toMatchSnapshot(name + ' full')
     for (const id of ['place-card-verified', 'place-photo-image', 'saved-photo-attribution', 'place-google-rating', 'place-gogo-rating', 'place-card-save']) expect(screen.getByTestId(id)).toBeTruthy()
-    for (const text of ['★ 4,6 (980) Google', '★ 4,9 (142) GoGo']) expect(screen.getByText(text)).toBeTruthy()
+    for (const text of ['★ 4,6 (980) Google', '★ 4,9 (142) GoGo']) expect(screen.getByLabelText(text)).toBeTruthy()
     for (const text of ['Category', 'Purpose', 'Vibe', '800 m']) expect(!!screen.queryByText(text)).toBe(name === 'LARGE')
     for (const id of ['place-card-hours-badge', 'place-card-price', 'place-card-tags', 'place-card-distance']) expect(!!screen.queryByTestId(id)).toBe(name === 'LARGE')
     if (name === 'LARGE') {
       expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
       expect(StyleSheet.flatten(screen.getByTestId('place-card-ratings').props.style).flexDirection).toBe('row')
       expect(screen.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-google-rating', 'place-gogo-rating'])
-      expect(screen.getByText('★ 4,6 (980) Google').props.numberOfLines).toBe(1)
+      expect(screen.getByTestId('place-google-rating-source').props.numberOfLines).toBeUndefined()
     }
     expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(name === 'LARGE' ? 2 : 1)
     expect(screen.getByTestId('place-card-name').props.numberOfLines).toBe(1)
@@ -124,7 +124,7 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
   it.each(components)('%s preserves closed/next-open wording, below-threshold counts and independent save', async (name, Component) => {
     const save = jest.fn(), open = jest.fn()
     await render(<ThemeScopeProvider name={theme}><Component place={{ ...full, openNow: false, opensAtMinute: 480, opensDayOffset: 1, gogoRatingCount: 4 }} onPress={open} saved onToggleSave={save} /></ThemeScopeProvider>)
-    expect(screen.getByText('GoGo · Chưa đủ đánh giá (4)')).toBeTruthy()
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(name === 'SMALL' ? 'GoGo · 4 đánh giá' : 'GoGo · Chưa đủ đánh giá (4)', { exact: true })
     expect(screen.queryByText('★ 4,9 (4) GoGo')).toBeNull()
     if (name === 'LARGE') expect(screen.getByText('Đã đóng · Mở 08:00 ngày mai').props.numberOfLines).toBeUndefined()
     else expect(screen.queryByText('Đã đóng · Mở 08:00 ngày mai')).toBeNull()
@@ -151,7 +151,7 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     for (const text of ['Extra tag', 'Extra category', 'Unavailable']) expect(screen.queryByText(text)).toBeNull()
     for (const id of ['feature-leading', 'feature-trailing', 'heading-action']) expect(screen.queryByTestId(id)).toBeNull()
   })
-  it.each([0, 1, 4, 5, 142])('SMALL at 390pt keeps complete rating pills and the bookmark at the content inset (GoGo count %s)', async count => {
+  it.each([0, 1, 4, 5, 142])('SMALL at 390pt keeps one-line rating pills and the bookmark at the content inset (GoGo count %s)', async count => {
     const save = jest.fn(), open = jest.fn()
     await render(<ThemeScopeProvider name={theme}><PlaceCardSmall
       place={{ ...full, name: 'Địa điểm với tên rất dài để kiểm tra hàng tiêu đề trên bản đồ', addressText: '123 Đường Nguyễn Thị Minh Khai, Phường Sài Gòn, Thành phố Hồ Chí Minh', rating: 4.5, ratingCount: 1395, gogoRatingCount: count }}
@@ -172,14 +172,16 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     expect(StyleSheet.flatten(screen.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
     const ratings = screen.getByTestId('place-card-ratings')
     expect(ratings.children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
-    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(count < 5 ? `GoGo · Chưa đủ đánh giá (${count})` : `★ 4,9 (${count}) GoGo`)
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(count < 5 ? `GoGo · ${count} đánh giá` : `★ 4,9 (${count}) GoGo`)
     expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,5 (1.395) Google')
     for (const id of ['place-gogo-rating', 'place-google-rating']) {
       const pill = screen.getByTestId(id)
-      expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ flexShrink: 0, maxWidth: '100%' })
-      for (const text of within(pill).getAllByText(/.+/)) {
-        expect(text.props.numberOfLines).toBeUndefined()
-        expect(text.props.ellipsizeMode).toBeUndefined()
+      expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '100%' })
+      for (const part of ['source', 'count']) {
+        const fact = within(pill).getByTestId(`${id}-${part}`)
+        expect(fact.props.numberOfLines).toBeUndefined()
+        expect(fact.props.ellipsizeMode).toBeUndefined()
+        expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
       }
     }
     await fireEvent.press(action)

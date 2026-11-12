@@ -535,10 +535,10 @@ describe('setSentryScreen', () => {
 
   it('keeps a declared template as it is', () => {
     enable()
-    for (const template of ['/', '/(tabs)', '/+not-found', '/create/group-setup', '/r/[inviteCode]']) {
+    for (const template of ['/', '/(tabs)', '/+not-found', '/create/budget', '/r/[inviteCode]']) {
       setSentryScreen(template)
     }
-    expect(navigated()).toEqual(['/', '/(tabs)', '/+not-found', '/create/group-setup', '/r/[inviteCode]'])
+    expect(navigated()).toEqual(['/', '/(tabs)', '/+not-found', '/create/budget', '/r/[inviteCode]'])
   })
 
   it('does nothing while Sentry is off', () => {
@@ -565,7 +565,13 @@ function routeFiles(dir: string, base = dir): RouteFile[] {
 
 describe('route templates', () => {
   const files = routeFiles(path.resolve(__dirname, '../../../app'))
-  const templates = files.map(f => f.template).sort()
+  // Retired manage/group-setup routes redirect; neither is a tagged screen.
+  const templates = files.filter(f => !['/room/[roomId]/manage', '/create/group-setup'].includes(f.template)).map(f => f.template).sort()
+
+  it('does not tag retired redirects as screens', () => {
+    expect(isScreenTemplate('/room/[roomId]/manage')).toBe(false)
+    expect(isScreenTemplate('/create/group-setup')).toBe(false)
+  })
 
   it('is exactly the list the tag may send', () => {
     expect(templates).toEqual(expect.arrayContaining(['/', '/(tabs)', '/r/[inviteCode]', '/l/[slug]', '/+not-found']))

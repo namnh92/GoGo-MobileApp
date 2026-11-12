@@ -16,9 +16,6 @@ export const styles = StyleSheet.create(theme => ({
     borderColor: theme.border.hairline,
     borderRadius: radius.compact,
   },
-  title: {
-    marginTop: spacing[2],
-  },
   option: {
     borderWidth: 1,
     borderColor: theme.border.hairline,
@@ -31,7 +28,6 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'flex-start',
   },
   optionActive: { backgroundColor: theme.accent.soft, borderColor: theme.accent.primary },
-  body: { marginTop: spacing[2], marginBottom: spacing[6] },
   options: { gap: spacing[3] },
   optionBody: { flex: 1 },
   iconTile: {

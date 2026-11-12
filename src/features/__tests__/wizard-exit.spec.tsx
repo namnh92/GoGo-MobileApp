@@ -56,7 +56,7 @@ it('keeps editing when the dialog is cancelled', async () => {
 
 it('discards the saved draft and resets the in-progress room', async () => {
   useRoomStore.getState().patchDraft({ title: 'Cuối tuần' })
-  const view = await renderScreen(<WizardActions step="mood" />)
+  const view = await renderScreen(<WizardActions step="places" />)
   await fireEvent.press(view.getByText('Back'))
   expect(view.getByTestId('wizard-exit-prompt')).toBeTruthy()
   expect(view.getByTestId('sheet-actions')).toBeTruthy()

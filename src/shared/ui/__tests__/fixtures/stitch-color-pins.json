@@ -202,6 +202,8 @@
       "text.secondary",
       "text.secondary",
       "accent.text",
+      "accent.text",
+      "text.secondary",
       "accent.text"
     ],
     "src/shared/administrative/administrative-picker.style.tsx": [
@@ -252,8 +254,16 @@
     ],
     "src/shared/ui/rating-chips.view.tsx": [
       "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
       "text.primary",
-      "status.warningText"
+      "status.warningText",
+      "text.primary",
+      "text.primary"
     ],
     "src/shared/ui/badge.style.tsx": [
       "accent.primary",
@@ -451,6 +461,8 @@
       "surface.card",
       "surface.low",
       "text.primary",
+      "surface.subtle",
+      "border.hairline",
       "status.danger",
       "accent.primary"
     ],
@@ -466,10 +478,6 @@
       "border.hairline",
       "surface.card",
       "border.hairline",
-      "accent.primaryDeep",
-      "surface.subtle",
-      "accent.primary",
-      "accent.onAccent",
       "surface.low",
       "surface.subtle",
       "surface.canvas",
@@ -480,6 +488,17 @@
       "surface.canvas",
       "surface.subtle",
       "accent.primary"
+    ],
+    "src/shared/ui/avatar-circle.view.tsx": [
+      "accent.primaryDeep",
+      "surface.subtle",
+      "accent.primary",
+      "accent.onAccent",
+      "accent.primary"
+    ],
+    "src/shared/ui/avatar-circle.style.tsx": [
+      "accent.primary",
+      "surface.card"
     ],
     "src/features/tabs/saved-city.style.tsx": [
       "surface.inset",
@@ -1143,6 +1162,7 @@
     "src/shared/ui/place-card-small.style.tsx": [
       "border.hairline",
       "surface.container",
+      "border.hairline",
       "surface.high"
     ],
     "src/shared/ui/place-card-small.view.tsx": [
@@ -1161,7 +1181,100 @@
       "accent.soft",
       "surface.subtle"
     ],
-    "src/features/create-date/draft-plan-card.view.tsx": []
+    "src/features/create-date/draft-plan-card.view.tsx": [],
+    "src/features/gogo-room/gogo-room.view.tsx": [
+      "text.secondary",
+      "accent.primary",
+      "status.infoText",
+      "status.successText",
+      "status.warningText",
+      "accent.primary",
+      "status.infoText",
+      "status.successText",
+      "status.warningText",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary",
+      "accent.primary",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/gogo-room.style.tsx": [
+      "surface.subtle",
+      "surface.subtle",
+      "accent.soft",
+      "status.infoSoft",
+      "status.successSoft",
+      "status.warningSoft"
+    ],
+    "src/features/gogo-room/room-editor.view.tsx": [
+      "status.warningText",
+      "status.warningText",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/room-edit-fields.view.tsx": [
+      "text.secondary",
+      "status.warningText"
+    ],
+    "src/features/create-date/create-time-fields.view.tsx": [
+      "status.dangerText",
+      "accent.primary",
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary",
+      "text.secondary",
+      "accent.onSoft",
+      "text.primary",
+      "accent.onSoft"
+    ],
+    "src/features/create-date/budget-option-card.view.tsx": [
+      "accent.onSoft",
+      "text.primary",
+      "text.secondary",
+      "accent.onAccent"
+    ],
+    "src/features/create-date/budget-option-card.style.tsx": [
+      "accent.soft",
+      "accent.soft",
+      "surface.subtle",
+      "accent.primary"
+    ],
+    "src/features/gogo-room/room-members.view.tsx": [
+      "text.secondary",
+      "status.dangerText",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/room-members.style.tsx": [
+      "border.hairline",
+      "surface.subtle"
+    ],
+    "src/features/gogo-room/room-seeds.view.tsx": [
+      "accent.primary",
+      "text.secondary",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/room-seeds.style.tsx": [
+      "surface.card"
+    ],
+    "src/features/gogo-room/room-host-actions.view.tsx": [
+      "accent.primary",
+      "status.dangerText"
+    ],
+    "src/features/gogo-room/room-host-actions.style.tsx": [
+      "surface.card",
+      "status.danger"
+    ],
+    "src/shared/ui/group-budget-fields.view.tsx": [],
+    "src/shared/ui/section-label.view.tsx": []
   },
   "workspace": {
     "canvas": "#121212",

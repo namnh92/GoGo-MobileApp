@@ -5,7 +5,6 @@ import { useAppAreaStore as mockAreaStore } from '@/shared/location/app-area'
 import { useRoomStore, toCreateRoomBody } from '@/shared/store/roomStore'
 import i18n from '@/shared/i18n'
 import CreateType from '../create-type.view'
-import GroupSetup from '../group-setup.view'
 import LegacyLocation from '@/app/create/location'
 import { saveRoomDraft, useSavedRoomDraft } from '@/shared/store/savedRoomDraft'
 import { DraftPlanCard } from '../draft-plan-card.view'
@@ -80,9 +79,9 @@ it('round 3: step 1 owns current-position radius chips, persists the choice and 
   const resumed = await renderScreen(<CreateType />)
   expect(resumed.getByRole('button', { name: '10 km' }).props.accessibilityState.selected).toBe(true)
 })
-it.each([['couple', 4], ['group-host', 5]] as const)('round 3: counts all steps for %s without a location page', async (audience, total) => {
+it.each([['couple', 4], ['group-host', 4]] as const)('round 3: counts all steps for %s without a location page', async (audience, total) => {
   useRoomStore.getState().setAudience(audience)
-  const keys = audience === 'couple' ? ['type', 'time', 'budget', 'mood'] as const : ['type', 'group-setup', 'time', 'budget', 'mood'] as const
+  const keys = audience === 'couple' ? ['type', 'time', 'budget', 'places'] as const : ['type', 'time', 'budget', 'places'] as const
   const view = await renderScreen(<WizardStep step="type" onBack={mockBack} />)
   for (const [index, step] of keys.entries()) {
     await view.rerender(<WizardStep step={step} onBack={mockBack} />)
@@ -91,15 +90,12 @@ it.each([['couple', 4], ['group-host', 5]] as const)('round 3: counts all steps 
   await fireEvent.press(view.getByRole('button', { name: 'Quay lại' }))
   expect(mockBack).toHaveBeenCalled()
 })
-it('round 3: group goes from type to group setup to time', async () => {
+it('round 3: group goes directly from type to time', async () => {
   const view = await renderScreen(<CreateType />)
   await fireEvent.press(view.getByText('Nhóm bạn'))
   await fireEvent.press(view.getByText('Tiếp tục'))
-  expect(mockPush).toHaveBeenLastCalledWith('/create/group-setup')
-  await view.unmount()
-  const group = await renderScreen(<GroupSetup />)
-  await fireEvent.press(group.getByText('Tiếp tục'))
   expect(mockPush).toHaveBeenLastCalledWith('/create/time')
+  await view.unmount()
 })
 it('round 3: old /create/location deep links redirect to step 1', async () => {
   const view = await renderScreen(<LegacyLocation />)
@@ -125,4 +121,10 @@ it('round 3: restores an unlimited GPS radius without resetting it to the defaul
   expect(view.getByRole('button', { name: i18n.t('createLocation.anywhere') }).props.accessibilityState.selected).toBe(true)
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(toCreateRoomBody(useRoomStore.getState()).constraint).not.toHaveProperty('radiusM')
+})
+
+it('round 6v: direct legacy group setup route redirects to budget', async () => {
+  const LegacyGroup = jest.requireActual('../legacy-group-setup.view').default
+  const view = await renderScreen(<LegacyGroup />)
+  expect(view.getByTestId('redirect').props.children).toBe('/create/budget')
 })

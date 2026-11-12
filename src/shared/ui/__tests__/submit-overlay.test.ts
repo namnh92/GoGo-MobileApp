@@ -17,15 +17,15 @@ const submitScreens = {
   'account/avatar-editor': 'busy',
   'account/profile-defaults': 'blocking',
   'account/theme-accent': 'saving',
-  'create-date/create-mood': 'createRoom.isPending',
+  'create-date/create-places': 'pending',
   'create-date/wizard-actions': 'leaving',
   'gogo-room/join-by-code': 'pending',
   'gogo-room/guest-join': 'pending',
   'home/quick-join': 'pending',
-  'gogo-room/room-title-editor': 'rename.isPending',
-  'gogo-room/room-schedule-editor': 'update.isPending',
-  'gogo-room/room-manage': 'updateConstraints.isPending || transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending',
-  'gogo-room/gogo-room': 'startMatching.isPending || createInvite.isPending || revokeInvite.isPending',
+  // The unified sheet owns title, budget, area and schedule submissions.
+  'gogo-room/room-editor': 'pending',
+  'gogo-room/room-host-actions': 'busy',
+  'gogo-room/gogo-room': 'startMatching.isPending',
   'matching/preference': 'pending',
   'matching/match-result': 'finalize.isPending || regenerate.isPending',
   'review/review': 'createReview.isPending',
@@ -62,7 +62,39 @@ describe('submit overlay coverage', () => {
     }
     visit(ast)
     expect(text).toContain("from '@/shared/ui/blocking-loading-overlay.view'")
-    expect(bindings).toContain(pending)
+    for (const expected of typeof pending === 'string' ? [pending] : pending) {
+      expect(bindings).toContain(expected)
+    }
+    if (screen === 'gogo-room/room-editor') {
+      expect(bindings.filter(binding => binding === 'pending')).toHaveLength(1)
+      expect(text).toContain('const pending = requestPending || rename.isPending || update.isPending')
+    }
+  })
+
+  // Confirmation mutations stay inside their presented ResultSheet. Opening a
+  // second native modal would violate the confirmation flow's busy/retry contract.
+  it.each([
+    ['room-members', 'busy'], ['room-seeds', 'busy'], ['room-host-actions', 'cancelBusy'],
+  ])('%s keeps its confirmation mutation blocked in the shared sheet', (screen, pending) => {
+    const text = source(`../../../features/gogo-room/${screen}.view.tsx`)
+    const ast = ts.createSourceFile(screen, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const actions: string[] = []
+    function visit(node: ts.Node) {
+      if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === 'ResultSheet') {
+        const action = node.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(ast) === 'primaryAction')
+        if (action && ts.isJsxAttribute(action) && action.initializer && ts.isJsxExpression(action.initializer)) {
+          const value = action.initializer.expression
+          if (value && ts.isObjectLiteralExpression(value)) {
+            const props = new Map(value.properties.filter(ts.isPropertyAssignment).map(p => [p.name.getText(ast), p.initializer.getText(ast)]))
+            if (props.get('loading') === pending && props.get('disabled') === pending) actions.push(pending)
+          }
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(ast)
+    expect(text).toContain("from '@/shared/ui/result-sheet.view'")
+    expect(actions).toEqual([pending])
   })
 
   it.each(Object.entries(themes))('%s submit backdrop is the dark canvas at exactly 85 percent', (_name, theme) => {

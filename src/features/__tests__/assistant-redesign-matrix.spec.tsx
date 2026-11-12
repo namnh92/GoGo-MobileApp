@@ -230,13 +230,13 @@ describe.each(['orange', 'orangeDark'] as const)('group 09 %s', themeName => {
 
   it.each([true, false])('F-09: shows a known zero community count (available=%s)', async available => {
     await mount(<ResultCard card={{ kind: 'place', placeId: 'zero-reviews', available, facts: { name: 'Zero reviews', gogoRatingCount: 0 } }} onOpenPlace={noop} onOpenPlan={noop} />)
-    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá (0)')
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · 0 đánh giá')
     expect(screen.queryByTestId('place-google-rating')).toBeNull()
   })
 
   it.each([true, false, null] as const)('omits status consistently with every default small card (%s)', async openNow => {
     await mount(<ResultCard card={{ kind: 'place', placeId: 'hours', available: true, facts: { name: 'Hours place', openNow, gogoRatingCount: 0 } }} onOpenPlace={noop} onOpenPlan={noop} />)
-    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · Chưa đủ đánh giá (0)')
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · 0 đánh giá')
     expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
   })
 

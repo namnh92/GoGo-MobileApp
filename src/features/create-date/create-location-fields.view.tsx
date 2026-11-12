@@ -9,21 +9,30 @@ import { Chip } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 
+import type { ComponentProps } from 'react'
 import type { useCreateLocation } from './use-create-location'
 import { styles } from './create-location-fields.style'
 
 /** `null` means anywhere, so the payload omits the distance. */
 const RADIUS_OPTIONS: readonly (number | null)[] = [2000, 5000, 10000, null]
 
-export function CreateLocationFields({ model }: { model: ReturnType<typeof useCreateLocation> }) {
+export type CreateLocationModel = Pick<ReturnType<typeof useCreateLocation>,
+  'areaOpen' | 'areaMode' | 'setAreaOpen' | 'openArea' | 'scopeLabel' | 'usingCurrent' | 'radiusM' | 'setRadiusM' |
+  'offerHomeArea' | 'homeArea' | 'useHomeArea' | 'staleArea' | 'onApplied' | 'recovery' | 'closeRecovery' |
+  'onRecoveryClosed' | 'settingsFailed' | 'onLocationFailure' | 'onAreaClosed'> & {
+    selection?: ComponentProps<typeof DiscoveryLocationSheet>['selection']
+    onPositionApplied?: ComponentProps<typeof DiscoveryLocationSheet>['onPositionApplied']
+  }
+
+export function CreateLocationFields({ model, disabled = false, embedded = false }: { model: CreateLocationModel; disabled?: boolean; embedded?: boolean }) {
   const { t } = useTranslation()
   const { areaOpen, areaMode, setAreaOpen, openArea, scopeLabel, usingCurrent, radiusM, setRadiusM,
     offerHomeArea, homeArea, useHomeArea, staleArea, onApplied, recovery, closeRecovery, onRecoveryClosed, settingsFailed, onLocationFailure, onAreaClosed } = model
   const manual = recovery.kind === 'info'
   return (
-    <View testID="create-location-section" style={styles.section}>
+    <View testID="create-location-section" style={!embedded && styles.section}>
       <Text variant="label" style={styles.label}>{t('createType.area')}</Text>
-      <LocationField testID="create-location-field" label={scopeLabel} onPress={() => openArea()} />
+      <LocationField disabled={disabled} testID="create-location-field" label={scopeLabel} onPress={() => openArea()} />
 
       {usingCurrent ? (
         <>
@@ -39,7 +48,7 @@ export function CreateLocationFields({ model }: { model: ReturnType<typeof useCr
               const active = radiusM === option
               const label = option === null ? t('createLocation.anywhere') : `${option / 1000} km`
               return (
-                <Chip key={label} label={label} appearance="soft" variant={active ? 'selected' : 'default'} onPress={() => setRadiusM(option)} />
+                <Chip disabled={disabled} key={label} label={label} appearance="soft" variant={active ? 'selected' : 'default'} onPress={() => setRadiusM(option)} />
               )
             })}
           </View>
@@ -49,7 +58,7 @@ export function CreateLocationFields({ model }: { model: ReturnType<typeof useCr
       {offerHomeArea && homeArea ? (
         <View style={styles.prefillRow}>
           <Chip
-            icon="home"
+            disabled={disabled} icon="home"
             label={t('createLocation.useHomeArea', { area: administrativeAreaLabel(homeArea) })}
             variant="info"
             onPress={useHomeArea}
@@ -62,7 +71,7 @@ export function CreateLocationFields({ model }: { model: ReturnType<typeof useCr
         </Text>
       ) : null}
       {settingsFailed ? <Text variant="bodySmall" color="status.warningText" accessibilityLiveRegion="polite">{t('notificationSettings.openSettingsFailed')}</Text> : null}
-      <DiscoveryLocationSheet mode={areaMode} onLocationFailure={onLocationFailure} onClosed={onAreaClosed} visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
+      <DiscoveryLocationSheet selection={model.selection} onPositionApplied={model.onPositionApplied} mode={areaMode} onLocationFailure={onLocationFailure} onClosed={onAreaClosed} visible={areaOpen} onClose={() => setAreaOpen(false)} onApplied={onApplied} />
       <ResultSheet visible={recovery.visible} variant={recovery.kind}
         testID="create-location-recovery"
         title={t(manual ? 'createLocation.manualTitle' : 'createLocation.failureTitle')}

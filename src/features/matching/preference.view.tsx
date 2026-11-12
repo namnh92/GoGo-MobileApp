@@ -12,14 +12,15 @@ import {
   useCompleteMyPreferences,
   useMe,
   useMyPreferences,
+  useRoom,
   useSaveMyPreferences,
   useTaxonomies,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
-import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
+import { InfoBanner } from '@/shared/ui/info-banner.view'
 import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { Icon } from '@/shared/ui/icons'
@@ -29,7 +30,7 @@ import { styles } from './preference.style'
 
 const MIN_PREFS = 2
 const MAX_PREFS = 3
-/** The kind this screen collects; the wizard already collected mood/setting. */
+/** Preferences are collected here for every room member, including the host. */
 const TAXONOMY_KIND = 'mood'
 
 export default function PreferenceScreen() {
@@ -37,14 +38,9 @@ export default function PreferenceScreen() {
   const router = useRouter()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
-  // Whatever the host picked in the create wizard seeds their own preferences,
-  // so the choice is not silently thrown away between the two screens.
-  const draftMoodKeys = useRoomStore(state =>
-    state.preferenceSeed?.roomId === roomId ? state.preferenceSeed.moodKeys : state.moodKeys,
-  )
-
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KIND })
   const preferences = useMyPreferences(roomId)
+  const room = useRoom(roomId)
   const savePreferences = useSaveMyPreferences(roomId)
   const completePreferences = useCompleteMyPreferences(roomId)
 
@@ -57,10 +53,7 @@ export default function PreferenceScreen() {
     [preferences.data],
   )
 
-  // Derived, not synced in an effect: the server draft wins, and the wizard's
-  // picks only fill an empty one.
-  const selected =
-    edited ?? (savedSelection && savedSelection.length > 0 ? savedSelection : draftMoodKeys)
+  const selected = edited ?? savedSelection ?? []
 
   const options = useMemo(() => {
     const entries = taxonomies.data?.kinds?.[TAXONOMY_KIND] ?? []
@@ -156,6 +149,8 @@ export default function PreferenceScreen() {
   }
 
   const pending = savePreferences.isPending || completePreferences.isPending
+  const couplePrivacy = room.data?.type === 'couple' &&
+    room.data.decisionMode === 'match' && room.data.participantCount <= 2
 
   return (
     <Atmosphere>
@@ -167,6 +162,9 @@ export default function PreferenceScreen() {
         <Chip variant="positive" label={t('preference.selectedCount', { n: selected.length, max: MAX_PREFS })} />
         <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
+        <View style={styles.privacyNote}>
+          <InfoBanner body={t(couplePrivacy ? 'gogoRoom.body' : 'gogoRoom.body_group')} />
+        </View>
 
         {offerSaved ? (
           <Pressable

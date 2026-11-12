@@ -167,8 +167,7 @@ export function isUuid(value: unknown): value is string {
 }
 
 /**
- * GoGo-MobileApp#203 — the one rewrite a system link needs before Expo Router
- * matches it.
+ * Compatibility rewrites before Expo Router matches a system link (#203/#600).
  *
  * Expo Router maps an incoming URL straight onto a route; it never runs the
  * parser above. So `gogo-dev://room/<inviteCode>` became `room/[roomId]` with a
@@ -176,19 +175,23 @@ export function isUuid(value: unknown): value is string {
  * a 400, and a dead end for someone holding a good invite. An invite has its
  * own route, which joins through the invite endpoints.
  *
- * Only that shape is rewritten: exactly `room/<x>` (or `rooms/<x>`) where `x` is
+ * The invite rewrite covers exactly `room/<x>` (or `rooms/<x>`) where `x` is
  * not a UUID but is a well-formed invite code. Real room ids, nested room
- * routes and every other path pass through untouched — Expo Router already
+ * routes pass through untouched — Expo Router already
  * routes them, and a second router would drift from the first. The rewrite
  * keeps the input's form (scheme URL, web URL or bare path), and it never
  * throws: a link this cannot read is handed back as it came.
+ * The retired `create/mood` step also maps to `create/places` before matching.
  */
 export function systemPathFor(path: string): string {
   try {
     const hasScheme = path.includes('://')
     const segments = segmentsOf(hasScheme ? path : `gogo://${path.replace(/^\/+/, '')}`)
+    if (segments?.length === 3 && segments[0] === 'room' && segments[2] === 'manage') return `/room/${segments[1]}`
     if (!segments || segments.length !== 2) return path
     const [head, param] = segments
+    if (head === 'create' && param === 'group-setup') return '/create/budget'
+    if (head === 'create' && param === 'mood') return '/create/places'
     if (head !== 'room' && head !== 'rooms') return path
     if (uuid.safeParse(param).success || !inviteCode.safeParse(param).success) return path
 

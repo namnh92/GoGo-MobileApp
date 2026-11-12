@@ -1,3 +1,8 @@
+> Cập nhật round 6h (2026-11-12): màn Quản lý phòng đã bỏ; các ghi nhận
+> manage bên dưới là bằng chứng lịch sử. Chức năng hiện tại nằm ở sảnh phòng;
+> `/room/[roomId]/manage` chỉ redirect về sảnh. Xem
+> [quyết định hiện hành](../redesign/issue-595-unified-room-edit.md#round-6h--quyết-định-owner-2026-11-12-10-thay-màn-quản-lý-phòng).
+
 # GOGO-535 — một header dùng chung
 
 Ngày 2026-11-08. Worktree `mobile-535`, nhánh `feature/GOGO-535-shared-header`, nền PR #534 tại `ea0deb6`. Không commit/push.

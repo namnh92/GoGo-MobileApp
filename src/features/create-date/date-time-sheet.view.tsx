@@ -10,7 +10,9 @@ import { localDayKey } from './schedule-day'
 import { styles } from './date-time-sheet.style'
 
 /** Inline calendar; time is selected separately through the start row's wheel. */
-export function DateTimeSheet({ initialDay, onDayChange }: {
+export function DateTimeSheet({ initialDay, onDayChange, disabled = false, selectTodayByDefault = true }: {
+  selectTodayByDefault?: boolean
+  disabled?: boolean
   initialDay: string | null
   onDayChange: (day: string | null) => void
 }) {
@@ -43,10 +45,10 @@ export function DateTimeSheet({ initialDay, onDayChange }: {
       <View style={styles.monthRow}>
         <Pressable
           onPress={() => shift(-1)}
-          disabled={onCurrentMonth}
+          disabled={disabled || onCurrentMonth}
           accessibilityRole="button"
           accessibilityLabel={t('createTime.prevMonth')}
-          accessibilityState={{ disabled: onCurrentMonth }}
+          accessibilityState={{ disabled: disabled || onCurrentMonth }}
           testID="date-sheet-prev"
           style={[styles.iconBtn, onCurrentMonth && styles.iconBtnOff]}
         >
@@ -54,7 +56,7 @@ export function DateTimeSheet({ initialDay, onDayChange }: {
         </Pressable>
         <Text variant="title2" style={styles.monthTitle}>{monthLabel(view.year, view.month, locale)}</Text>
         <Pressable
-          onPress={() => shift(1)}
+          disabled={disabled} accessibilityState={{ disabled }} onPress={() => shift(1)}
           accessibilityRole="button"
           accessibilityLabel={t('createTime.nextMonth')}
           testID="date-sheet-next"
@@ -78,8 +80,8 @@ export function DateTimeSheet({ initialDay, onDayChange }: {
           {week.map((date, i) => {
             if (!date) return <View key={i} style={styles.cellWrap} />
             const key = localDayKey(date)
-            const off = key < todayKey
-            const selected = key === day
+            const off = disabled || key < todayKey
+            const selected = (initialDay !== null || selectTodayByDefault) && key === day
             const isToday = key === todayKey
             const label = date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
             return (

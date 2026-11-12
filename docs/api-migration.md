@@ -207,7 +207,7 @@ Everything the API layer already covered but no screen reached:
 | --- | --- |
 | Rebuild the plan (`date-plan`) | `useRegeneratePlan` had no caller, so RULE-CORE-007 — locked stops survive a rebuild — was verified in tests but unreachable in the app |
 | Edit the route (`/plans/[planId]/edit`) | Reorder or drop stops via `useEditPlanStops` |
-| Manage room (`/room/[roomId]/manage`) | Edit constraints, list and revoke invites, remove members, attach seed places, cancel the room |
+| Room lobby (`/room/[roomId]`) | Conditions, members, suggested places; host edit, share/change invite link, remove members, cancel. Legacy `/manage` redirects here. |
 | Account (`/settings/account`) | Edit the profile, export data, delete the account — APP-009 requires the delete/export entry point |
 | My reviews (`/settings/reviews`) | List and edit own reviews with their moderation status |
 | Join with a code (`/join`) | The only way in was an invite link |

@@ -16,7 +16,7 @@ export default function CreateLayout() {
   const { theme } = useUnistyles()
   const [headerHeight, setHeaderHeight] = useState(0)
   const route = segments[segments.length - 1]
-  const step: WizardStepKey = route === 'group-setup' || route === 'time' || route === 'budget' || route === 'mood' ? route : 'type'
+  const step: WizardStepKey = route === 'time' || route === 'budget' || route === 'places' ? route : route === 'group-setup' ? 'budget' : 'type'
 
   return <Atmosphere redesign>
     <View onLayout={event => setHeaderHeight(event.nativeEvent.layout.height)}>

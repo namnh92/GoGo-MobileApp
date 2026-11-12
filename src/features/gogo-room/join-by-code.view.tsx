@@ -1,7 +1,7 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
@@ -36,6 +36,7 @@ export default function JoinByCodeScreen() {
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const submitting = useRef(false)
 
   // A signed-in user joins as themselves; anyone else joins as a guest and has
   // to say what to call them.
@@ -60,10 +61,12 @@ export default function JoinByCodeScreen() {
   }
 
   async function submit() {
-    if (!ready) return
-    setPending(true)
+    if (!ready || pending || submitting.current) return
+    submitting.current = true
     setError(null)
     try {
+      if (!asUser && holdsGuestRoom && !(await confirmReplaceGuest())) return
+      setPending(true)
       if (asUser) {
         const result = await joinRoom.mutateAsync({ inviteCode: trimmedCode })
         // GoGo-BE#607: count a join only when the server says this request created
@@ -77,7 +80,6 @@ export default function JoinByCodeScreen() {
           router.replace(`/room/${result.roomId}`)
         }
       } else {
-        if (holdsGuestRoom && !(await confirmReplaceGuest())) return
         const session = await joinAsGuest({ inviteCode: trimmedCode, displayName: trimmedName })
         track('gogo_partner_joined', { role: 'guest' })
         if (session.roomId) router.replace(`/room/${session.roomId}/preference`)
@@ -86,6 +88,7 @@ export default function JoinByCodeScreen() {
       setError(toMessage(caught))
     } finally {
       setPending(false)
+      submitting.current = false
     }
   }
 

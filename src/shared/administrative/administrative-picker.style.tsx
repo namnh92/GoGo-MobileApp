@@ -9,7 +9,8 @@ export const styles = StyleSheet.create(theme => ({
   communeLabel: { marginTop: 8 },
   hint: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, padding: 8, backgroundColor: theme.accent.soft },
   root: { gap: spacing[2] },
-  row: { minHeight: 48, padding: spacing[3], borderBottomWidth: 1, borderBottomColor: theme.border.hairline },
+  row: { minHeight: 48, padding: spacing[3], flexDirection: 'row', alignItems: 'center', gap: spacing[3], borderBottomWidth: 1, borderBottomColor: theme.border.hairline },
+  rowLabel: { flex: 1 },
   /** Inside the full-height `Sheet`, which pads the sides and the safe area. */
   sheetBody: { flex: 1, gap: spacing[2] },
 }))

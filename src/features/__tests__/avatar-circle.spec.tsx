@@ -17,6 +17,9 @@ async function failToLoad() {
   })
 }
 
+import { StyleSheet } from 'react-native'
+import { themes } from '@/shared/ui/theme'
+
 import { AvatarCircle } from '@/shared/ui/primitives'
 
 /**
@@ -62,4 +65,15 @@ describe('AvatarCircle', () => {
     await render(<AvatarCircle label="B" imageUri={null} />)
     expect(screen.getByText('B')).toBeTruthy()
   })
+})
+
+it('keeps the host ring and star visible over a loaded photo; ordinary avatars have no badge', async () => {
+  const view = await render(<AvatarCircle label="A" host imageUri="https://assets-test.local/avatars/host.webp" />)
+  await act(async () => { screen.getByTestId('avatar-image').props.onLoad() })
+  const badge = screen.getByTestId('avatar-host-badge')
+  expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: themes.orange.surface.card, bottom: 0, right: 0 })
+  const ring = badge.parent!.children[1]
+  expect(StyleSheet.flatten(typeof ring === 'string' ? {} : ring.props.style)).toMatchObject({ borderWidth: 2, borderColor: themes.orange.accent.primary })
+  await view.rerender(<AvatarCircle label="A" />)
+  expect(screen.queryByTestId('avatar-host-badge')).toBeNull()
 })

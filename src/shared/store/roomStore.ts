@@ -51,10 +51,6 @@ export interface RoomDraft {
   endAt: string | null
   /** The local day (`YYYY-MM-DD`) the times are on; null is today. Kept with startAt and endAt. */
   scheduleDay: string | null
-  /** Stable taxonomy keys, carried into the first preference save. */
-  moodKeys: string[]
-  settingKeys: string[]
-  spendingStyleKey: string | null
 }
 
 interface RoomStoreState extends RoomDraft {
@@ -89,8 +85,7 @@ interface RoomStoreState extends RoomDraft {
   removeSeedPlace: (placeId: string) => void
   patchDraft: (patch: Partial<RoomDraft>) => void
   resetDraft: () => void
-  preferenceSeed: { roomId: string; moodKeys: string[] } | null
-  finishDraft: (roomId: string) => void
+  finishDraft: () => void
 }
 
 const emptyFlow = {
@@ -114,52 +109,53 @@ const emptyDraft: RoomDraft = {
   startAt: null,
   endAt: null,
   scheduleDay: null,
-  moodKeys: [],
-  settingKeys: [],
-  spendingStyleKey: null,
 }
 
-export const useRoomStore = create<RoomStoreState>()(set => ({
-  ...emptyDraft,
-  creationPending: false,
-  creationAttempt: null,
-  audience: 'couple',
-  uiState: 'default',
-  participantCount: 4,
-  budgetMode: 'per_person',
-  quickPreset: 'tonight',
-  area: '',
-  startTime: null,
-  endTime: null,
-  durationPreset: null,
-  seedPlaces: [],
-  patchDraft: patch => set(patch),
-  preferenceSeed: null,
-  resetDraft: () => set({ ...emptyDraft, ...emptyFlow }),
-  finishDraft: roomId => set(state => ({
-    ...emptyDraft, ...emptyFlow, preferenceSeed: { roomId, moodKeys: state.moodKeys },
-  })),
-  setAudience: audience => set({ audience }),
-  setUiState: uiState => set({ uiState }),
-  setParticipantCount: participantCount => set({ participantCount }),
-  setBudgetMode: budgetMode => set({ budgetMode }),
-  setQuickPreset: quickPreset => set({ quickPreset }),
-  setArea: area => set({ area }),
-  setStartTime: startTime => set({ startTime }),
-  setEndTime: endTime => set({ endTime }),
-  setDurationPreset: durationPreset => set({ durationPreset }),
-  addSeedPlace: place =>
-    set(state =>
-      // The contract caps seed places at 10; adding an eleventh silently would
-      // drop it at create time instead of here.
-      state.seedPlaces.some(candidate => candidate.placeId === place.placeId) ||
-      state.seedPlaces.length >= MAX_SEED_PLACES
-        ? state
-        : { seedPlaces: [...state.seedPlaces, place] },
-    ),
-  removeSeedPlace: placeId =>
-    set(state => ({ seedPlaces: state.seedPlaces.filter(place => place.placeId !== placeId) })),
-}))
+export const useRoomStore = create<RoomStoreState>()(set => {
+  // Keep the selected request's fields stable through persistence and sending.
+  const edit = (patch: Partial<RoomStoreState> | ((state: RoomStoreState) => Partial<RoomStoreState>)) =>
+    set(state => state.creationPending ? state : typeof patch === 'function' ? patch(state) : patch)
+  return {
+    ...emptyDraft,
+    creationPending: false,
+    creationAttempt: null,
+    audience: 'couple',
+    uiState: 'default',
+    participantCount: 4,
+    budgetMode: 'per_person',
+    quickPreset: 'tonight',
+    area: '',
+    startTime: null,
+    endTime: null,
+    durationPreset: null,
+    seedPlaces: [],
+    patchDraft: patch => edit(patch),
+    // Reset still clears account data on logout. Only submit's finally releases
+    // an acquired guard, including during successful draft cleanup.
+    resetDraft: () => set(state => ({ ...emptyDraft, ...emptyFlow, creationPending: state.creationPending })),
+    finishDraft: () => set(state => ({ ...emptyDraft, ...emptyFlow, creationPending: state.creationPending })),
+    setAudience: audience => edit({ audience }),
+    setUiState: uiState => set({ uiState }),
+    setParticipantCount: participantCount => edit({ participantCount }),
+    setBudgetMode: budgetMode => edit({ budgetMode }),
+    setQuickPreset: quickPreset => edit({ quickPreset }),
+    setArea: area => edit({ area }),
+    setStartTime: startTime => edit({ startTime }),
+    setEndTime: endTime => edit({ endTime }),
+    setDurationPreset: durationPreset => edit({ durationPreset }),
+    addSeedPlace: place =>
+      edit(state =>
+        // The contract caps seed places at 10; adding an eleventh silently would
+        // drop it at create time instead of here.
+        state.seedPlaces.some(candidate => candidate.placeId === place.placeId) ||
+        state.seedPlaces.length >= MAX_SEED_PLACES
+          ? state
+          : { seedPlaces: [...state.seedPlaces, place] },
+      ),
+    removeSeedPlace: placeId =>
+      edit(state => ({ seedPlaces: state.seedPlaces.filter(place => place.placeId !== placeId) })),
+  }
+})
 
 export interface RoomView {
   audience: DemoAudience

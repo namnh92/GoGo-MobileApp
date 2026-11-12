@@ -112,7 +112,11 @@ describe('invite screen × session', () => {
       await fireEvent.changeText(view.getByLabelText(NAME), '  Lan  ')
       await fireEvent.press(view.getByText(JOIN))
       // #381: the in-app Dialog, not the platform alert.
-      if (status === 'guest') await fireEvent.press(await view.findByRole('button', { name: 'Thay và tham gia' }))
+      if (status === 'guest') {
+        const dismiss = view.getByTestId('guest-replace-confirm-modal').props.onDismiss
+        await fireEvent.press(await view.findByRole('button', { name: 'Thay và tham gia' }))
+        await act(async () => dismiss?.())
+      }
       expect(alert).not.toHaveBeenCalled()
 
       await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM}/preference`))

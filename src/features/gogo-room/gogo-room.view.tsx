@@ -1,75 +1,53 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
-import { onlineManager } from '@tanstack/react-query'
-import type { TFunction } from 'i18next'
-import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, Platform, ScrollView, Share, View } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { AccessibilityInfo, ScrollView, View } from 'react-native'
 
 import {
-  isRetryable,
   memberProgress,
   roomCapabilities,
-  type MemberSelectionStatus,
-  type RoomMember,
   type RoomSummary,
-  useCreateRoomInvite,
   useCurrentPlan,
   useCurrentSuggestions,
-  useRevokeRoomInvite,
   useRoom,
-  useRoomInvites,
+  useSeedPlaceDetails,
   useRoomRealtime,
   useStartMatching,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
-import { useSession } from '@/shared/providers/session-provider'
-import { formatMoney } from '@/shared/pricing/money'
-import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
+import { roomBudgetLabel } from '@/shared/pricing/budget-unit'
 import { isUuid } from '@/shared/navigation/deep-link'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { decisionScreen, PLAN_RETRY_NOTICE, PLAN_UNAVAILABLE_NOTICE } from '@/shared/navigation/room-routing'
 import { markRoomStepShown, planStep, runStep, wasRoomStepShown } from '@/shared/navigation/room-steps'
-import { alertWithHold, releaseOnReturn, useRoutingHold } from '@/shared/navigation/routing-hold'
+import { alertWithHold, useRoutingHold } from '@/shared/navigation/routing-hold'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
-import { Atmosphere, AvatarCircle, Card, Chip, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
-import { Icon, IconCheck, IconCopy, IconUserOutline, type IconName } from '@/shared/ui/icons'
-import { Glyph, Text } from '@/shared/ui/text'
+import { Atmosphere, Card, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
+import { Icon, type IconName } from '@/shared/ui/icons'
+import { Text } from '@/shared/ui/text'
+import { PullToRefresh } from '@/shared/ui/refresh-control.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { spacing } from '@/shared/ui/tokens'
 
-import { resolveInviteDisplay } from './invite-state'
-import { roomScheduleLabel, roomScheduleRange } from './room-schedule'
+import { roomScheduleRangeLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
+import { MaterialIcon } from '@/shared/ui/material-icon'
+import { styles as sectionStyles } from './room-section.style'
+import { RoomSectionHeading } from './room-section.view'
+import { RoomFacts } from './room-facts.view'
+import { RoomMembers } from './room-members.view'
+import { RoomSeeds } from './room-seeds.view'
+import { useRoomHostActions } from './room-host-actions.view'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
-import type { MessageKey } from '@/shared/i18n/types'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 
-/**
- * The room's date/time chip. GoGo-MobileApp#201 — `constraints.endAt` is part
- * of the schedule and was never rendered, so a room booked 19:00–22:00 read as
- * "19:00". No end stored, or an end that is not after the start, leaves the
- * chip at the start alone rather than drawing a range that cannot be true.
- */
-function scheduleChipLabel(
-  room: Pick<RoomSummary, 'constraints' | 'scheduledDate'>,
-  locale: string,
-  t: TFunction,
-): string {
-  const range = roomScheduleRange(room.constraints?.startAt ?? room.scheduledDate, room.constraints?.endAt, locale)
-  if (!range) return t('roomSchedule.unset')
-  return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
-}
-
-const VISIBLE_AVATARS = 3
 /** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
 const JOINABLE: readonly RoomSummary['status'][] = ['draft', 'collecting']
 /** How often, and how many times, the lobby looks again for a navigator that is not ready yet. */
@@ -79,13 +57,13 @@ const NAV_ATTEMPTS_MAX = 20
 type RowTone = 'accent' | 'info' | 'success' | 'warning'
 
 /** One fact of the room: a tinted icon tile and its value. */
-function InfoRow({ icon, tone, children }: { icon: IconName; tone: RowTone; children: string }) {
+function InfoRow({ icon, tone, label, children }: { icon: IconName; tone: RowTone; label: string; children: string }) {
   return (
     <View style={styles.infoRow}>
       <View style={[styles.infoIcon, styles[`infoIcon_${tone}`]]}>
         <Icon name={icon} size={18} color={ROW_ICON[tone]} />
       </View>
-      <Text variant="body" style={styles.infoValue}>{children}</Text>
+      <View style={styles.infoValue}><Text variant="caption" color="text.secondary">{label}</Text><Text variant="body">{children}</Text></View>
     </View>
   )
 }
@@ -97,25 +75,9 @@ const ROW_ICON: Record<RowTone, 'accent.primary' | 'status.infoText' | 'status.s
   warning: 'status.warningText',
 }
 
-function initial(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?'
-}
-
-/**
- * The lobby's whole job is answering "are we waiting on anyone?" (spec §16).
- * `selectionStatus` already carries that; before this it only fed a counter,
- * so a host could see 2/4 without knowing which two.
- */
-const STATUS_CHIP: Record<MemberSelectionStatus, { key: MessageKey; variant: 'default' | 'info' | 'positive' }> = {
-  pending: { key: 'gogoRoom.status.waiting', variant: 'default' },
-  in_progress: { key: 'gogoRoom.status.choosing', variant: 'info' },
-  completed: { key: 'gogoRoom.status.completed', variant: 'positive' },
-}
-
 export default function GoGoRoomScreen() {
-  const { theme } = useUnistyles()
-  // Avatar fills after the first, which is the theme accent (#297); the rest follow the theme.
-  const avatarColors = [theme.accent.primary, theme.status.info, theme.status.success, theme.status.warning]
+  const [actionHeight, setActionHeight] = useState(0)
+  const actionInset = useBottomBarInset(actionHeight)
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { roomId, notice } = useLocalSearchParams<{ roomId: string; notice?: string }>()
@@ -125,10 +87,6 @@ export default function GoGoRoomScreen() {
   const validRoomId = isUuid(roomId) ? roomId : undefined
 
   const rememberRoom = useRecentRoomsStore(state => state.remember)
-  const [codeCopied, setCodeCopied] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-
   const room = useRoom(validRoomId)
   const summary = room.data
   const capabilities = roomCapabilities(summary)
@@ -137,16 +95,9 @@ export default function GoGoRoomScreen() {
   // layer owns how that freshness arrives.
   const focused = useScreenFocused()
   const realtime = useRoomRealtime(validRoomId, 'lobby', { enabled: focused && validRoomId !== undefined })
-  // Invites are host-only on the server; a member's device neither lists them
-  // nor reads a stored code (#199).
-  const inviteRoomId = capabilities.canInvite ? validRoomId : undefined
-  const invites = useRoomInvites(inviteRoomId)
-  const createInvite = useCreateRoomInvite(inviteRoomId)
-  const revokeInvite = useRevokeRoomInvite(validRoomId ?? '')
+  const seedDetails = useSeedPlaceDetails(summary?.seedPlaces ?? [])
   const startMatching = useStartMatching(roomId)
   const starting = useRef(false)
-
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   useEffect(() => {
     if (summary) rememberRoom(summary)
@@ -183,6 +134,7 @@ export default function GoGoRoomScreen() {
 
   // A share sheet or a confirmation is up: the person is mid-action here.
   const routingHold = useRoutingHold()
+  const hostActions = useRoomHostActions(summary, validRoomId, routingHold.hold)
   // A start that failed after the server had made its run leaves the host here;
   // counting failures makes the routing below look again.
   const [startFailures, setStartFailures] = useState(0)
@@ -246,124 +198,6 @@ export default function GoGoRoomScreen() {
     markRoomStepShown(validRoomId, nextStep)
   }, [validRoomId, nextStep, nextPath, focused, routingHold.held, startFailures, navTick, navigation, router])
 
-  // A cold start can restore the room and its invites from disk before the
-  // session is back. Until it is, this device's stored code is unknown, not
-  // absent: judging then would offer to re-issue the host's own live code.
-  const sessionHydrating = useSession().status === 'hydrating'
-  const [inviteClock, setInviteClock] = useState(() => Date.now())
-  // The API lists invites without codes; this device holds the code it created.
-  const storedInvite = createInvite.stored
-  const { display: inviteDisplay, forget: forgetStoredInvite } = resolveInviteDisplay({
-    stored: !inviteRoomId ? null : sessionHydrating ? undefined : storedInvite,
-    invites: invites.data,
-    // Paused (offline) with nothing loaded is as unreadable as a failure.
-    invitesFailed: invites.isError || (invites.isPaused && invites.data === undefined),
-    listIsCurrent: invites.status === 'success' && !invites.isFetching
-      && invites.dataUpdatedAt > (storedInvite?.savedAt ?? 0),
-    now: inviteClock,
-  })
-  const shownExpiry = inviteDisplay.kind === 'code' || inviteDisplay.kind === 'active-elsewhere'
-    ? inviteDisplay.expiresAt : null
-  useEffect(() => {
-    if (!shownExpiry) return
-    const remaining = Date.parse(shownExpiry) - Date.now()
-    const timer = setTimeout(() => setInviteClock(Date.now()), Math.min(Math.max(0, remaining), 2_147_483_647))
-    return () => clearTimeout(timer)
-  }, [shownExpiry, inviteClock])
-  // Revoked, expired, used up or no longer listed: the code can never let anyone in.
-  const deadInviteId = forgetStoredInvite ? storedInvite?.inviteId : undefined
-  const forgetInvite = createInvite.forget
-  useEffect(() => {
-    if (deadInviteId) void forgetInvite(deadInviteId)
-  }, [deadInviteId, forgetInvite])
-  // Another phone can revoke or re-issue while this one is in the background.
-  const refetchInvites = invites.refetch
-  useEffect(() => {
-    if (focused && inviteRoomId) void refetchInvites({ cancelRefetch: false })
-  }, [focused, inviteRoomId, refetchInvites])
-  const inviteCode = inviteDisplay.kind === 'code' ? inviteDisplay.code : null
-  const creatingInvite = useRef(false)
-  async function generateInvite() {
-    if (!capabilities.canInvite || creatingInvite.current || inviteDisplay.kind !== 'none') return
-    creatingInvite.current = true
-    try {
-      await createInvite.mutateAsync({ maxUses: 20 })
-    } catch {
-      // Never retry from render, polling or foreground events.
-    } finally {
-      creatingInvite.current = false
-    }
-  }
-
-  const [reissueFailed, setReissueFailed] = useState(false)
-  // A failed re-issue belongs to the card state it happened in; adjusted during
-  // render so the message goes the moment the card moves on.
-  const [reissueKind, setReissueKind] = useState(inviteDisplay.kind)
-  if (reissueKind !== inviteDisplay.kind) {
-    setReissueKind(inviteDisplay.kind)
-    setReissueFailed(false)
-  }
-  /**
-   * Other devices hold the codes: revoke every usable invite (duplicates would
-   * keep letting people in), then mint exactly one new one.
-   */
-  /**
-   * The usable set as the server has it at confirmation, not as the card last
-   * saw it: an invite another phone created meanwhile must be revoked too.
-   * `null` when this device's own code turns out to be the live one.
-   */
-  async function usableInviteIds(seen: readonly string[]): Promise<readonly string[] | null> {
-    if (!onlineManager.isOnline()) return seen
-    const fresh = await invites.refetch({ cancelRefetch: false })
-    if (fresh.status !== 'success') return seen
-    const { display } = resolveInviteDisplay({
-      stored: storedInvite ?? null,
-      invites: fresh.data,
-      invitesFailed: false,
-      listIsCurrent: true,
-      now: Date.now(),
-    })
-    if (display.kind === 'code') return null
-    return display.kind === 'active-elsewhere' ? display.inviteIds : []
-  }
-
-  async function reissueInvite(inviteIds: readonly string[]) {
-    if (!capabilities.canInvite || creatingInvite.current) return
-    creatingInvite.current = true
-    // #198 — the lobby must not route the host away while old codes are revoked
-    // and the new one is made; the new code is shown here.
-    const release = routingHold.hold()
-    setReissueFailed(false)
-    try {
-      try {
-        const current = await usableInviteIds(inviteIds)
-        if (current === null) return
-        for (const inviteId of current) await revokeInvite.mutateAsync(inviteId)
-      } catch {
-        setReissueFailed(true)
-        return
-      }
-      // One create per confirmed re-issue; a failure shows below and waits for the host.
-      await createInvite.mutateAsync({ maxUses: 20 }).then(() => setReissueFailed(false), () => undefined)
-    } finally {
-      creatingInvite.current = false
-      release()
-    }
-  }
-
-  function confirmReissue(inviteIds: readonly string[]) {
-    // A confirmation is up: routing waits until it is answered (#198).
-    alertWithHold(
-      routingHold.hold,
-      t('gogoRoom.reissueTitle'),
-      t(inviteIds.length > 1 ? 'gogoRoom.reissueBodyMany' : 'gogoRoom.reissueBody', { n: inviteIds.length }),
-      [
-        { text: t('gogoRoom.reissueCancel'), style: 'cancel' },
-        { text: t('gogoRoom.reissueConfirm'), style: 'destructive', onPress: () => { void reissueInvite(inviteIds) } },
-      ],
-    )
-  }
-
   if (!validRoomId) {
     return (
       <Atmosphere>
@@ -415,10 +249,7 @@ export default function GoGoRoomScreen() {
   }
 
   const roomType = summary.type
-  const participantCount = summary.participantCount
-  const members = summary.members ?? []
   const progress = memberProgress(summary)
-  const inviteUrl = inviteCode ? `${env.webBaseUrl}/r/${inviteCode}` : null
   const joinable = JOINABLE.includes(summary.status)
   // The same facts the auto-route reads: a confirmed run that sends this member to the deck,
   // and at least one card still without their vote. Finished, empty or moved on: no button.
@@ -427,65 +258,6 @@ export default function GoGoRoomScreen() {
   const continueVoting = status === 'matching' && screen === 'swipe' && candidatesLeft && Boolean(nextPath)
   const startVisible =
     capabilities.isHost && (summary.matching?.canStart ?? (progress.completed >= 2 && progress.completed === progress.total))
-
-  function flash(setter: (value: boolean) => void) {
-    setter(true)
-    timers.current.push(setTimeout(() => setter(false), 2000))
-  }
-
-  /**
-   * The code as the server still honours it. Another phone may have revoked it
-   * since the last refetch, so it is checked before it is handed out; offline,
-   * the stored code is still the best answer.
-   */
-  async function verifiedInviteCode(): Promise<string | null> {
-    // A closed room refuses joins (410): there is nothing worth handing out.
-    if (!inviteCode || !joinable) return null
-    if (!onlineManager.isOnline()) return inviteCode
-    const fresh = await invites.refetch({ cancelRefetch: false })
-    if (fresh.status !== 'success') return inviteCode
-    const { display } = resolveInviteDisplay({
-      stored: storedInvite,
-      invites: fresh.data,
-      invitesFailed: false,
-      listIsCurrent: true,
-      now: Date.now(),
-    })
-    return display.kind === 'code' ? display.code : null
-  }
-
-  async function copyCode() {
-    const code = await verifiedInviteCode()
-    if (!code) return
-    track('gogo_invite_copied', { channel: 'code' })
-    void Clipboard.setStringAsync(code).catch(() => {})
-    flash(setCodeCopied)
-  }
-
-  async function invite() {
-    // Held from the tap: checking the code is a network read, and routing away
-    // in that window would open the share sheet over another screen (#198).
-    const release = routingHold.hold()
-    let shareCalled = false
-    try {
-      const code = await verifiedInviteCode()
-      if (!code) return
-      const url = `${env.webBaseUrl}/r/${code}`
-      track('gogo_invite_shared', { channel: 'native_share', roomType })
-      try {
-        // Single share CTA → native share sheet; no hard-coded social buttons.
-        shareCalled = true
-        await Share.share({ message: `${t('gogoRoom.title', { context: roomType })} ${url}`, url })
-      } catch {
-        await Clipboard.setStringAsync(url).catch(() => {})
-        flash(setLinkCopied)
-      }
-    } finally {
-      // iOS resolves when the sheet closes; Android as soon as the chooser opens.
-      if (shareCalled && Platform.OS === 'android') releaseOnReturn(release)
-      else release()
-    }
-  }
 
   async function beginMatching(allowIncompletePreferences = false) {
     if (starting.current) return
@@ -511,11 +283,82 @@ export default function GoGoRoomScreen() {
     ])
   }
 
+  // Owner sim 2026-11-12: one measured bottom action bar for every lobby.
+  const actions = <View style={styles.actions}>
+    {/* Back must not auto-open a run again, but a person can explicitly
+        return to its current decision screen without saving preferences. */}
+    {continueVoting && nextPath ? (
+      <PrimaryBtn
+        label={t('gogoRoom.continueVoting')}
+        onPress={() => router.push(nextPath)}
+        disabled={routingHold.held || startMatching.isPending}
+      />
+    ) : screen && nextPath ? (
+      <SecondaryBtn
+        label={t(screen === 'swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult')}
+        onPress={() => router.push(nextPath)}
+        disabled={routingHold.held || startMatching.isPending}
+      />
+    ) : null}
+
+    {/*
+      One dominant CTA per screen (spec §7). Choosing your own preferences
+      is the room's main job; once everyone has finished, the host's start
+      takes over as the dominant one. Host-only either way, and
+      server-enforced. Inviting lives in the header.
+    */}
+    {!capabilities.isHost && joinable ? <View style={styles.waitingNotice}><Icon name="clock" size={20} color="text.secondary" /><Text variant="bodySmall" color="text.secondary" style={styles.infoValue}>{t('roomLobby.waitHost')}</Text></View> : null}
+    {startVisible || continueVoting ? (
+      <SecondaryBtn
+        label={t('gogoRoom.myPreferences')}
+        onPress={() => router.push(`/room/${roomId}/preference`)}
+        style={styles.stackedBtn}
+      />
+    ) : (
+      <PrimaryBtn
+        label={t('gogoRoom.myPreferences')}
+        onPress={() => router.push(`/room/${roomId}/preference`)}
+      />
+    )}
+
+    {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
+      <Text variant="caption" color="text.secondary" style={styles.actionHint}>{t('gogoRoom.quorumRequired')}</Text>
+    ) : null}
+
+    {startVisible ? (
+      continueVoting ? (
+        <SecondaryBtn
+          label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+          onPress={() => { void beginMatching() }}
+          loading={startMatching.isPending}
+        />
+      ) : (
+        <PrimaryBtn
+          label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
+          onPress={() => { void beginMatching() }}
+          loading={startMatching.isPending}
+        />
+      )
+    ) : null}
+
+    {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
+      <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
+    ) : null}
+
+    {startMatching.isError ? (
+      <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
+        {t('gogoRoom.startFailed')}
+      </Text>
+    ) : null}
+
+  </View>
+
   return (
     <Atmosphere>
-      <BlockingLoadingOverlay visible={startMatching.isPending || createInvite.isPending || revokeInvite.isPending} />
+      <BlockingLoadingOverlay visible={startMatching.isPending} />
+      {hostActions.dialogs}
       <View>
-        <AppHeader title={t('gogoRoom.screenTitle')} onBack={() => goBackOrHome(router)} />
+        <AppHeader titleNumberOfLines={1} testID="room-lobby-header" title={summary.title?.trim() || t(roomType === 'couple' ? 'roomLobby.coupleTitle' : capabilities.isHost ? 'gogoRoom.title_group' : 'roomLobby.group')} rightAction={hostActions.headerAction} onBack={() => goBackOrHome(router)} />
       </View>
       <RoomConnectionNotice
         roomId={validRoomId}
@@ -529,280 +372,41 @@ export default function GoGoRoomScreen() {
           {planNotice === PLAN_RETRY_NOTICE ? t('gogoRoom.planRetry') : t('gogoRoom.planUnavailable')}
         </Text>
       ) : null}
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[8] }}>
-        {/* Hero: the room's name (or the invitation line) and who is already in. */}
-        <Card style={styles.hero}>
-          <Text variant="title1">{summary.title?.trim() || t('gogoRoom.title', { context: roomType })}</Text>
-          <Text variant="bodySmall" style={styles.heroBody}>{t('gogoRoom.body', { context: roomType })}</Text>
-          {roomType === 'group' ? (
-            <View style={styles.heroPeople}>
-              <View style={styles.avatarRow}>
-                {members.slice(0, VISIBLE_AVATARS).map((member, index) => (
-                  <View key={member.id} style={styles.avatarWrap}>
-                    <AvatarCircle
-                      label={initial(member.displayName)}
-                      size={48}
-                      background={avatarColors[index % avatarColors.length]}
-                      imageUri={member.avatarUrl}
-                    />
-                  </View>
-                ))}
-                {members.length > VISIBLE_AVATARS && (
-                  <View style={[styles.avatarWrap, styles.morePeople]}>
-                    <Text variant="label" color="text.secondary">+{members.length - VISIBLE_AVATARS}</Text>
-                  </View>
-                )}
-              </View>
-              <Text variant="bodySmall" style={styles.joined}>
-                {t('gogoRoom.joined', { joined: members.length, total: participantCount })}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.couplePair}>
-              <AvatarCircle label={initial(members[0]?.displayName ?? '')} size={48} imageUri={members[0]?.avatarUrl} />
-              <Glyph size="sm" color="text.secondary">+</Glyph>
-              {members[1] ? (
-                <AvatarCircle
-                  label={initial(members[1].displayName)}
-                  size={48}
-                  background={theme.status.info}
-                  imageUri={members[1].avatarUrl}
-                />
-              ) : (
-                <View style={styles.emptySeat}>
-                  <IconUserOutline />
-                </View>
-              )}
-            </View>
-          )}
-        </Card>
-
-        {capabilities.canInvite ? (
-          <Card style={styles.codeCard}>
-            <Text variant="label" color="text.secondary" style={styles.cardHeading}>{t('gogoRoom.codeLabel')}</Text>
-            {/* A room past collecting refuses new invites (409) and joins (410):
-                say so rather than show controls that cannot work (RULE-CORE-016). */}
-            {!joinable ? <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>{t('gogoRoom.inviteClosed')}</Text> : null}
-            {joinable && inviteDisplay.kind === 'none' ? (
-              <SecondaryBtn label={t('gogoRoom.createInvite')} onPress={generateInvite} style={styles.createInvite}
-                loading={createInvite.isPending} disabled={createInvite.isPending || (createInvite.isError && !isRetryable(createInvite.error))} />
-            ) : null}
-            {joinable && inviteDisplay.kind === 'active-elsewhere' ? (
-              <>
-                <Text variant="bodySmall" color="text.secondary" style={styles.inviteNote}>
-                  {t('gogoRoom.inviteActive', { time: roomScheduleLabel(inviteDisplay.expiresAt, i18n.language) ?? '' })}
-                </Text>
-                <SecondaryBtn
-                  label={t('gogoRoom.reissueInvite')}
-                  onPress={() => confirmReissue(inviteDisplay.inviteIds)}
-                  style={styles.createInvite}
-                  loading={revokeInvite.isPending || createInvite.isPending}
-                />
-              </>
-            ) : null}
-            {joinable && inviteDisplay.kind === 'unknown' ? (
-              <>
-                <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.invitesLoadFailed')}</Text>
-                <GhostBtn label={t('common.retry')} onPress={() => void invites.refetch()} />
-              </>
-            ) : null}
-            {reissueFailed ? (
-              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.reissueFailed')}</Text>
-            ) : null}
-            {createInvite.isError ? (
-              <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{t('gogoRoom.inviteFailed')}</Text>
-            ) : null}
-            <View style={styles.codeRow}>
-              {/* `selectable` so the code can still be lifted by hand if the
-                  clipboard write is refused. */}
-              {inviteDisplay.kind === 'checking' ? (
-                <Skeleton style={styles.codeSkeleton} />
-              ) : (
-                <Text
-                  testID="invite-code"
-                  variant="title1"
-                  selectable
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.6}
-                  style={styles.code}
-                >
-                  {inviteCode ?? '·····'}
-                </Text>
-              )}
-              {/* Icon-only: a label here gets squeezed by a long code, and this
-                  is the only way to lift the code other than the invite link. */}
-              <IconBtn
-                onPress={() => { void copyCode() }}
-                disabled={!inviteCode || !joinable}
-                accessibilityLabel={t(codeCopied ? 'common.copied' : 'common.copy')}
-                style={[styles.copyBtn, codeCopied && styles.copyBtnDone]}
-              >
-                {codeCopied ? <IconCheck /> : <IconCopy />}
-              </IconBtn>
-            </View>
-            <SecondaryBtn
-              label={linkCopied ? t('gogoRoom.linkCopied') : t('gogoRoom.invite')}
-              onPress={invite}
-              disabled={!inviteUrl || !joinable}
-            />
-            <View style={styles.noApp}>
-              <Icon name="checkCircle" size={16} color="status.successText" />
-              <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
-            </View>
-          </Card>
-        ) : null}
-
+      <PullToRefresh onRefresh={async () => { await Promise.all([room.refetch(), hostActions.refresh(), seedDetails.refetchAll()]) }}>
+      <ScrollView testID="room-lobby-scroll" contentContainerStyle={[styles.content, { paddingBottom: actionInset + spacing[4] }]}>
+        {hostActions.feedback}
         {/* What the room is actually constrained by — facts, composed here. */}
-        {summary.constraints ? (
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHead}>
-              <Icon name="sliders" size={20} color="accent.primary" />
-              <Text variant="title2">{t('gogoRoom.constraints')}</Text>
-            </View>
-            <InfoRow icon="calendar" tone="info">{scheduleChipLabel(summary, i18n.language, t)}</InfoRow>
-            <InfoRow icon="users" tone="accent">{t('groupSetup.people', { n: participantCount })}</InfoRow>
-            {/* GoGo-MobileApp#246 — the area saved with the room, with the labels
-                stored when it was chosen. A dataset change keeps those labels
-                and says in words that the host must choose again. */}
-            {summary.constraints.administrativeArea ? (
-              <InfoRow icon="mapPin" tone="accent">{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
-            ) : null}
-            {summary.constraints.administrativeArea?.status === 'needs_reselection' ? (
-              <InfoRow icon="alert" tone="warning">{t('gogoRoom.areaNeedsReselection')}</InfoRow>
-            ) : null}
-            {summary.constraints.budgetAmount ? (
-              <InfoRow icon="dollar" tone="success">
-                {`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(
-                  summary.constraints.budgetMode,
-                  roomType,
-                  t,
-                )}`}
-              </InfoRow>
-            ) : null}
+        <Card testID="room-lobby-conditions" style={sectionStyles.card}>
+            <RoomSectionHeading icon="sliders" title={t('gogoRoom.constraints')} compactAction={capabilities.isHost
+              ? actionStyle => <IconBtn style={actionStyle} variant="plainCompact" accessibilityLabel={t('roomLobby.editConditions')} onPress={() => router.push(`/room/${roomId}/edit`)}><MaterialIcon name="edit" size={20} color="accent.primary" /></IconBtn>
+              : undefined}
+              action={capabilities.isHost ? undefined : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>} />
+            <View style={styles.rows}><RoomFacts facts={{
+              name: summary.title?.trim()
+                ? <InfoRow icon="info" tone="info" label={t('roomTitle.title')}>{summary.title.trim()}</InfoRow> : null,
+              area: summary.constraints?.administrativeArea ? <>
+                <InfoRow icon="mapPin" tone="accent" label={t('roomLobby.area')}>{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
+                {summary.constraints.administrativeArea.status === 'needs_reselection' ? (
+                  <InfoRow icon="alert" tone="warning" label={t('roomLobby.area')}>{t('gogoRoom.areaNeedsReselection')}</InfoRow>
+                ) : null}
+              </> : null,
+              budget: summary.constraints?.budgetAmount ? (
+                <InfoRow icon="dollar" tone="success" label={t('roomManage.budgetTitle')}>
+                  {roomBudgetLabel(summary.constraints, summary.participantCount, t)}
+                </InfoRow>
+              ) : null,
+              schedule: summary.constraints?.startAt || summary.scheduledDate ? (
+                <InfoRow icon="calendar" tone="info" label={t('roomSchedule.title')}>{roomScheduleRangeLabel(summary, i18n.language, t)}</InfoRow>
+              ) : null,
+            }} /></View>
           </Card>
-        ) : null}
 
-        {/* Per-member status, not just a count (spec §16). */}
-        {members.length > 0 ? (
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHead}>
-              <Icon name="users" size={20} color="accent.primary" />
-              <Text variant="title2" style={styles.sectionTitle}>
-                {t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })}
-              </Text>
-            </View>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progress.total ? (progress.completed / progress.total) * 100 : 0}%` },
-                ]}
-              />
-            </View>
-            <View style={styles.memberList}>
-              {members.map((member: RoomMember, index: number) => {
-                const chip = STATUS_CHIP[member.selectionStatus]
-                return (
-                  <View key={member.id} style={styles.memberRow}>
-                    <AvatarCircle
-                      label={initial(member.displayName)}
-                      size={44}
-                      background={avatarColors[index % avatarColors.length]}
-                      imageUri={member.avatarUrl}
-                    />
-                    <View style={styles.memberNameRow}>
-                      <Text variant="body" style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
-                      {member.role === 'host' ? (
-                        <Chip label={t('gogoRoom.hostBadge')} />
-                      ) : null}
-                      {member.isGuest ? (
-                        <Chip label={t('gogoRoom.guestBadge')} variant="info" />
-                      ) : null}
-                    </View>
-                    <Chip label={t(chip.key)} variant={chip.variant} />
-                  </View>
-                )
-              })}
-            </View>
-          </Card>
-        ) : null}
-
-        {/* Back must not auto-open a run again, but a person can explicitly
-            return to its current decision screen without saving preferences. */}
-        {continueVoting && nextPath ? (
-          <PrimaryBtn
-            label={t('gogoRoom.continueVoting')}
-            onPress={() => router.push(nextPath)}
-            disabled={routingHold.held || startMatching.isPending}
-          />
-        ) : screen && nextPath ? (
-          <SecondaryBtn
-            label={t(screen === 'swipe' ? 'gogoRoom.returnToVote' : 'gogoRoom.returnToResult')}
-            onPress={() => router.push(nextPath)}
-            disabled={routingHold.held || startMatching.isPending}
-          />
-        ) : null}
-
-        {/*
-          One dominant CTA per screen (spec §7). Choosing your own preferences
-          is the room's main job; once everyone has finished, the host's start
-          takes over as the dominant one. Host-only either way, and
-          server-enforced. Inviting lives in the code card above.
-        */}
-        {startVisible ? (
-          continueVoting ? (
-            <SecondaryBtn
-              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-              onPress={() => { void beginMatching() }}
-              loading={startMatching.isPending}
-            />
-          ) : (
-            <PrimaryBtn
-              label={startMatching.isPending ? t('gogoRoom.starting') : t('gogoRoom.startMatching')}
-              onPress={() => { void beginMatching() }}
-              loading={startMatching.isPending}
-            />
-          )
-        ) : null}
-
-        {capabilities.isHost && summary.matching?.canStartWithIncomplete ? (
-          <SecondaryBtn label={t('gogoRoom.partialContinue')} onPress={confirmPartialMatching} loading={startMatching.isPending} />
-        ) : null}
-        {capabilities.isHost && summary.matching?.blockedReason === 'MATCHING_QUORUM_REQUIRED' ? (
-          <Text color="text.secondary" style={styles.body}>{t('gogoRoom.quorumRequired')}</Text>
-        ) : null}
-
-        {startMatching.isError ? (
-          <Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>
-            {t('gogoRoom.startFailed')}
-          </Text>
-        ) : null}
-
-        {startVisible || continueVoting ? (
-          <SecondaryBtn
-            label={t('gogoRoom.myPreferences')}
-            onPress={() => router.push(`/room/${roomId}/preference`)}
-            style={styles.stackedBtn}
-          />
-        ) : (
-          <PrimaryBtn
-            label={t('gogoRoom.myPreferences')}
-            onPress={() => router.push(`/room/${roomId}/preference`)}
-          />
-        )}
-
-        {capabilities.isHost ? (
-          <GhostBtn label={t('roomManage.title')} onPress={() => router.push(`/room/${roomId}/manage`)} />
-        ) : null}
-
-        {!capabilities.canInvite ? (
-          <View style={styles.noApp}>
-            <Icon name="checkCircle" size={16} color="status.successText" />
-            <Text variant="bodySmall" color="text.secondary">{t('gogoRoom.noApp', { context: roomType })}</Text>
-          </View>
-        ) : null}
+        <RoomMembers room={summary} onRefresh={() => room.refetch()} hold={routingHold.hold} />
+        <RoomSeeds room={summary} details={seedDetails} onRefresh={() => room.refetch()} hold={routingHold.hold} />
+        {hostActions.group}
       </ScrollView>
+      </PullToRefresh>
+      <GlassBar testID="room-lobby-actions" placement="floating" onHeightChange={setActionHeight}>{actions}</GlassBar>
     </Atmosphere>
   )
 }

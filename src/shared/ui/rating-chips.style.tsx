@@ -8,6 +8,9 @@ export const styles = StyleSheet.create(theme => ({
   detailGoogle: { backgroundColor: theme.surface.card, borderWidth: 1, borderColor: theme.surface.highest },
   stackedRow: { flexDirection: 'column', alignItems: 'flex-start' },
   compactRow: { gap: chipRowGap, flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'flex-start' },
-  compactBadge: { paddingHorizontal: 4, paddingVertical: 2, flexShrink: 0 },
+  compactBadge: { paddingHorizontal: 4, paddingVertical: 2, flexShrink: 1 },
+  badgeRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' },
+  fact: { flexShrink: 0 },
+  status: { flexShrink: 1, minWidth: 0 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
 }))

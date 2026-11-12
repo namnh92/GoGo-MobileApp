@@ -98,8 +98,9 @@ it('shows the start alone when the room stores no end', async () => {
   expect(view.getByText(dateTime(START))).toBeTruthy()
 })
 
-it('says the room is unscheduled rather than inventing a date from an end', async () => {
+it('hides the schedule row when no start exists, rather than inventing a date from an end', async () => {
   mockRoom.query = withSchedule(undefined, SAME_DAY_END)
   const view = await renderScreen(<GoGoRoomScreen />)
-  expect(view.getByText('Chưa đặt lịch')).toBeTruthy()
+  expect(view.queryByText('Chưa đặt lịch')).toBeNull()
+  expect(view.queryByText('Thời gian')).toBeNull()
 })

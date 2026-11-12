@@ -1,3 +1,8 @@
+> Cập nhật round 6h (2026-11-12): màn Quản lý phòng đã bỏ; các ghi nhận
+> manage bên dưới là bằng chứng lịch sử. Chức năng hiện tại nằm ở sảnh phòng;
+> `/room/[roomId]/manage` chỉ redirect về sảnh. Xem
+> [quyết định hiện hành](../redesign/issue-595-unified-room-edit.md#round-6h--quyết-định-owner-2026-11-12-10-thay-màn-quản-lý-phòng).
+
 # GoGo-MobileApp #541 local handoff
 
 Regular buttons: 48pt minimum; small: 40pt minimum. Labels: 15/13pt, icons: 20/18pt; horizontal padding: 16/12pt; vertical padding: 12/8pt. All shared kinds and visual variants use these tokens. Wrapped labels can grow. hitSlop and minimum width keep touch targets at least 44pt. The floating + FAB is unchanged.

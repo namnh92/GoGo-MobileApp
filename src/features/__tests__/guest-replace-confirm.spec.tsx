@@ -64,7 +64,7 @@ beforeEach(() => {
 
 afterEach(() => alertSpy.mockRestore())
 
-// #381: the confirmation is the in-app Dialog, pressed like a person would.
+// #600: shared ResultSheet; replacing waits for native dismissal.
 const CONFIRM_TITLE = 'Thay phiên khách hiện tại?'
 const KEEP = 'Giữ phiên hiện tại'
 const REPLACE = 'Thay và tham gia'
@@ -105,6 +105,7 @@ describe.each(['invite link', 'typed code'] as const)('a guest already in a room
   it('is asked to confirm, and nothing is replaced until they do', async () => {
     const view = await fillAndJoin(screen)
     expect(alertSpy).not.toHaveBeenCalled()
+    expect(view.getByTestId('guest-replace-confirm')).toBeTruthy()
     expect(view.getByText(CONFIRM_TITLE)).toBeTruthy()
     expect(view.getByRole('header', { name: CONFIRM_TITLE })).toBeTruthy()
     expect(mockJoinAsGuest).not.toHaveBeenCalled()
@@ -112,9 +113,8 @@ describe.each(['invite link', 'typed code'] as const)('a guest already in a room
 
   it('keeps the current guest session when they decline', async () => {
     const view = await fillAndJoin(screen)
-    await act(async () => {
-      await fireEvent.press(view.getByRole('button', { name: KEEP }))
-    })
+    const dismiss = view.getByTestId('guest-replace-confirm-modal').props.onDismiss
+    await act(async () => { await fireEvent.press(view.getByRole('button', { name: KEEP })); dismiss?.() })
     expect(view.queryByText(CONFIRM_TITLE)).toBeNull()
     expect(mockJoinAsGuest).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
@@ -122,9 +122,10 @@ describe.each(['invite link', 'typed code'] as const)('a guest already in a room
 
   it('joins through the invite once they confirm', async () => {
     const view = await fillAndJoin(screen)
-    await act(async () => {
-      await fireEvent.press(view.getByRole('button', { name: REPLACE }))
-    })
+    const dismiss = view.getByTestId('guest-replace-confirm-modal').props.onDismiss
+    await act(async () => { await fireEvent.press(view.getByRole('button', { name: REPLACE })) })
+    // The native Modal mock reports dismissal automatically; duplicate notifications are harmless.
+    await act(async () => dismiss?.())
     expect(mockJoinAsGuest).toHaveBeenCalledWith({ inviteCode: CODE, displayName: 'Lan' })
     expect(mockReplace).toHaveBeenCalledWith(`/room/${ROOM_B}/preference`)
   })

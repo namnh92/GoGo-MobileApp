@@ -109,19 +109,19 @@ it('clears a revoked code and keeps rooms isolated', async () => {
   await waitFor(() => expect(result.current.first.data).toBeUndefined())
 })
 
-// #199: the code must survive a cold start, which an in-memory cache never did.
-it('keeps a created code in secure storage and reads it back with a fresh cache', async () => {
+// Round 6h: newly generated secrets stay in memory only.
+it('keeps a created code out of secure storage and a fresh cache', async () => {
   mockCreate.mockResolvedValue(invite)
   const first = await renderHook(() => useCreateRoomInvite('room-1'), { wrapper })
   await waitFor(() => expect(first.result.current.stored).not.toBeUndefined())
   await act(async () => { await first.result.current.mutateAsync({ maxUses: 20 }) })
-  expect((await loadInviteCode('room-1', 'user-1'))?.code).toBe(invite.code)
+  expect(await loadInviteCode('room-1', 'user-1')).toBeNull()
   await first.unmount()
   client.clear()
 
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { gcTime: Infinity } } })
   const cold = await renderHook(() => useCreateRoomInvite('room-1'), { wrapper })
-  await waitFor(() => expect(cold.result.current.data?.code).toBe(invite.code))
+  await waitFor(() => expect(cold.result.current.stored).toBeNull())
   expect(mockCreate).toHaveBeenCalledTimes(1)
 })
 

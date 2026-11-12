@@ -17,6 +17,12 @@ const inviteMetaSchema = z.object({
 export type InviteMeta = z.infer<typeof inviteMetaSchema>
 const inviteListSchema = z.array(inviteMetaSchema)
 
+/** The server lists oldest first (createdAt ASC); preserve that order. */
+export function activeRoomInvites(value: unknown, now: number): InviteMeta[] | null {
+  const parsed = inviteListSchema.safeParse(value)
+  return parsed.success ? parsed.data.filter(invite => isInviteUsable(invite, now)) : null
+}
+
 /** Not revoked, not expired, and not used up. */
 export function isInviteUsable(invite: InviteMeta, now: number): boolean {
   const expiresAt = Date.parse(invite.expiresAt)

@@ -2,7 +2,7 @@ import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.vie
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
@@ -49,6 +49,7 @@ export default function GuestJoinScreen() {
 
   const [displayName, setDisplayName] = useState('')
   const [pending, setPending] = useState(false)
+  const submitting = useRef(false)
   const [expired, setExpired] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,7 +84,7 @@ export default function GuestJoinScreen() {
   }
 
   async function join() {
-    if (pending) return
+    if (pending || submitting.current) return
     if (!inviteCode) {
       setError(t('guestJoin.notFoundBody'))
       return
@@ -93,9 +94,11 @@ export default function GuestJoinScreen() {
       return
     }
 
-    setPending(true)
+    submitting.current = true
     setError(null)
     try {
+      if (!asUser && holdsGuestRoom && !(await confirmReplaceGuest())) return
+      setPending(true)
       if (asUser) {
         const result = await joinRoom.mutateAsync({ inviteCode })
         // GoGo-BE#607: count a join only when the server says this request created
@@ -113,7 +116,6 @@ export default function GuestJoinScreen() {
         return
       }
 
-      if (holdsGuestRoom && !(await confirmReplaceGuest())) return
       // Issues a room-scoped guest session and persists it to the Keychain —
       // no account, and the token reaches no other room.
       const session = await joinAsGuest({ inviteCode, displayName: trimmedName })
@@ -135,6 +137,7 @@ export default function GuestJoinScreen() {
       setError(toMessage(caught))
     } finally {
       setPending(false)
+      submitting.current = false
     }
   }
 

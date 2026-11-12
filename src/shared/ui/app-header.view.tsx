@@ -15,6 +15,7 @@ export type AppHeaderProps = {
   /** Profile sub-screens omit inbox navigation while keeping local actions. */
   showNotifications?: boolean
   title: string
+  titleNumberOfLines?: number
   centerTitle?: boolean
   titleColor?: TextColor
   subtitle?: string
@@ -37,7 +38,7 @@ export type AppHeaderProps = {
 }
 
 /** The only application navigation bar. Screen titles are localized by callers. */
-export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, centerTitle = false, titleColor = 'text.primary', subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
+export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, titleNumberOfLines, centerTitle = false, titleColor = 'text.primary', subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" color={titleColor} size={24} /></AppHeaderAction> : null
@@ -48,7 +49,7 @@ export function AppHeader({ variant = 'sub-screen', showNotifications = true, ti
       <View style={[styles.identity, Boolean(titleAccessory) && titleAccessoryInteractive && styles.accessoryIdentity]}>
         <View style={variant === 'tab-root' ? styles.brandRow : undefined}>
           {variant === 'tab-root' ? <><GoGoLogo variant="compact" size={32} testID={`${testID}-logo`} /><View testID={`${testID}-brand-divider`} accessible={false} style={styles.brandDivider} /></> : null}
-          <Text variant="introHeading" color={titleColor} accessibilityRole="header" style={[styles.title, centerTitle && styles.centeredTitle]}>{title}</Text>
+          <Text testID={`${testID}-title`} numberOfLines={titleNumberOfLines} ellipsizeMode="tail" variant="introHeading" color={titleColor} accessibilityRole="header" style={[styles.title, centerTitle && styles.centeredTitle]}>{title}</Text>
         </View>
         {subtitle ? <Text variant="introCaption" color={subtitleTone === 'danger' ? 'status.dangerText' : 'text.secondary'}>{subtitle}</Text> : null}
         {titleAccessory}
