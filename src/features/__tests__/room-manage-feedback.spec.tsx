@@ -3,7 +3,7 @@ const mockDialog = jest.spyOn(DialogModule, 'Dialog')
 import i18n from '@/shared/i18n'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { QueryClient } from '@tanstack/react-query'
-import { Keyboard, ScrollView, StyleSheet, TextInput, View, type KeyboardEvent, type KeyboardEventName } from 'react-native'
+import { AccessibilityInfo, Keyboard, ScrollView, StyleSheet, TextInput, View, type KeyboardEvent, type KeyboardEventName } from 'react-native'
 import { loaded as mockLoaded, roomFor, type QueryLike } from './harness'
 import { render } from '@/shared/ui/__tests__/query-render'
 import { queryKeys } from '@/shared/api/query-keys'
@@ -979,5 +979,33 @@ it('reveals the custom budget and preview in the sheet while keeping actions in 
   } finally {
     jest.useRealTimers()
     jest.restoreAllMocks()
+  }
+})
+
+
+it('F-17 keeps custom budget pristine after saving a title in the open sheet', async () => {
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => undefined)
+  try {
+    await openArea()
+    await typeField('Tên kèo', 'Tên mới')
+    await confirmEditor()
+    await waitFor(() => expect(mockRename).toHaveBeenCalledWith('room-1', { title: 'Tên mới' }))
+    expect(screen.getByTestId('room-title-field')).toBeTruthy()
+    for (let selection = 0; selection < 2; selection++) {
+      await chooseBudget()
+      announce.mockClear()
+      await press(screen.getByRole('button', { name: i18n.t('budgetPicker.custom') }))
+      const input = screen.getByLabelText(`${i18n.t('budgetPicker.amount')} ${i18n.t('datePlan.perPerson')}`)
+      expect(input.props.value).toBe('')
+      expect(screen.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
+      expect(input.props['aria-invalid']).not.toBe(true)
+      expect(announce).not.toHaveBeenCalled()
+      await fireEvent(input, 'blur', {})
+      expect(screen.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
+      expect(announce).toHaveBeenCalledWith(i18n.t('budgetPicker.required'))
+    }
+    expect(mockPatch).not.toHaveBeenCalled()
+  } finally {
+    announce.mockRestore()
   }
 })

@@ -315,7 +315,36 @@ it('focuses and reveals the custom input with its preview, including later focus
   }
 })
 
-it('shows validation on a submitted custom amount even when untouched', async () => {
-  const view = await renderScreen(<BudgetPicker value={null} onChange={jest.fn()} roomType="couple" budgetMode="total" submitted />)
+it('F-17 shows validation on a new submit attempt while custom is untouched', async () => {
+  const view = await renderScreen(<BudgetPicker value={null} onChange={jest.fn()} roomType="couple" budgetMode="total" submitAttempt={3} />)
+  expect(view.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
+  await view.rerender(<BudgetPicker value={null} onChange={jest.fn()} roomType="couple" budgetMode="total" submitAttempt={4} />)
   expect(view.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
+})
+
+
+it('F-17 keeps a new custom selection pristine after Continue and returning to the mounted budget step', async () => {
+  const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => undefined)
+  try {
+    const view = await renderScreen(<CreateBudgetScreen />)
+    await fireEvent.press(view.getByRole('button', { name: i18n.t('common.continue') }))
+    expect(mockPush).toHaveBeenCalledWith('/create/mood')
+    // Stack navigation retains this form and its submitCount on Back.
+    await view.rerender(<CreateBudgetScreen />)
+    for (let selection = 0; selection < 2; selection++) {
+      await fireEvent.press(view.getByRole('button', { name: i18n.t('createBudget.range.flexible') }))
+      announce.mockClear()
+      await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+      const input = view.getByLabelText(inputLabel())
+      expect(input.props.value).toBe('')
+      expect(view.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
+      expect(input.props['aria-invalid']).not.toBe(true)
+      expect(announce).not.toHaveBeenCalled()
+      await fireEvent(input, 'blur', {})
+      expect(view.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
+      expect(announce).toHaveBeenCalledWith(i18n.t('budgetPicker.required'))
+    }
+  } finally {
+    announce.mockRestore()
+  }
 })

@@ -17,9 +17,9 @@ const isTier = (value: number | null) => BUDGET_TIERS.some(tier => tier.amount =
 
 /** The caller owns the numeric value; local state preserves invalid text and
  * keeps custom entry open even when its amount matches a tier. */
-export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true, visibilityField, submitted = false }: {
+export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true, visibilityField, submitAttempt = 0 }: {
   visibilityField?: ReturnType<typeof useFieldVisibility>['field']
-  submitted?: boolean
+  submitAttempt?: number
   value: number | null
   onChange: (value: number | null) => void
   onBlur?: () => void
@@ -33,6 +33,8 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   const [focused, setFocused] = useState(false)
   const [raw, setRaw] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
+  // Only attempts made during this custom selection expose untouched errors.
+  const [attemptAtSelection, setAttemptAtSelection] = useState(submitAttempt)
   const [focusRequest, setFocusRequest] = useState(0)
   const inputRef = useRef<TextInputRef>(null)
   const field = visibilityField?.('budget')
@@ -51,9 +53,10 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
       setCustom(!isTier(value))
       setRaw(null)
       setTouched(false)
+      setAttemptAtSelection(submitAttempt)
     }
     lastValue.current = value
-  }, [value])
+  }, [value, submitAttempt])
   function change(amount: number | null) {
     lastValue.current = amount
     onChange(amount)
@@ -67,17 +70,17 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
     : errorKey === 'budgetPicker.format' ? 'budgetPicker.format'
     : errorKey === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds') : undefined
 
-  const error = touched || submitted ? validationError : undefined
+  const error = touched || submitAttempt > attemptAtSelection ? validationError : undefined
 
   return <View style={styles.body}>
     <View style={styles.chips}>
       {BUDGET_TIERS.map(tier => <Chip key={tier.key} multiline
         label={`${t(`createBudget.range.${tier.key}`)}${tier.key === 'flexible' ? '' : ` ${unit}`}`}
         variant={!custom && value === tier.amount ? 'selected' : 'default'}
-        disabled={disabled} onPress={() => { setCustom(false); setRaw(null); setTouched(false); change(tier.amount) }} />)}
+        disabled={disabled} onPress={() => { setCustom(false); setRaw(null); setTouched(false); setAttemptAtSelection(submitAttempt); change(tier.amount) }} />)}
       <Chip label={t('budgetPicker.custom')} variant={custom ? 'selected' : 'default'} disabled={disabled}
         onPress={() => {
-          if (!custom) { setCustom(true); setRaw(null); setTouched(false); change(null) }
+          if (!custom) { setCustom(true); setRaw(null); setTouched(false); setAttemptAtSelection(submitAttempt); change(null) }
           setFocusRequest(request => request + 1)
         }} />
     </View>

@@ -88,7 +88,7 @@ export default function CreateBudgetScreen() {
           ) : null}
 
           <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-            <BudgetPicker visibilityField={visibilityField} submitted={form.formState.submitCount > 0} value={field.value} onBlur={field.onBlur} roomType={roomType} budgetMode={budgetMode}
+            <BudgetPicker visibilityField={visibilityField} submitAttempt={form.formState.submitCount} value={field.value} onBlur={field.onBlur} roomType={roomType} budgetMode={budgetMode}
               onChange={amount => {
                 field.onChange(amount)
                 patchDraft({ budgetAmount: budgetPickerSchema.safeParse({ budgetAmount: amount }).success ? amount : null })

@@ -210,7 +210,7 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
         variant={values.budgetMode === mode ? 'selected' : 'default'} disabled={pending || !canEdit}
         onPress={() => form.setValue('budgetMode', mode, { shouldDirty: true })} />)}</View> : null}
       <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-        <BudgetPicker {...field} visibilityField={visibilityField} submitted={form.formState.submitCount > 0} enforceBounds={changed.budgetAmount} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
+        <BudgetPicker {...field} visibilityField={visibilityField} submitAttempt={form.formState.submitCount} enforceBounds={changed.budgetAmount} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
       } />
       <View testID="room-schedule-section" style={styles.section}>
         <Text variant="label">{t('roomSchedule.title')}</Text>
