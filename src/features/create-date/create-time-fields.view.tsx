@@ -27,7 +27,7 @@ function hoursBetween(start: string, end: string): number {
  * contract has no duration field (see `duration-presets.ts`). It fills in the
  * end once a start exists, and Continue is never unlocked by an invented time.
  */
-export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, setEndTime, durationPreset, setDurationPreset, scheduleDay, onDayChange, selectedEndDate, customSchedule = false, disabled = false, sectionTitle }: {
+export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, setEndTime, setPresetEndTime, durationPreset, setDurationPreset, scheduleDay, onDayChange, selectedEndDate, customSchedule = false, disabled = false, sectionTitle }: {
   sectionTitle?: string
   customSchedule?: boolean
   disabled?: boolean
@@ -36,6 +36,8 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
   endTime: string | null
   setStartTime: (value: string | null) => void
   setEndTime: (value: string | null) => void
+  /** A duration edit derives a new end day from the start; a time-only edit keeps its day. */
+  setPresetEndTime?: (value: string | null) => void
   durationPreset: DurationPresetKey | null
   setDurationPreset: (value: DurationPresetKey | null) => void
   scheduleDay: string | null
@@ -76,13 +78,13 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
       return
     }
     setDurationPreset(key)
-    if (startTime) setEndTime(presetEnd(startTime, key))
+    if (startTime) (setPresetEndTime ?? setEndTime)(presetEnd(startTime, key))
   }
 
   function applyStart(slot: string) {
     setStartTime(slot)
-    if (durationPreset) setEndTime(presetEnd(slot, durationPreset))
-    else if (endTime && endTime <= slot) setEndTime(null)
+    if (durationPreset) (setPresetEndTime ?? setEndTime)(presetEnd(slot, durationPreset))
+    else if (!selectedEndDate && endTime && endTime <= slot) setEndTime(null)
   }
 
   function pickSlot(slot: string) {
@@ -186,7 +188,10 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
         onClose={() => setPickerFor(null)} onDone={pickSlot} testID="start-time-sheet" />
       <TimePickerSheet visible={!disabled && pickerFor === 'end'} initialTime={endTime ?? startTime ?? '19:00'}
         title={`${t('createTime.pickTime')} · ${t('createTime.end')}`}
-        isInvalid={slot => startTime !== null && slot <= startTime}
+        isInvalid={slot => startTime !== null && (selectedEndDate
+          ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), Number(slot.slice(0, 2)), Number(slot.slice(3))).getTime()
+            <= new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), Number(startTime.slice(0, 2)), Number(startTime.slice(3))).getTime()
+          : slot <= startTime)}
         invalidHint={t('createTime.endAfterStart')}
         onClose={() => setPickerFor(null)} onDone={pickSlot} testID="end-time-sheet" />
 

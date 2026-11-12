@@ -27,13 +27,25 @@ export function RoomEditTime({ form, values, roomType, storedWindow, disabled = 
   // Each callback updates only what the user touched. In particular mounting
   // never round-trips the stored timestamps or normalizes a custom window.
   const setTime = (field: 'start' | 'end', slot: string | null) => {
+    const current = form.getValues(field)
+    if (!slot || current) {
+      form.setValue(field, slot ? `${current.slice(0, -5)}${slot}` : '', { shouldValidate: true })
+      return
+    }
     const currentStart = form.getValues('start')
     const next = scheduleToIso(field === 'start' ? slot : currentStart ? currentStart.slice(-5) : null, field === 'end' ? slot : endTime, day ?? localDayKey(new Date()))
     form.setValue(field, isoToLocalSchedule((field === 'start' ? next.startAt : next.endAt) ?? undefined), { shouldValidate: true })
   }
+  const setPresetEndTime = (slot: string | null) => {
+    const currentStart = form.getValues('start')
+    const currentStartIso = localScheduleToIso(currentStart)
+    const next = scheduleToIso(currentStart ? currentStart.slice(-5) : null, slot,
+      currentStartIso ? localDayKey(new Date(currentStartIso)) : day)
+    form.setValue('end', isoToLocalSchedule(next.endAt ?? undefined), { shouldValidate: true })
+  }
   return <CreateTimeFields sectionTitle={t('roomSchedule.title')} customSchedule={startTime !== null && durationPreset === null} disabled={disabled} key={`${day ?? ''}`} roomType={roomType} startTime={startTime} endTime={endTime}
     scheduleDay={day} selectedEndDate={endDate ?? undefined} durationPreset={durationPreset} setDurationPreset={setDurationPreset}
-    setStartTime={slot => setTime('start', slot)} setEndTime={slot => setTime('end', slot)}
+    setStartTime={slot => setTime('start', slot)} setEndTime={slot => setTime('end', slot)} setPresetEndTime={setPresetEndTime}
     onDayChange={nextDay => {
       setPickedDay(nextDay)
       const previousStart = startDate ?? new Date()

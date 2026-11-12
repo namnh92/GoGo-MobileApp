@@ -12,6 +12,7 @@ export function useRoomConditionConfirmation(embedded = false) {
   const parent = useContext(RoomConditionConfirmation)
   const [visible, setVisible] = useState(false)
   const resolve = useRef<((confirmed: boolean) => void) | null>(null)
+  const confirmedChoice = useRef(false)
   useEffect(() => () => {
     resolve.current?.(false)
     resolve.current = null
@@ -19,6 +20,7 @@ export function useRoomConditionConfirmation(embedded = false) {
   const finish = (confirmed: boolean) => {
     const pending = resolve.current
     resolve.current = null
+    confirmedChoice.current = false
     setVisible(false)
     pending?.(confirmed)
   }
@@ -36,6 +38,14 @@ export function useRoomConditionConfirmation(embedded = false) {
       testID="room-conditions-confirmation" title={t('roomManage.changeConditionsTitle')}
       body={t('roomManage.staleWarning')} onClose={() => finish(false)}
       secondaryAction={{ label: t('common.cancel'), onPress: () => finish(false) }}
-      primaryAction={{ label: t('roomEdit.saveSchedule'), onPress: () => finish(true) }} />,
+      primaryAction={{ label: t('roomEdit.saveSchedule'), onPress: () => {
+        if (embedded) { finish(true); return }
+        confirmedChoice.current = true
+        setVisible(false)
+      } }}
+      onClosed={() => {
+        if (!confirmedChoice.current) return
+        finish(true)
+      }} />,
   }
 }
