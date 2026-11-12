@@ -8,7 +8,7 @@ import { GhostBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { SearchField } from '@/shared/ui/search-field.view'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { Text } from '@/shared/ui/text'
-import { MaterialIcon } from '@/shared/ui/material-icon'
+import { MaterialIcon, type MaterialIconName } from '@/shared/ui/material-icon'
 import { useAdministrativeUnits, useAdministrativeVersion } from './queries'
 import { foldName, type AdministrativeSelection, type AdministrativeUnit } from './snapshot'
 import { styles } from './administrative-picker.style'
@@ -54,16 +54,23 @@ export function AdministrativePicker({ value, onChange, embedded = false, onChoo
     else if (value && unit.parentCode === value.provinceCode) onChange({ ...value, datasetVersion, communeCode: unit.code, communeName: unit.fullName })
     setLevel(null)
   }
+  // The province-wide choice is the first row of the commune list, not a floating link.
+  const wholeProvinceLabel = value?.provinceName ? t('administrative.wholeProvinceNamed', { province: value.provinceName }) : t('administrative.wholeProvince')
+  const wholeProvinceRow = level === 'commune' && value && (!search || foldName(wholeProvinceLabel).includes(foldName(search)))
+    ? <UnitRow label={wholeProvinceLabel} icon="map" selected={!value.communeCode} onPress={() => { onChange({ ...value, communeCode: null, communeName: null }); setLevel(null) }} />
+    : null
   const list = (
     <View style={styles.sheetBody}>
       <AppHeader variant="sheet" safeArea={false} title={t(level === 'commune' ? 'administrative.commune' : 'administrative.province')} onBack={() => setLevel(null)} />
       <SearchField value={search} onChangeText={setSearch} accessibilityLabel={t('administrative.search')} placeholder={t('administrative.search')} />
       <StaleNotice error={units.error} hasData={false} onRetry={() => { void version.refetch(); void units.refetch() }} />
-      {level === 'commune' && value ? <GhostBtn label={t('administrative.wholeProvince')} onPress={() => { onChange({ ...value, communeCode: null, communeName: null }); setLevel(null) }} /> : null}
+      {/* Choosing the whole province needs no commune data, so it stays reachable while the list loads or fails. */}
+      {!units.data ? wholeProvinceRow : null}
       {units.isPending ? (unitsWaiting ? <OfflineState /> : <LoadingState />) : !units.data ? <ErrorState error={units.error} onRetry={() => { void version.refetch(); void units.refetch() }} /> : (
         <FlatList data={filtered} keyExtractor={item => item.code} keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={wholeProvinceRow}
           ListEmptyComponent={<EmptyState title={t('administrative.empty')} />}
-          renderItem={({ item }) => <Pressable style={styles.row} accessibilityRole="button" accessibilityState={{ selected: item.code === (level === 'province' ? value?.provinceCode : value?.communeCode) }} onPress={() => select(item)}><Text>{item.fullName}</Text></Pressable>} />
+          renderItem={({ item }) => <UnitRow label={item.fullName} selected={item.code === (level === 'province' ? value?.provinceCode : value?.communeCode)} onPress={() => select(item)} />} />
       )}
     </View>
   )
@@ -88,5 +95,16 @@ export function AdministrativePicker({ value, onChange, embedded = false, onChoo
       {!embedded && value ? <GhostBtn label={t('administrative.clear')} onPress={() => onChange(null)} /> : null}
       {!embedded ? <Sheet visible={level !== null} onClose={() => setLevel(null)} size="full" scroll={false}>{list}</Sheet> : null}
     </View>
+  )
+}
+
+/** One list row for every unit choice; the check glyph, not colour, marks the chosen one. */
+function UnitRow({ label, icon, selected, onPress }: { label: string; icon?: MaterialIconName; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable style={styles.row} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }} onPress={onPress}>
+      {icon ? <MaterialIcon name={icon} size={20} color="text.secondary" /> : null}
+      <Text style={styles.rowLabel}>{label}</Text>
+      {selected ? <MaterialIcon name="check" size={20} color="accent.text" /> : null}
+    </Pressable>
   )
 }

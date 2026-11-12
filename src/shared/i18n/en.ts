@@ -504,6 +504,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'administrative.commune': 'Ward/commune',
   'administrative.selectProvince': 'Choose province/city',
   'administrative.wholeProvince': 'Entire province/city',
+  'administrative.wholeProvinceNamed': 'All of {{province}}',
   'administrative.clear': 'Clear area',
   'administrative.search': 'Search by name',
   'administrative.empty': 'No matching administrative units',

@@ -101,3 +101,55 @@ it.each([false, true])('has no notification navigation while choosing administra
   await fireEvent.press(view.getByText(mockProvince.fullName))
   expect(mockChanged).toHaveBeenCalledTimes(1)
 })
+
+/**
+ * The province-wide choice is the first row of the commune list (owner,
+ * 2026-11-12): the same row as a commune, named after the province, and the
+ * chosen row carries `selected` plus a check glyph.
+ */
+describe('commune list × province-wide row', () => {
+  const inProvince = { ...selected, provinceCode: '79', provinceName: mockProvince.fullName }
+  const rowName = `Toàn ${mockProvince.fullName}`
+  const unitRows = (view: Awaited<ReturnType<typeof renderScreen>>, names: string[]) =>
+    view.getAllByRole('button').filter(row => names.includes(row.props.accessibilityLabel))
+
+  it('renders the province-wide row first, named after the province', async () => {
+    const view = await renderScreen(<AdministrativePicker value={{ ...inProvince, communeCode: null, communeName: null }} onChange={mockChanged} />)
+    await fireEvent.press(view.getByText('Toàn tỉnh/thành phố'))
+    expect(unitRows(view, [rowName, mockCommune.fullName]).map(row => row.props.accessibilityLabel)).toEqual([rowName, mockCommune.fullName])
+  })
+
+  it('selecting it clears the commune and keeps the province, as before', async () => {
+    const value = { ...inProvince, communeCode: '26734', communeName: mockCommune.fullName }
+    const view = await renderScreen(<AdministrativePicker value={value} onChange={mockChanged} />)
+    await fireEvent.press(view.getByText(mockCommune.fullName))
+    await fireEvent.press(view.getByRole('button', { name: rowName }))
+    expect(mockChanged).toHaveBeenCalledTimes(1)
+    expect(mockChanged).toHaveBeenCalledWith({ ...value, communeCode: null, communeName: null })
+  })
+
+  it('marks the province-wide row selected when no commune is chosen', async () => {
+    const view = await renderScreen(<AdministrativePicker value={{ ...inProvince, communeCode: null, communeName: null }} onChange={mockChanged} />)
+    await fireEvent.press(view.getByText('Toàn tỉnh/thành phố'))
+    expect(view.getByRole('button', { name: rowName }).props.accessibilityState).toEqual({ selected: true })
+    expect(view.getByRole('button', { name: mockCommune.fullName }).props.accessibilityState).toEqual({ selected: false })
+  })
+
+  it('marks the chosen commune selected instead', async () => {
+    const view = await renderScreen(<AdministrativePicker value={{ ...inProvince, communeCode: '26734', communeName: mockCommune.fullName }} onChange={mockChanged} />)
+    await fireEvent.press(view.getByText(mockCommune.fullName))
+    const [, communeRow] = unitRows(view, [mockCommune.fullName])
+    expect(view.getByRole('button', { name: rowName }).props.accessibilityState).toEqual({ selected: false })
+    expect(communeRow.props.accessibilityState).toEqual({ selected: true })
+  })
+
+  it('falls back to the generic label without a province name and hides on a non-matching search', async () => {
+    const view = await renderScreen(<AdministrativePicker value={{ ...inProvince, provinceName: '', communeCode: null, communeName: null }} onChange={mockChanged} />)
+    await fireEvent.press(view.getByText('Toàn tỉnh/thành phố'))
+    // The closed commune field keeps its own label behind the sheet.
+    expect(unitRows(view, ['Toàn tỉnh/thành phố'])).toHaveLength(2)
+    await fireEvent.changeText(view.getByLabelText('Tìm theo tên'), 'thao dien')
+    expect(unitRows(view, ['Toàn tỉnh/thành phố'])).toHaveLength(1)
+    expect(view.getByText(mockCommune.fullName)).toBeTruthy()
+  })
+})

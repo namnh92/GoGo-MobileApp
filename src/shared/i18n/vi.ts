@@ -481,6 +481,7 @@ export const viMessages = {
   'administrative.commune': 'Phường/xã',
   'administrative.selectProvince': 'Chọn tỉnh/thành phố',
   'administrative.wholeProvince': 'Toàn tỉnh/thành phố',
+  'administrative.wholeProvinceNamed': 'Toàn {{province}}',
   'administrative.clear': 'Xóa khu vực',
   'administrative.search': 'Tìm theo tên',
   'administrative.empty': 'Không có đơn vị phù hợp',
