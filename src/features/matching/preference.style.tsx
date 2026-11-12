@@ -1,10 +1,11 @@
 import { StyleSheet } from 'react-native-unistyles'
-import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   title: { marginTop: spacing[2] },
   body: { marginTop: spacing[2], marginBottom: spacing[5] },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
+  content: { paddingHorizontal: spacing[5], paddingBottom: spacing[5] },
+  choices: { gap: spacing[2] },
   error: { marginTop: spacing[4] },
   /** ADR-0022 — a profile default offered as a chip, never applied on its own. */
   prefillRow: {

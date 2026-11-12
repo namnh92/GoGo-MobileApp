@@ -1,5 +1,5 @@
 import { useSegments } from 'expo-router'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { isTrackingQuestionOpen, subscribeTrackingQuestion } from '@/shared/consent/tracking-consent-gate'
 import { useAppForeground } from '@/shared/hooks/use-app-foreground'
@@ -26,6 +26,7 @@ export function resetDevicePromotionsLaunch(): void {
 export type DevicePromotionsActions = {
   /** Shows the OS prompt when it can still be shown, and says nothing about the answer. */
   requestPermission: () => Promise<unknown>
+  /** Starts the write to this gate's store synchronously; resolves after identity convergence. */
   answer: (answer: 'accepted' | 'declined') => Promise<void>
 }
 
@@ -55,7 +56,15 @@ export function DevicePromotionsGate({
   const promotions = useSyncExternalStore(store.subscribe, store.snapshot)
   const trackingOpen = useSyncExternalStore(subscribeTrackingQuestion, isTrackingQuestionOpen)
   const [requesting, setRequesting] = useState(false)
+  const [answered, setAnswered] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
   const [, setLater] = useState(false)
+  const mounted = useRef(false)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   useEffect(() => {
     void store.load()
@@ -70,21 +79,35 @@ export function DevicePromotionsGate({
     !segments.some(segment => ENTRY_SEGMENTS.has(segment))
 
   const onContinue = () => {
-    if (requesting) return
+    if (requesting || answered) return
     setRequesting(true)
     void actions
       .requestPermission()
       .catch(() => undefined)
-      .then(() => actions.answer('accepted'))
-      .finally(() => {
+      .then(async () => {
+        // The coordinator starts the write now. Wait for durable storage only;
+        // identity convergence already reports failures and continues in the background.
+        void actions.answer('accepted').catch(() => undefined)
+        const saved = await store.saved()
+        if (!mounted.current) return
+        setSaveFailed(!saved)
+        setAnswered(saved)
         setRequesting(false)
-        haptic('select')
+        if (saved) haptic('select')
       })
   }
 
   const onDecline = () => {
-    void actions.answer('declined')
-    haptic('select')
+    if (requesting || answered) return
+    setRequesting(true)
+    void actions.answer('declined').catch(() => undefined)
+    void store.saved().then(saved => {
+      if (!mounted.current) return
+      setSaveFailed(!saved)
+      setAnswered(saved)
+      setRequesting(false)
+      if (saved) haptic('select')
+    })
   }
 
   const onLater = () => {
@@ -92,8 +115,8 @@ export function DevicePromotionsGate({
     setLater(true)
   }
 
-  // The system dialog, once up, stays until the OS answers.
-  const shown = requesting || (ready && promotions.read === 'absent' && !launch.later)
+  // The optimistic store snapshot can say "loaded" before its write succeeds.
+  const shown = requesting || (ready && (promotions.read === 'absent' || saveFailed) && !launch.later && !answered)
 
   return (
     <DevicePromotionsSheet
