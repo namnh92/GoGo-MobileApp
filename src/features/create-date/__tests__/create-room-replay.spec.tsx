@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook } from '@testing-library/react-native'
+import { act, fireEvent, render, renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { api } from '@/shared/api/client'
 import { ApiError, TimeoutError } from '@/shared/api/errors'
@@ -11,14 +11,29 @@ import { toCreateRoomBody, useRoomStore } from '@/shared/store/roomStore'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import i18n from '@/shared/i18n'
 import { useCreateRoomDraft } from '../use-create-room-draft'
+import { DraftPlanCard } from '../draft-plan-card.view'
+import PlansScreen from '@/features/tabs/plans.view'
+import CreateTypeEntry from '@/app/create/type'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
 const mockInvite = jest.fn()
 const mockIntroduction = jest.fn()
+const mockReset = jest.fn()
+let mockParams: { resumeStep?: string } = {}
 let mockStatus = 'user'
 let mockOwner: string | undefined = 'owner'
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }))
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useLocalSearchParams: () => mockParams,
+  useNavigation: () => ({ reset: mockReset }),
+  useFocusEffect: () => undefined,
+}))
+jest.mock('../create-type.view', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/shared/api', () => ({
+  ...jest.requireActual('@/shared/api'),
+  useMyRooms: () => ({ data: { pages: [] }, isPending: false, isError: false }),
+}))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: mockStatus, session: { userId: mockOwner } }) }))
 jest.mock('@/features/gogo-room/prepare-room-invite', () => ({ prepareRoomInvite: (...args: unknown[]) => mockInvite(...args) }))
 jest.mock('@/shared/store/assistantIntroStore', () => ({ noteAssistantPlanCreated: (...args: unknown[]) => mockIntroduction(...args) }))
@@ -63,6 +78,7 @@ beforeEach(async () => {
   jest.clearAllMocks()
   mockInvite.mockResolvedValue(undefined)
   mockStatus = 'user'; mockOwner = 'owner'
+  mockParams = {}
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
   useRoomStore.setState({ creationPending: false })
   useRoomStore.getState().resetDraft()
@@ -154,6 +170,102 @@ it.each([false, true])('lost response then retry (restart=%s) creates one room w
   expect(saved.useSavedRoomDraft.getState().draft).toBeNull()
   expect(await AsyncStorage.getItem(diskKey)).toBeNull()
   expectReleased()
+})
+
+async function openSavedCard(surface: 'card' | 'plans') {
+  const view = await render(surface === 'card'
+    ? <DraftPlanCard draft={saved.useSavedRoomDraft.getState().draft!} />
+    : <PlansScreen />, { wrapper })
+  await fireEvent.press(view.getByTestId('plan-card-draft'))
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/create/type', params: { resumeStep: 'places' } })
+  await view.unmount()
+  // The card's route (also a valid deep link) mounts this real entry to rebuild
+  // nested history; it must not normalize the restored request either.
+  mockParams = { resumeStep: 'places' }
+  const entry = await render(<CreateTypeEntry />, { wrapper })
+  expect(mockReset).toHaveBeenLastCalledWith({ index: 3, routes: [
+    { name: 'type' }, { name: 'time' }, { name: 'budget' }, { name: 'places' },
+  ] })
+  await entry.unmount()
+}
+
+describe.each(['card', 'plans'] as const)('F-26: real %s resume handler', surface => {
+  it.each(['couple', 'group-host'] as const)('next-day restart replays the lost %s response without creating another room', async audience => {
+    useRoomStore.setState({ audience })
+    const body = toCreateRoomBody(useRoomStore.getState())
+    const rooms = new Map<string, RoomSummary>()
+    let creations = 0
+    post.mockImplementation(async (_path: string, request: Body, options: { idempotencyKey: string }) => {
+      const persisted = await disk()
+      expect(toCreateRoomBody(persisted.fields)).toEqual(request)
+      expect(persisted.fields.creationAttempt).toEqual({ key: options.idempotencyKey, fingerprint: JSON.stringify(request) })
+      if (!rooms.has(options.idempotencyKey)) {
+        const created = { ...room, id: `R${++creations}` }
+        rooms.set(options.idempotencyKey, created)
+        if (creations === 1) throw new TimeoutError(15000)
+      }
+      return rooms.get(options.idempotencyKey)
+    })
+    let hook = await mount()
+    await submit(hook)
+    const selected = useRoomStore.getState().creationAttempt!
+    expect(hook.result.current.error).toBe(i18n.t('createPlaces.createFailed'))
+    expect(creations).toBe(1)
+    await hook.unmount()
+    useRoomStore.getState().resetDraft()
+    saved.useSavedRoomDraft.setState({ draft: null })
+    jest.setSystemTime(new Date(2026, 10, 13, 18, 59))
+    await saved.loadRoomDraft('owner')
+    const fields = saved.useSavedRoomDraft.getState().draft!.fields
+    expect(toCreateRoomBody({ ...useRoomStore.getState(), ...fields })).toEqual(body)
+    expect(fields.creationAttempt).toEqual(selected)
+    await openSavedCard(surface)
+    hook = await mount()
+    await submit(hook)
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(creations).toBe(1)
+    expectSend(0, body, selected.key)
+    expectSend(1, body, selected.key)
+    expect(keys).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/room/R1')
+    expect(useRecentRoomsStore.getState().rooms[0].roomId).toBe('R1')
+    expect(await AsyncStorage.getItem(diskKey)).toBeNull()
+    expectReleased()
+  })
+
+  it('still normalizes a stale day when the saved draft has no creation attempt', async () => {
+    await saved.saveRoomDraft('owner', 'places')
+    useRoomStore.getState().resetDraft()
+    saved.useSavedRoomDraft.setState({ draft: null })
+    jest.setSystemTime(new Date(2026, 10, 13, 18, 59))
+    await saved.loadRoomDraft('owner')
+    await openSavedCard(surface)
+    expect(useRoomStore.getState()).toMatchObject({
+      scheduleDay: null, startTime: '19:00', endTime: '21:00', creationAttempt: null,
+      startAt: new Date(2026, 10, 13, 19).toISOString(), endAt: new Date(2026, 10, 13, 21).toISOString(),
+    })
+  })
+
+  it('surfaces a server past-start rejection and retains the original request identity', async () => {
+    const { body, selected } = await attempt()
+    useRoomStore.getState().resetDraft()
+    saved.useSavedRoomDraft.setState({ draft: null })
+    jest.setSystemTime(new Date(2026, 10, 13, 18, 59))
+    await saved.loadRoomDraft('owner')
+    await openSavedCard(surface)
+    post.mockRejectedValue(new ApiError(422, { code: 'VALIDATION_ERROR', message: 'invalid', field_errors: [
+      { field: 'constraint.startAt', code: 'INVALID_TIME', message: 'Choose a future start time' },
+    ] }))
+    const hook = await mount()
+    await submit(hook)
+    expectSend(0, body, selected.key)
+    expect(hook.result.current.error).toBe('Choose a future start time')
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(keys).not.toHaveBeenCalled()
+    expect(useRoomStore.getState().creationAttempt).toEqual(selected)
+    expect((await disk()).fields.creationAttempt).toEqual(selected)
+    expectReleased()
+  })
 })
 
 it('422 past-start response retains disk identity; unchanged retry replays, validated correction persists K2', async () => {
