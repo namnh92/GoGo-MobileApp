@@ -20,6 +20,22 @@ const { PlaceCardSmall } = jest.requireActual<typeof import('../place-card-small
 const fixture = (): PlaceCardModel => ({ id: 'cafe', name: 'Cafe with a long name', addressText: 'A long verified address', photoUrl: null, photoAttribution: null, photoSource: null, ratingSource: 'google', priceUnit: 'unknown', priceMin: null, priceMax: null, currency: 'VND', priceUncertain: false, isLodging: false, reasonCodes: [] })
 const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style)
 
+it.each([0, 4, 20])('keeps small-card rating badges on one line with their source and count (%i GoGo reviews)', async count => {
+  await render(<PlaceCardSmall place={{ ...fixture(), rating: 4.7, ratingCount: 1280, gogoRating: count >= 5 ? 4.9 : undefined, gogoRatingCount: count }}
+    onRemove={() => {}} removeAccessibilityLabel="Remove cafe" />)
+  const gogo = screen.getByText(count >= 5 ? '★ 4,9 (20) GoGo' : `GoGo · Chưa đủ đánh giá (${count})`)
+  const google = screen.getByText('★ 4,7 (1.280) Google')
+  for (const label of [gogo, google]) {
+    expect(label.props.numberOfLines).toBe(1)
+    expect(label.props.ellipsizeMode).toBe('tail')
+    expect(StyleSheet.flatten(label.props.style).flexShrink).toBe(1)
+  }
+  for (const id of ['place-gogo-rating', 'place-google-rating']) {
+    expect(flat(id).maxWidth).toBe('100%')
+    expect(flat(id).flexShrink).toBe(1)
+  }
+})
+
 it.each(['orange', 'orangeDark'] as const)('round 5: optional remove overlays inside the top-right, reserves text and cannot open (%s)', async themeName => {
   const theme = themes[themeName]
   currentTheme = theme

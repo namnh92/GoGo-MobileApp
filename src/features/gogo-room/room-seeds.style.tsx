@@ -8,5 +8,5 @@ export const styles = StyleSheet.create(theme => ({
   add: { width: touchTarget.min, height: touchTarget.min },
   row: { marginHorizontal: -theme.spacing[4] },
   rowContent: { paddingVertical: theme.spacing[1], paddingHorizontal: theme.spacing[4] },
-  separator: { width: theme.spacing[2] },
+  separator: { width: theme.spacing[4] },
 }))

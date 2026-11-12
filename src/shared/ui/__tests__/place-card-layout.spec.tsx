@@ -151,7 +151,7 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     for (const text of ['Extra tag', 'Extra category', 'Unavailable']) expect(screen.queryByText(text)).toBeNull()
     for (const id of ['feature-leading', 'feature-trailing', 'heading-action']) expect(screen.queryByTestId(id)).toBeNull()
   })
-  it.each([0, 1, 4, 5, 142])('SMALL at 390pt keeps complete rating pills and the bookmark at the content inset (GoGo count %s)', async count => {
+  it.each([0, 1, 4, 5, 142])('SMALL at 390pt keeps one-line rating pills and the bookmark at the content inset (GoGo count %s)', async count => {
     const save = jest.fn(), open = jest.fn()
     await render(<ThemeScopeProvider name={theme}><PlaceCardSmall
       place={{ ...full, name: 'Địa điểm với tên rất dài để kiểm tra hàng tiêu đề trên bản đồ', addressText: '123 Đường Nguyễn Thị Minh Khai, Phường Sài Gòn, Thành phố Hồ Chí Minh', rating: 4.5, ratingCount: 1395, gogoRatingCount: count }}
@@ -176,11 +176,11 @@ describe.each(['orange', 'orangeDark'] as const)('owner 2026-11-08 two common ca
     expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,5 (1.395) Google')
     for (const id of ['place-gogo-rating', 'place-google-rating']) {
       const pill = screen.getByTestId(id)
-      expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ flexShrink: 0, maxWidth: '100%' })
-      for (const text of within(pill).getAllByText(/.+/)) {
-        expect(text.props.numberOfLines).toBeUndefined()
-        expect(text.props.ellipsizeMode).toBeUndefined()
-      }
+      expect(StyleSheet.flatten(pill.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '100%' })
+      const text = within(pill).getByText(/GoGo|Google/)
+      expect(text.props.numberOfLines).toBe(1)
+      expect(text.props.ellipsizeMode).toBe('tail')
+      expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(1)
     }
     await fireEvent.press(action)
     expect(save).toHaveBeenCalledTimes(1)

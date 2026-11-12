@@ -74,7 +74,10 @@ it.each([false, true])('insets cards equally and sizes against the measured row 
   const cardWidth = StyleSheet.flatten(screen.getAllByTestId('room-lobby-seed-item')[0].props.style).width
   expect(cardWidth).toBe(contentWidth - spacing[8])
   expect(cardWidth).toBeLessThan(contentWidth)
-  expect(row.props.snapToInterval).toBe(cardWidth + spacing[2])
+  const separator = row.props.ItemSeparatorComponent()
+  const gap = StyleSheet.flatten(separator.props.style).width
+  expect(gap).toBe(inset)
+  expect(row.props.snapToInterval).toBe(cardWidth + gap)
   expect(row.props.snapToAlignment).toBe('start')
   expect(row.props.scrollEnabled).toBe(true)
   // The item starts at inset + index * stride; each snapped scroll offset
@@ -82,6 +85,9 @@ it.each([false, true])('insets cards equally and sizes against the measured row 
   for (const index of [0, multiple.room.seedPlaces!.length, 4]) {
     const offset = row.props.getItemLayout(undefined, index).offset
     expect(inset + index * row.props.snapToInterval - offset).toBe(inset)
+    // The preceding card ends at the clip edge; the following card still peeks.
+    expect(inset + (index - 1) * row.props.snapToInterval + cardWidth - offset).toBe(0)
+    expect(inset + (index + 1) * row.props.snapToInterval - offset).toBeLessThan(360)
   }
 })
 it('disables the header + at the limit, explains why and still lets the host remove', async () => {

@@ -84,7 +84,7 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
   // Before layout, allow for the lobby's outer padding.
   const contentWidth = Math.max(0, (rowWidth ?? width - 2 * spacing[4]) - 2 * spacing[4])
   const cardWidth = Math.max(0, contentWidth - (seeds.length > 1 ? spacing[8] : 0))
-  const stride = cardWidth + spacing[2]
+  const stride = cardWidth + spacing[4]
   const atLimit = (room.seedPlaces?.length ?? 0) >= MAX_SEED_PLACES
   const limitHint = t('roomSeeds.limitHint', { max: MAX_SEED_PLACES })
   const looping = loopEnabled && seeds.length >= 2
