@@ -23,6 +23,7 @@ import {
 } from '../realtime/assistant-stream'
 import type {
   AssistantContext,
+  AssistantFollowUpSelection,
   AssistantConversation,
   AssistantConversationPage,
   AssistantMessage,
@@ -192,6 +193,7 @@ export function useAssistantMessages(conversationId: string | null) {
 
 export interface SendAssistantInput {
   text: string
+  followUp?: AssistantFollowUpSelection
   context?: AssistantContext
   images?: OutgoingImage[]
   locale: 'vi' | 'en'
@@ -249,6 +251,7 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
           {
             text: item.text,
             locale: item.locale ?? localeRef.current,
+            ...item.followUp,
             ...(item.context ? { context: item.context } : {}),
             ...(item.images.length > 0 ? { attachments: item.images.map(image => ({ uploadKey: image.uploadKey })) } : {}),
           },
@@ -290,6 +293,8 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
         item.conversationId === conversationId && item.status === 'failed'
         && (isOffline(item.error) || (isApiError(item.error) && item.error.status >= 500))
         && item.text === input.text.trim()
+        && item.followUp?.replyToMessageId === input.followUp?.replyToMessageId
+        && item.followUp?.followUpOptionId === input.followUp?.followUpOptionId
         && JSON.stringify(item.context) === JSON.stringify(input.context)
         && JSON.stringify(item.images) === JSON.stringify(input.images ?? []))
       if (uncertain) return deliver(uncertain.localId)
@@ -299,6 +304,7 @@ export function useSendAssistantMessage(conversationId: string | null, onConvers
         conversationId,
         text: input.text.trim(),
         locale: input.locale,
+        ...(input.followUp ? { followUp: input.followUp } : {}),
         ...(input.context ? { context: input.context } : {}),
         images: input.images ?? [],
         idempotencyKey: newIdempotencyKey(),

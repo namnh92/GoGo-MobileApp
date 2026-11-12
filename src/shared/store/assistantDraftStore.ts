@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { AssistantContext } from '@/shared/api/types'
+import type { AssistantContext, AssistantFollowUpSelection } from '@/shared/api/types'
 
 /**
  * GoGo AI drafts (GoGo-MobileApp#378): what is typed in the composer and the
@@ -27,6 +27,8 @@ export interface OutgoingMessage {
   /** Frozen with the outgoing payload so an uncertain retry keeps the same body. */
   locale?: 'vi' | 'en'
   context?: AssistantContext
+  /** Frozen with the send so a retry keeps the same source-bound selection. */
+  followUp?: AssistantFollowUpSelection
   images: OutgoingImage[]
   /** Kept for every retry of this message: the server returns the same turns. */
   idempotencyKey: string

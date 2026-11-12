@@ -8,6 +8,7 @@ import {
   useConfirmAssistantProposal,
   useDismissAssistantProposal,
   type AssistantMessage,
+  type AssistantFollowUpSelection,
   type AssistantNotice,
   type AssistantProposal,
   type AssistantReplyConnection,
@@ -31,7 +32,7 @@ import { styles } from './assistant-reply.style'
 export const VISIBLE_CARDS = 3
 
 export interface ReplyActions {
-  onSend: (text: string) => void
+  onSend: (text: string, followUp?: AssistantFollowUpSelection) => void
   onOpenPlace: (placeId: string) => void
   onOpenPlan: (planId: string, roomId: string) => void
   onOpenRoom: (roomId: string) => void
@@ -72,6 +73,12 @@ export function AssistantReply({
   const shownCards = allCards ? cards : cards.slice(0, VISIBLE_CARDS)
   const hiddenCards = cards.length - shownCards.length
   const groups = message.followUps ?? []
+  // The contract uses `field` as the stable group kind (no separate `kind`).
+  const placeFollowUpLabels = new Map([
+    ['place_choice', t('assistant.followUps.placeChoice')],
+    ['place_confirm', t('assistant.followUps.placeConfirm')],
+    ['place_topic', t('assistant.followUps.placeTopic')],
+  ])
   const fallback = message.notice?.kind === 'fallback'
 
   const fixedFollowUps =
@@ -148,9 +155,9 @@ export function AssistantReply({
           {groups.map(group => (
             <FollowUps
               key={group.field}
-              label={group.label}
+              label={placeFollowUpLabels.get(group.field) ?? group.label}
               items={group.options}
-              onSelect={actions.onSend}
+              onSelect={(text, optionId) => actions.onSend(text, optionId ? { replyToMessageId: message.id, followUpOptionId: optionId } : undefined)}
               disabled={sendDisabled}
             />
           ))}
@@ -158,7 +165,7 @@ export function AssistantReply({
         </View>
       ) : null}
       {latest && !streaming && fixedFollowUps.length > 0 ? (
-        <FollowUps items={fixedFollowUps} onSelect={actions.onSend} disabled={sendDisabled} />
+        <FollowUps items={fixedFollowUps} onSelect={text => actions.onSend(text)} disabled={sendDisabled} />
       ) : null}
     </AssistantTurn>
   )
