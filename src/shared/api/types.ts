@@ -72,6 +72,8 @@ export type AssistantAttachment = Schemas['AssistantAttachment']
 export type AssistantMessage = Schemas['AssistantMessage']
 export type AssistantMessagePage = Schemas['AssistantMessagePage']
 export type AssistantMessageSend = Schemas['AssistantMessageSend']
+/** A chip selection is source-bound; the API requires both identifiers. */
+export type AssistantFollowUpSelection = Required<Pick<AssistantMessageSend, 'replyToMessageId' | 'followUpOptionId'>>
 export type AssistantTurn = Schemas['AssistantTurn']
 export type AssistantSource = Schemas['AssistantSource']
 export type AssistantResultCard = Schemas['AssistantResultCard']
