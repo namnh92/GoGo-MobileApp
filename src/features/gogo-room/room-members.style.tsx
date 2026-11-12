@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget } from '@/shared/ui/tokens'
+import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   card: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[3] },
-  flex: { flex: 1 },
+  flex: { flex: 1, gap: chipRowGap },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
   row: {
     flexDirection: 'row',

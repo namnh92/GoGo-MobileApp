@@ -37,6 +37,8 @@ const startAt = new Date(2026, 10, 14, 19, 17, 31, 123).toISOString()
 const endAt = new Date(2026, 10, 16, 22, 43, 42, 456).toISOString()
 const constraints = { budgetMode: 'per_person' as const, budgetAmount: 300000, currency: 'VND', administrativeArea: null, startAt, endAt }
 beforeEach(() => {
+  // Sheet dismissal schedules state updates; advance them only inside act.
+  jest.useFakeTimers()
   jest.clearAllMocks()
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
   mockRoom.query = mockLoaded(roomFor('group-host', { constraints, constraintVersion: 7 }))
@@ -44,7 +46,14 @@ beforeEach(() => {
   mockPatch.mockResolvedValue(roomFor('group-host', { constraintVersion: 8 }))
   mockRename.mockResolvedValue(roomFor('group-host', { title: 'Tên mới' }))
 })
-afterEach(() => client.clear())
+afterEach(async () => {
+  try {
+    await act(async () => { jest.runOnlyPendingTimers() })
+  } finally {
+    client.clear()
+    jest.useRealTimers()
+  }
+})
 async function press(element: Parameters<typeof fireEvent.press>[0]) { await act(async () => { await fireEvent.press(element) }) }
 const save = () => screen.getByRole('button', { name: i18n.t('roomEdit.save') })
 const changeTitle = () => fireEvent.changeText(screen.getByLabelText('Tên kèo'), 'Tên mới')

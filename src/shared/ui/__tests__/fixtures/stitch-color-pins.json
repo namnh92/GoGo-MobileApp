@@ -1257,6 +1257,7 @@
       "accent.primary",
       "accent.primary",
       "text.secondary",
+      "text.secondary",
       "text.secondary"
     ],
     "src/features/gogo-room/room-seeds.style.tsx": [],

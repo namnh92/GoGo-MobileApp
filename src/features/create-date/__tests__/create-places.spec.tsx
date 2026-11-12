@@ -19,6 +19,8 @@ let mockUuid = 0
 jest.mock('expo-crypto', () => ({ randomUUID: () => `00000000-0000-4000-8000-${String(++mockUuid).padStart(12, '0')}` }))
 const mockSearch = jest.fn()
 const mockCreate = jest.fn()
+const mockPrepareInvite = jest.fn()
+jest.mock('@/features/gogo-room/prepare-room-invite', () => ({ prepareRoomInvite: (...args: unknown[]) => mockPrepareInvite(...args) }))
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
 const mockNoteCreated = jest.fn()
@@ -41,7 +43,10 @@ const found = (id: string) => ({ id, name: `Place ${id}`, isLodging: false })
 const created = { id: 'new-room', type: 'couple', decisionMode: 'match', status: 'collecting' }
 let client: QueryClient
 beforeEach(async () => {
+  // Own FlatList's delayed cell-batching work, which can fire between act calls under load.
+  jest.useFakeTimers()
   jest.clearAllMocks()
+  mockPrepareInvite.mockResolvedValue(undefined)
   onlineManager.setOnline(true)
   mockStatus = 'user'
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
@@ -55,7 +60,15 @@ beforeEach(async () => {
   mockSearch.mockResolvedValue({ results: [], nextCursor: null })
   mockCreate.mockResolvedValue(created)
 })
-afterEach(() => { onlineManager.setOnline(true); client.clear() })
+afterEach(async () => {
+  try {
+    await act(async () => { jest.runOnlyPendingTimers() })
+  } finally {
+    onlineManager.setOnline(true)
+    client.clear()
+    jest.useRealTimers()
+  }
+})
 const open = () => render(<CreatePlaces />, client)
 const create = () => fireEvent.press(screen.getByRole('button', { name: i18n.t('createPlaces.cta') }))
 
@@ -110,6 +123,15 @@ it('creates with zero seeds, remembers the room, clears draft, and only emits ro
   expect(track).toHaveBeenCalledWith('gogo_room_created', { roomType: 'couple', decisionMode: 'match' })
   expect(track).not.toHaveBeenCalledWith('date_context_completed', expect.anything())
 })
+it('keeps successful creation and navigation when background invite preparation fails', async () => {
+  mockPrepareInvite.mockRejectedValueOnce(new Error('invite offline'))
+  await open(); await create()
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/room/new-room'))
+  expect(mockCreate).toHaveBeenCalledTimes(1)
+  expect(mockPrepareInvite).toHaveBeenCalledWith(client, created.id)
+  expect(screen.queryByTestId('create-places-create-error')).toBeNull()
+  expect(useRoomStore.getState().creationPending).toBe(false)
+})
 it('persists retry identity at places before sending, reuses it after timeout, rotates on a changed request', async () => {
   mockCreate.mockImplementationOnce(() => {
     expect(useSavedRoomDraft.getState().draft?.step).toBe('places')
@@ -137,6 +159,8 @@ it.each([
   await open(); await create()
   expect(await screen.findByText(key === 'Pick another time' ? key : i18n.t(key))).toBeTruthy()
   expect(useRoomStore.getState().creationPending).toBe(false)
+  expect(mockPrepareInvite).not.toHaveBeenCalled()
+  expect(mockReplace).not.toHaveBeenCalled()
 })
 it('keeps one create in flight and the blocking overlay until completion', async () => {
   let finish!: (value: typeof created) => void
@@ -153,6 +177,7 @@ it('redirects non-users to sign in without creating', async () => {
   await open(); await create()
   expect(mockPush).toHaveBeenCalledWith('/auth/sign-in?next=create')
   expect(mockCreate).not.toHaveBeenCalled()
+  expect(mockPrepareInvite).not.toHaveBeenCalled()
 })
 it('shows first-page skeleton, empty/error/retry, and reserves the footer inset for every state', async () => {
   let finish!: (value: unknown) => void

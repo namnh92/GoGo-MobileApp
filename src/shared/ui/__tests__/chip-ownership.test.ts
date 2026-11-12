@@ -13,7 +13,7 @@ const nonChips: Record<string, string[]> = {
   'date-plan/date-plan': ['stopOrderBadge'], // numbered timeline marker
   'date-plan/place-detail': ['emptyCaption', 'galleryDots', 'galleryCount', 'mapCorner'],
   'date-plan/plan-edit': ['iconBtn'],
-  'gogo-room/room-manage': ['rowAction'],
+  'gogo-room/room-members': ['rowAction'], // moved remove-member command (#541), not a status chip
   'home/home': ['heroPrimary', 'roomAction'],
   'matching/match-result': ['runnerRank', 'runnerPoints'], // score readouts
   'matching/swipe': ['counterPill'], // deck position

@@ -31,12 +31,21 @@ import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
 let client: QueryClient
 beforeEach(() => {
+  // Seed FlatList batches cells on a timer; keep that work inside act under load.
+  jest.useFakeTimers()
   jest.clearAllMocks()
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   const members: RoomMember[] = Array.from({ length: 7 }, (_, index) => ({ id: `member-${index}`, displayName: `Người ${index}`, role: index ? 'member' : 'host', selectionStatus: 'pending', isGuest: false }))
   mockRoom = roomFor('group-host', { members, participantCount: members.length, seedPlaces: [{ placeId: 'seed-1', name: 'Quán thật' }], constraints: { budgetAmount: 500000, budgetMode: 'total', currency: 'VND', administrativeArea: { datasetVersion: 'v1', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null, status: 'current' } } })
 })
-afterEach(() => client.clear())
+afterEach(async () => {
+  try {
+    await act(async () => { jest.runOnlyPendingTimers() })
+  } finally {
+    client.clear()
+    jest.useRealTimers()
+  }
+})
 async function press(id: string) { await act(async () => { await fireEvent.press(screen.getByTestId(id)) }) }
 
 it('shows five rows, opens every member in a scrollable shared sheet, then confirms/removes/refreshes', async () => {

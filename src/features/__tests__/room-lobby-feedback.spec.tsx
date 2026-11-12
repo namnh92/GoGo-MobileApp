@@ -66,6 +66,8 @@ import GoGoRoomScreen from '@/features/gogo-room/gogo-room.view'
 
 let client: QueryClient
 beforeEach(() => {
+  // Seed FlatList batches cells on a timer; keep that work inside act under load.
+  jest.useFakeTimers()
   jest.clearAllMocks()
   mockPlaceDetail.mockReturnValue({ data: undefined, isPending: true, isError: false })
   mockDatasetVersion = 'ds-2026'
@@ -74,7 +76,14 @@ beforeEach(() => {
   mockPatch.mockResolvedValue(roomFor('group-host', { constraintVersion: 8 }))
   mockRename.mockResolvedValue(roomFor('group-host', { title: 'Tên mới', constraintVersion: 7 }))
 })
-afterEach(() => client.clear())
+afterEach(async () => {
+  try {
+    await act(async () => { jest.runOnlyPendingTimers() })
+  } finally {
+    client.clear()
+    jest.useRealTimers()
+  }
+})
 async function press(node: Parameters<typeof fireEvent.press>[0]) { await act(async () => { await fireEvent.press(node) }) }
 describe.each(['orange', 'orangeDark'] as const)('595 owner sim 3 / %s', theme => {
   it('uses the shared seed onRemove X and omits unknown facts', async () => {

@@ -18,7 +18,7 @@ const direct = [
   'auth/forgot-password', 'auth/reset-password', 'auth/sign-in',
   'contributions/my-contributions', 'create-date/wizard-step', 'credits/credits', 'date-plan/date-plan',
   'date-plan/place-detail', 'date-plan/plan-change', 'date-plan/plan-edit',
-  'gogo-room/gogo-room', 'gogo-room/guest-join', 'gogo-room/join-by-code', 'gogo-room/room-manage', 'gogo-room/room-edit',
+  'gogo-room/gogo-room', 'gogo-room/guest-join', 'gogo-room/join-by-code', 'gogo-room/room-edit',
   'home/home', 'matching/preference', 'matching/swipe', 'notifications/notifications', 'notifications/notification-settings',
   'place-import/import', 'review/my-reviews', 'review/review', 'search/search',
   'settings/settings-page', 'tabs/plans', 'tabs/profile', 'tabs/saved', 'tabs/saved-city',
@@ -96,6 +96,7 @@ describe('application header ownership', () => {
       'create-date/create-type', 'create-date/group-setup', 'create-date/create-time',
       'create-date/create-budget', 'create-date/create-places',
       'create-date/create-location', // compatibility redirect to step 1
+      'gogo-room/room-legacy-redirect', // retired manage route redirects to the lobby
       'onboarding/splash', 'onboarding/onboarding', 'deep-link/share-link',
       'active-date/date-finished', 'matching/matching', 'matching/match-result',
       'review/shared-result', 'date-plan/place-reviews-page',
@@ -107,6 +108,14 @@ describe('application header ownership', () => {
       return match && !known.has(match[1]) ? [match[1]] : []
     })
     expect(unknown).toEqual([])
+  })
+  it('keeps the retired manage route as a redirect and renders its content in the lobby', () => {
+    expect(owns(read('gogo-room/room-legacy-redirect.view.tsx'), 'Redirect')).toBe(true)
+    const lobby = read('gogo-room/gogo-room.view.tsx')
+    for (const component of ['RoomMembers', 'RoomSeeds']) expect(owns(lobby, component)).toBe(true)
+    expect(lobby).toContain('useRoomHostActions(summary, validRoomId, routingHold.hold)')
+    expect(lobby).toContain('{hostActions.group}')
+    expect(lobby).toContain('{hostActions.dialogs}')
   })
   it('keeps wizard chrome in the parent layout outside the content stack', () => {
     const layout = readFileSync(resolve(src, 'app/create/_layout.tsx'), 'utf8')
