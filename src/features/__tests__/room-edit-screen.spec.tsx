@@ -58,6 +58,44 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) { await act
 const save = () => screen.getByRole('button', { name: i18n.t('roomEdit.save') })
 const changeTitle = () => fireEvent.changeText(screen.getByLabelText('Tên kèo'), 'Tên mới')
 const open = () => render(<RoomEditScreen />, client)
+
+it('F-24: editing 15 people decrements to 14 and returning to 15 clears the count change', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { participantCount: 15, constraints, constraintVersion: 7 }))
+  await open()
+  expect(save()).toBeDisabled()
+  expect(mockPrevent.enabled).toBe(false)
+  await press(screen.getByRole('button', { name: i18n.t('groupSetup.decrease') }))
+  expect(within(screen.getByTestId('group-budget-count')).getByText(i18n.t('groupSetup.people', { n: 14 }))).toBeTruthy()
+  await press(screen.getByRole('button', { name: i18n.t('groupSetup.increase') }))
+  expect(save()).toBeDisabled()
+  expect(mockPrevent.enabled).toBe(false)
+  await changeTitle()
+  await press(save())
+  await waitFor(() => expect(mockRename).toHaveBeenCalledTimes(1))
+  expect(mockPatch).not.toHaveBeenCalled()
+})
+
+it('F-24: saves 15 → 14 as a one-person constraint change', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { participantCount: 15, constraints, constraintVersion: 7 }))
+  await open()
+  await press(screen.getByRole('button', { name: i18n.t('groupSetup.decrease') }))
+  await press(save())
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    expectedConstraintVersion: 7, budgetMode: 'per_person', budgetAmount: 300000, participantCount: 14,
+  }))
+})
+
+it('F-24: edit increment reaches the API maximum of 20 by one then disables', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { participantCount: 19, constraints, constraintVersion: 7 }))
+  await open()
+  const increase = () => screen.getByRole('button', { name: i18n.t('groupSetup.increase') })
+  expect(increase()).toBeEnabled()
+  await press(increase())
+  expect(within(screen.getByTestId('group-budget-count')).getByText(i18n.t('groupSetup.people', { n: 20 }))).toBeTruthy()
+  expect(increase()).toBeDisabled()
+})
+
 async function chooseTime(target: 'start' | 'end', slot: string) {
   await press(screen.getByTestId(`create-time-${target}-row`))
   await press(screen.getByTestId(`${target}-time-sheet-wheel-hours-${slot.slice(0, 2)}`))

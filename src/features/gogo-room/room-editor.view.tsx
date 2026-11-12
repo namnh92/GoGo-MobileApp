@@ -204,7 +204,7 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
         <View testID="room-edit-area-editor" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
           <CreateLocationFields embedded disabled={pending || !canEdit} model={location.model} />
         </View>
-        {room.type === 'group' ? <GroupBudgetFields count={values.participantCount} mode={values.budgetMode} disabled={pending || !canEdit}
+        {room.type === 'group' ? <GroupBudgetFields count={values.participantCount} mode={values.budgetMode} maxCount={20} disabled={pending || !canEdit}
           onCountChange={count => form.setValue('participantCount', count, { shouldDirty: true })}
           onModeChange={mode => form.setValue('budgetMode', mode, { shouldDirty: true, shouldValidate: true })} /> : null}
         <RoomBudgetField participantCount={values.participantCount} preserveExisting amount={values.budgetAmount} mode={values.budgetMode} roomType={room.type} disabled={pending || !canEdit}

@@ -9,15 +9,16 @@ import { SectionLabel } from './section-label.view'
 import { styles } from './group-budget-fields.style'
 
 /** Shared count → mode controls. Existing room amounts remain in their chosen unit. */
-export function GroupBudgetFields({ count, mode, onCountChange, onModeChange, disabled = false }: {
-  count: number; mode: BudgetMode; disabled?: boolean
+export function GroupBudgetFields({ count, mode, maxCount, onCountChange, onModeChange, disabled = false }: {
+  count: number; mode: BudgetMode; maxCount: number; disabled?: boolean
   onCountChange: (count: number) => void
   onModeChange: (mode: BudgetMode) => void
 }) {
   const { t } = useTranslation()
   function step(delta: number) {
-    const next = Math.min(12, Math.max(3, count + delta))
-    if (next !== count) { haptic('select'); onCountChange(next) }
+    if (disabled || (delta < 0 ? count <= 3 : count >= maxCount)) return
+    haptic('select')
+    onCountChange(count + delta)
   }
   return <View testID="group-budget-fields" style={styles.fields}>
     <View testID="group-budget-count">
@@ -25,7 +26,7 @@ export function GroupBudgetFields({ count, mode, onCountChange, onModeChange, di
       <Card padded={false} style={styles.stepper}>
         <IconBtn accessibilityLabel={t('groupSetup.decrease')} disabled={disabled || count <= 3} onPress={() => step(-1)}><Text variant="title1">−</Text></IconBtn>
         <Text variant="title1" accessibilityLiveRegion="polite">{t('groupSetup.people', { n: count })}</Text>
-        <IconBtn accessibilityLabel={t('groupSetup.increase')} disabled={disabled || count >= 12} onPress={() => step(1)}><Text variant="title1">+</Text></IconBtn>
+        <IconBtn accessibilityLabel={t('groupSetup.increase')} disabled={disabled || count >= maxCount} onPress={() => step(1)}><Text variant="title1">+</Text></IconBtn>
       </Card>
     </View>
     <View testID="group-budget-mode">

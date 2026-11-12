@@ -12,6 +12,7 @@ import { noteAssistantPlanCreated } from '@/shared/store/assistantIntroStore'
 import { toCreateRoomBody, useRoomStore } from '@/shared/store/roomStore'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { budgetAmountSchema } from './budget-picker'
+import { firstInvalidRequiredStep } from './required-steps'
 
 /** One create transaction for wizard presenters, including persisted retry identity. */
 export function useCreateRoomDraft() {
@@ -32,12 +33,16 @@ export function useCreateRoomDraft() {
       return
     }
 
-    const budget = budgetAmountSchema.safeParse(useRoomStore.getState().budgetAmount)
-    if (!budget.success) {
-      const key = budget.error.issues[0]!.message
-      setError(t(key === 'budgetPicker.required' ? 'budgetPicker.required'
-        : key === 'budgetPicker.format' ? 'budgetPicker.format'
-        : key === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds'))
+    const invalid = firstInvalidRequiredStep(useRoomStore.getState())
+    if (invalid) {
+      const budget = budgetAmountSchema.safeParse(useRoomStore.getState().budgetAmount)
+      if (invalid === 'budget' && !budget.success) {
+        const key = budget.error.issues[0]!.message
+        setError(t(key === 'budgetPicker.required' ? 'budgetPicker.required'
+          : key === 'budgetPicker.format' ? 'budgetPicker.format'
+          : key === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds'))
+      }
+      router.push(`/create/${invalid}`)
       return
     }
 

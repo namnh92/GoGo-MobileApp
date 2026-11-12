@@ -15,6 +15,7 @@ import { RoomBudgetField } from '@/shared/ui/room-budget-field.view'
 import { GroupBudgetFields } from '@/shared/ui/group-budget-fields.view'
 import { WizardStepHeader } from './wizard-step-header.view'
 import { budgetPickerSchema } from './budget-picker'
+import { firstInvalidRequiredStep, wizardParticipantCountSchema, WIZARD_MAX_PARTICIPANTS } from './required-steps'
 import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
@@ -30,6 +31,7 @@ export default function CreateBudgetScreen() {
   const { status } = useSession()
   const selectedAmount = draftBudgetAmount
   const valid = budgetPickerSchema.safeParse({ budgetAmount: selectedAmount }).success
+    && (roomType !== 'group' || wizardParticipantCountSchema.safeParse(participantCount).success)
 
   // ADR-0022: the profile's usual budget is per person, so it is offered only
   // when this room counts per person, only while the draft holds no amount,
@@ -48,7 +50,9 @@ export default function CreateBudgetScreen() {
   function next() {
     // The amount is what the API constrains on; the tier key is presentation.
     if (!valid) return
-    router.push('/create/places')
+    const invalid = firstInvalidRequiredStep(useRoomStore.getState())
+    if (invalid === 'budget') return
+    router.push(invalid ? `/create/${invalid}` : '/create/places')
   }
 
   return (
@@ -64,7 +68,7 @@ export default function CreateBudgetScreen() {
         >
           <WizardStepHeader title={t(roomType === 'group' ? 'createBudget.title_group' : 'createBudget.title')}
             subtitle={t(roomType === 'group' ? 'createBudget.body_group' : 'createBudget.body')} />
-          {roomType === 'group' ? <GroupBudgetFields count={participantCount} mode={budgetMode}
+          {roomType === 'group' ? <GroupBudgetFields count={participantCount} mode={budgetMode} maxCount={WIZARD_MAX_PARTICIPANTS}
             onCountChange={setParticipantCount} onModeChange={setBudgetMode} /> : null}
           {offerUsual && usualTier ? (
             <View style={styles.prefillRow}>

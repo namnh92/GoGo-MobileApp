@@ -47,6 +47,8 @@ beforeEach(async () => {
   jest.useFakeTimers()
   jest.clearAllMocks()
   useRoomStore.getState().resetDraft()
+  // These budget/submit cases start after a valid required time step.
+  useRoomStore.setState({ scheduleDay: '2031-01-14', startTime: '19:00', startAt: new Date(2031, 0, 14, 19).toISOString() })
   mockCreate.mockResolvedValue(roomFor('couple'))
   await act(async () => { await i18n.changeLanguage('vi') })
 })

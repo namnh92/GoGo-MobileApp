@@ -35,6 +35,8 @@ const CHIP = /Dùng ngân sách thường dùng: 300.000đ – 500.000đ \/ngư�
 
 beforeEach(() => {
   useRoomStore.getState().resetDraft()
+  // Budget prefill starts after the required time step.
+  useRoomStore.setState({ scheduleDay: '2031-01-14', startTime: '19:00', startAt: new Date(2031, 0, 14, 19).toISOString() })
   // APP-037 (#189): the saved amount is per person, so the chip belongs to a
   // room whose budget is per person — a group whose host chose that unit. A
   // couple room is a total for two and gets its own case below.

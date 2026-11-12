@@ -27,7 +27,7 @@ beforeEach(async () => {
   await purgeInviteCodes()
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   useRoomStore.getState().resetDraft()
-  useRoomStore.setState({ budgetAmount: 500000 })
+  useRoomStore.setState({ budgetAmount: 500000, scheduleDay: '2031-01-14', startTime: '19:00', startAt: new Date(2031, 0, 14, 19).toISOString() })
   mockCreateRoom.mockResolvedValue(created)
   mockList.mockResolvedValue([])
   mockInvite.mockResolvedValue({ inviteId: 'invite-1', code: 'private-code', expiresAt: expiry, maxUses: 20 })

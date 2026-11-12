@@ -51,6 +51,8 @@ beforeEach(async () => {
   mockStatus = 'user'
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
   useRoomStore.getState().resetDraft()
+  // Places is reached after the required time step has been completed.
+  useRoomStore.setState({ scheduleDay: '2031-01-14', startTime: '19:00', startAt: new Date(2031, 0, 14, 19).toISOString() })
   useRoomStore.getState().patchDraft({ administrativeArea: area, budgetAmount: 600001 })
   useAppAreaStore.setState({ area: null, scope: { status: 'resolving' } })
   useSavedRoomDraft.setState({ draft: null })
