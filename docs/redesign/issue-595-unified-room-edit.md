@@ -1,3 +1,11 @@
+> Round 6v (2026-11-12) thay thế flow và mô tả budget của round 6e bên dưới:
+> couple/group cùng `type → time → budget → places` (4 bước). Group count → mode
+> nằm inline, cùng `GroupBudgetFields` ở wizard và editor. `RoomBudgetField`
+> chuyển sang `src/shared/ui`, cả hai dùng một summary card → sheet; chỉ amount
+> stage trong sheet. New draft dùng placeholder, không tự chọn 800k. Chỉ editor
+> giữ amount server cũ ngoài bounds nếu không đổi (F-13). Group-setup cũ redirect
+> budget; saved draft cũng normalize sang budget. Chi tiết/checks: [round 6v](../verification/issue-600-round-6v.md).
+
 # PR #600 / issue #595 — chỉnh sửa kèo và wizard, round 6e
 
 Ngày: 2026-11-12. Branch `feature/GOGO-595-redesign-g05b-room`, HEAD

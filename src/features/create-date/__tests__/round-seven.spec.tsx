@@ -8,7 +8,6 @@ import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { useAppAreaStore } from '@/shared/location/app-area'
 import CreateType from '../create-type.view'
-import GroupSetup from '../group-setup.view'
 import CreateTime from '../create-time.view'
 import CreateBudget from '../create-budget.view'
 import CreatePlaces from '../create-places.view'
@@ -31,7 +30,7 @@ jest.mock('expo-router', () => ({
     return React.createElement(View, { testID: 'nested-stack', accessibilityValue: { text: JSON.stringify(screenOptions) } }, React.createElement(mockScreens[mockStep]))
   }, { Screen: () => null }),
 }))
-const mockScreens: Record<string, ComponentType> = { type: CreateType, 'group-setup': GroupSetup, time: CreateTime, budget: CreateBudget, places: CreatePlaces }
+const mockScreens: Record<string, ComponentType> = { type: CreateType, time: CreateTime, budget: CreateBudget, places: CreatePlaces }
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 jest.mock('@/shared/store/savedRoomDraft', () => ({ saveRoomDraft: (owner: string, step: string) => mockSave(owner, step), clearSavedRoomDraft: () => mockClear() }))
 jest.mock('@/shared/api', () => ({
@@ -61,7 +60,7 @@ it.each(['couple', 'group-host'] as const)('round 7: layout retains the same hea
   const view = await renderScreen(<Layout />)
   const chrome = view.getByTestId('wizard-chrome')
   const actions = within(chrome).getByTestId('app-header-bell')
-  const steps = audience === 'couple' ? ['type', 'time', 'budget', 'places'] : ['type', 'group-setup', 'time', 'budget', 'places']
+  const steps = audience === 'couple' ? ['type', 'time', 'budget', 'places'] : ['type', 'time', 'budget', 'places']
   for (const [index, step] of steps.entries()) {
     mockStep = step
     await view.rerender(<Layout />)
@@ -76,7 +75,7 @@ it.each(['couple', 'group-host'] as const)('round 7: layout retains the same hea
   }
   expect(within(chrome).getByTestId('app-header-bell')).toBeTruthy()
 })
-it.each(['type', 'group-setup', 'time', 'budget', 'places'])('round 7: %s renders only content and its footer', async step => {
+it.each(['type', 'time', 'budget', 'places'])('round 7: %s renders only content and its footer', async step => {
   const Screen = mockScreens[step]
   const view = await renderScreen(<Screen />)
   expect(view.queryByTestId('wizard-chrome')).toBeNull()
@@ -137,7 +136,8 @@ it('round 7: Back exit-save uses the first step after returning from mood', asyn
   expect(mockSave).toHaveBeenCalledWith('owner', 'type')
 })
 
-it.each(['type', 'time', 'budget', 'places'])('round 6u: %s uses the shared display header and standard content gaps', async step => {
+it.each((['couple', 'group-host'] as const).flatMap(audience => ['type', 'time', 'budget', 'places'].map(step => [audience, step] as const)))('round 6v: %s / %s uses the shared display header and standard content gaps', async (audience, step) => {
+  useRoomStore.getState().setAudience(audience)
   const Screen = mockScreens[step]
   const view = await renderScreen(<Screen />)
   expect(view.getAllByTestId('wizard-step-header')).toHaveLength(1)
@@ -145,5 +145,5 @@ it.each(['type', 'time', 'budget', 'places'])('round 6u: %s uses the shared disp
   expect(StyleSheet.flatten(title.props.style)).toMatchObject(type.display)
   expect(StyleSheet.flatten(title.props.style).marginTop ?? 0).toBe(0)
   expect(StyleSheet.flatten(view.getByTestId('wizard-step-subtitle').props.style)).toMatchObject({ ...type.body, marginTop: spacing[2] })
-  expect(StyleSheet.flatten(view.getByTestId('wizard-step-header').props.style)).toEqual({ marginBottom: spacing[6] })
+  expect(StyleSheet.flatten(view.getByTestId('wizard-step-header').props.style)).toEqual({ paddingTop: spacing[6], marginBottom: spacing[6] })
 })

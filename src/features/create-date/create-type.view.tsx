@@ -70,7 +70,7 @@ export default function CreateTypeScreen() {
     patchDraft({ title })
     if (!selected || !location.validate()) return
     track('room_type_selected', { type: selected })
-    router.push(selected === 'group' ? '/create/group-setup' : '/create/time')
+    router.push('/create/time')
   }
 
   return (

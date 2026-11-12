@@ -190,6 +190,7 @@ export function systemPathFor(path: string): string {
     if (segments?.length === 3 && segments[0] === 'room' && segments[2] === 'manage') return `/room/${segments[1]}`
     if (!segments || segments.length !== 2) return path
     const [head, param] = segments
+    if (head === 'create' && param === 'group-setup') return '/create/budget'
     if (head === 'create' && param === 'mood') return '/create/places'
     if (head !== 'room' && head !== 'rooms') return path
     if (uuid.safeParse(param).success || !inviteCode.safeParse(param).success) return path

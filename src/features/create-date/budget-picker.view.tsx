@@ -17,7 +17,7 @@ const isTier = (value: number | null) => BUDGET_TIERS.some(tier => tier.amount =
 
 /** The caller owns the numeric value; local state preserves invalid text and
  * keeps custom entry open even when its amount matches a tier. */
-export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true, visibilityField, submitAttempt = 0, initialCustom, onCustomSelectionChange }: {
+export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, participantCount, disabled = false, enforceBounds = true, visibilityField, submitAttempt = 0, initialCustom, onCustomSelectionChange }: {
   /** Presentation identity for an edit sheet reopened after custom matched a tier. */
   initialCustom?: boolean
   onCustomSelectionChange?: (custom: boolean) => void
@@ -27,6 +27,7 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   onChange: (value: number | null) => void
   onBlur?: () => void
   roomType: 'couple' | 'group'
+  participantCount?: number
   budgetMode: BudgetMode
   enforceBounds?: boolean
   disabled?: boolean
@@ -79,7 +80,7 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
     <View style={styles.options}>
       {BUDGET_TIERS.map(tier => <BudgetOptionCard key={tier.key} testID={`budget-option-${tier.key}`}
         title={`${t(`createBudget.range.${tier.key}`)}${tier.key === 'flexible' ? '' : ` ${unit}`}`}
-        description={t(`createBudget.range.${tier.key}.sub`)}
+        description={roomType === 'group' && participantCount ? `${t(`createBudget.range.${tier.key}.sub`)} · ${t('groupSetup.people', { n: participantCount })}` : t(`createBudget.range.${tier.key}.sub`)}
         selected={!custom && value === tier.amount}
         disabled={disabled} onPress={() => { setCustom(false); setRaw(null); setTouched(false); setAttemptAtSelection(submitAttempt); change(tier.amount); onCustomSelectionChange?.(false) }} />)}
       <BudgetOptionCard testID="budget-option-custom" title={t('budgetPicker.custom')} description={t('budgetPicker.customDescription')} selected={custom} disabled={disabled}

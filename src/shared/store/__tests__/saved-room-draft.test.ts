@@ -54,8 +54,8 @@ it('re-enters every step before the resumed one so Back keeps the wizard order',
   expect(draftStepPath('budget', 'couple')).toEqual(['type', 'time', 'budget'])
   expect(draftStepPath('location', 'group-host')).toEqual(['type'])
   expect(draftStepPath('type', 'couple')).toEqual(['type'])
-  // A couple draft cannot be on the group step; fall back to the first step.
-  expect(draftStepPath('group-setup', 'couple')).toEqual(['type'])
+  // Retired group-setup snapshots normalize to the merged budget step.
+  expect(draftStepPath('group-setup', 'couple')).toEqual(['type', 'time', 'budget'])
 })
 
 const AREA = {
@@ -167,7 +167,7 @@ it('round 3: saves and resumes a step 1 GPS radius and the new group back stack'
   await loadRoomDraft('alice')
   expect(restoreRoomDraft('alice')).toBe('type')
   expect(useRoomStore.getState()).toMatchObject({ originLat: 21, originLng: 105, radiusM: null })
-  expect(draftStepPath('mood', 'group-host')).toEqual(['type', 'group-setup', 'time', 'budget', 'places'])
+  expect(draftStepPath('mood', 'group-host')).toEqual(['type', 'time', 'budget', 'places'])
 })
 
 it('reads a v2 mood snapshot, drops retired fields, and resumes places', async () => {
@@ -182,4 +182,19 @@ it('reads a v2 mood snapshot, drops retired fields, and resumes places', async (
   await saveRoomDraft('alice', 'mood')
   expect(JSON.parse(storage.value!).step).toBe('places')
   expect(JSON.parse(storage.value!).fields).not.toHaveProperty('moodKeys')
+})
+
+it.each(['couple', 'group-host', 'group-guest'] as const)('round 6v: old group-setup draft resumes at budget and next save normalizes (%s)', async audience => {
+  useRoomStore.setState({ audience, participantCount: 7, budgetMode: 'total', budgetAmount: 650000 })
+  await saveRoomDraft('alice', 'budget')
+  const previous = JSON.parse(storage.value!)
+  previous.step = 'group-setup'
+  storage.value = JSON.stringify(previous)
+  useRoomStore.getState().resetDraft()
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('budget')
+  expect(draftStepPath('group-setup', audience)).toEqual(['type', 'time', 'budget'])
+  expect(useRoomStore.getState()).toMatchObject({ audience, participantCount: 7, budgetMode: 'total', budgetAmount: 650000 })
+  await saveRoomDraft('alice', 'group-setup')
+  expect(JSON.parse(storage.value!).step).toBe('budget')
 })

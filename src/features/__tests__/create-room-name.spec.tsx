@@ -4,7 +4,7 @@ import { renderScreen } from './harness'
 const mockPush = jest.fn()
 jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: mockPush, back: jest.fn() }) }))
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'user-1' } }) }))
-import GroupSetupScreen from '@/features/create-date/group-setup.view'
+import GroupSetupScreen from '@/features/create-date/create-budget.view'
 import CreateTypeScreen from '@/features/create-date/create-type.view'
 import { toCreateRoomBody, useRoomStore } from '@/shared/store/roomStore'
 
@@ -25,7 +25,7 @@ it('retains the 80-character contract and selected group route (#594)', async ()
   expect(view.getAllByRole('radio').map(option => option.props.accessibilityState.selected)).toEqual([false, true])
   expect(view.queryByTestId('wizard-chrome')).toBeNull() // Chrome belongs to the create layout.
   await fireEvent.press(view.getByText('Tiếp tục'))
-  expect(mockPush).toHaveBeenCalledWith('/create/group-setup')
+  expect(mockPush).toHaveBeenCalledWith('/create/time')
 })
 
 it('the exact counter stays within the existing 3–12 limit', async () => {

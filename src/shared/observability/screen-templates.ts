@@ -20,7 +20,6 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/auth/forgot-password',
   '/auth/reset-password',
   '/create/budget',
-  '/create/group-setup',
   '/create/location',
   '/create/places',
   '/create/time',

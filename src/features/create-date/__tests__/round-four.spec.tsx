@@ -328,3 +328,27 @@ it.each(['vi', 'en'])('retains the calendar-only expander regression after retir
   await fireEvent.press(calendar)
   expect(within(view.getByRole('button', { name: i18n.t('createTime.collapseCalendar') })).getByTestId('material-icon-keyboardDoubleArrowUp', { includeHiddenElements: true })).toBeTruthy()
 })
+
+it.each([
+  ['couple', 'per_person', 600001, 6, 300000],
+  ['group-host', 'total', 800003, 4, 200000],
+  ['group-host', 'per_person', 200001, 6, 200001],
+  ['group-host', 'total', null, 4, undefined],
+] as const)('round 6v: full picker receives price ceiling for %s / %s', async (audience, budgetMode, budgetAmount, participantCount, ceiling) => {
+  useRoomStore.setState({ audience, budgetMode, budgetAmount, participantCount, administrativeArea: mockArea })
+  const wizard = await renderScreen(<CreatePlacesScreen />)
+  expect(mockQueries).toHaveLength(0)
+  await fireEvent.press(wizard.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
+  mockParams = mockPush.mock.calls[0][0].params
+  const search = await renderScreen(<SearchScreen />)
+  expect(mockQueries.filter(call => call.enabled && call.query.limit === 10).length).toBeGreaterThan(0)
+  for (const { query } of mockQueries.filter(call => call.enabled && call.query.limit === 10)) {
+    expect(query.priceMaxPerPerson).toBe(ceiling)
+    expect(query).toMatchObject({ datasetVersion: mockArea.datasetVersion, provinceCode: mockArea.provinceCode, communeCode: mockArea.communeCode })
+  }
+  await search.unmount()
+  mockParams = {}
+  mockQueries.length = 0
+  await renderScreen(<SearchScreen />)
+  expect(mockQueries.filter(call => call.enabled && call.query.limit === 10).every(call => call.query.priceMaxPerPerson === undefined)).toBe(true)
+})

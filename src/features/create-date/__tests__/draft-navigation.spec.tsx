@@ -1,3 +1,4 @@
+import LegacyGroupSetup from '../legacy-group-setup.view'
 import { Stack, router } from 'expo-router'
 import { renderRouter } from 'expo-router/testing-library'
 import { store } from 'expo-router/build/global-state/router-store'
@@ -58,7 +59,7 @@ async function open(audience: 'couple' | 'group-host', step: DraftStep) {
     '(tabs)/index': Plans,
     'create/_layout': { default: CreateLayout, unstable_settings },
     'create/type': TypeEntry,
-    'create/group-setup': () => <Text>Group setup</Text>,
+    'create/group-setup': LegacyGroupSetup,
     'create/time': () => <Text>Time</Text>,
     'create/budget': () => <Text>Budget</Text>,
     'create/places': CreatePlaces,
@@ -71,10 +72,10 @@ it.each([
   ['couple', 'time', ['type', 'time']],
   ['couple', 'budget', ['type', 'time', 'budget']],
   ['couple', 'places', ['type', 'time', 'budget', 'places']],
-  ['group-host', 'group-setup', ['type', 'group-setup']],
-  ['group-host', 'time', ['type', 'group-setup', 'time']],
-  ['group-host', 'budget', ['type', 'group-setup', 'time', 'budget']],
-  ['group-host', 'places', ['type', 'group-setup', 'time', 'budget', 'places']],
+  ['group-host', 'group-setup', ['type', 'time', 'budget']],
+  ['group-host', 'time', ['type', 'time']],
+  ['group-host', 'budget', ['type', 'time', 'budget']],
+  ['group-host', 'places', ['type', 'time', 'budget', 'places']],
   ['couple', 'type', ['type']],
   ['couple', 'location', ['type']],
 ] as const)('F-13: %s saved at %s opens one root wizard with nested history', async (audience, step, expected) => {

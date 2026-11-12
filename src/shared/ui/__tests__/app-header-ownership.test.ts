@@ -93,9 +93,9 @@ describe('application header ownership', () => {
     const headerless = [
       // The /create layout owns WizardStep; nested screens own content only.
       'create-date/create-type-entry',
-      'create-date/create-type', 'create-date/group-setup', 'create-date/create-time',
+      'create-date/create-type', 'create-date/create-time',
       'create-date/create-budget', 'create-date/create-places',
-      'create-date/create-location', // compatibility redirect to step 1
+      'create-date/legacy-group-setup', 'create-date/create-location', // compatibility redirect to step 1
       'gogo-room/room-legacy-redirect', // retired manage route redirects to the lobby
       'onboarding/splash', 'onboarding/onboarding', 'deep-link/share-link',
       'active-date/date-finished', 'matching/matching', 'matching/match-result',
@@ -122,7 +122,7 @@ describe('application header ownership', () => {
     expect(owns(layout, 'WizardStep')).toBe(true)
     expect(owns(layout, 'Stack')).toBe(true)
     expect(owns(read('create-date/wizard-step.view.tsx').split('export function WizardScreen')[1], 'WizardStep')).toBe(false)
-    for (const step of ['create-type', 'group-setup', 'create-time', 'create-budget', 'create-places']) {
+    for (const step of ['create-type', 'create-time', 'create-budget', 'create-places']) {
       expect(owns(read(`create-date/${step}.view.tsx`), 'WizardScreen')).toBe(true)
       expect(owns(read(`create-date/${step}.view.tsx`), 'WizardStep')).toBe(false)
     }

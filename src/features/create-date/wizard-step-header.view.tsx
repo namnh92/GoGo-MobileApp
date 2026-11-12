@@ -6,6 +6,6 @@ import { styles } from './wizard-step-header.style'
 export function WizardStepHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return <View testID="wizard-step-header" style={styles.header}>
     <Text testID="wizard-step-title" variant="display">{title}</Text>
-    <Text testID="wizard-step-subtitle" color="text.secondary" style={styles.subtitle}>{subtitle}</Text>
+    <Text testID="wizard-step-subtitle" variant="body" color="text.secondary" style={styles.subtitle}>{subtitle}</Text>
   </View>
 }

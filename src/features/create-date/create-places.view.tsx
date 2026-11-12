@@ -2,21 +2,18 @@ import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.vie
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, View } from 'react-native'
-import { detailToPlaceCard, toPlaceCard, usePlaceDetail, usePlaceSearch } from '@/shared/api'
+import { ScrollView, View } from 'react-native'
+import { detailToPlaceCard, usePlaceDetail } from '@/shared/api'
 import { MAX_SEED_PLACES, useRoom, useRoomStore, type SeedPlaceRef } from '@/shared/store/roomStore'
-import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
-import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
+import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { SectionLabel } from '@/shared/ui/section-label.view'
+import { pickerBudgetCeiling } from '@/shared/pricing/picker-budget-ceiling'
 import { Text } from '@/shared/ui/text'
-import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
-import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { spacing } from '@/shared/ui/tokens'
 import { useAppAreaStore } from '@/shared/location/app-area'
 import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/location/picker-scope'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
-import { createPlacesQuery } from './create-places-query'
 import { useCreateRoomDraft } from './use-create-room-draft'
 import { WizardScreen } from './wizard-step.view'
 import { WizardStepHeader } from './wizard-step-header.view'
@@ -31,7 +28,7 @@ function SeedPlaceCard({ seed, onRemove }: { seed: SeedPlaceRef; onRemove: () =>
 }
 
 export default function CreatePlacesScreen() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const router = useRouter()
   const [footerHeight, setFooterHeight] = useState(0)
   const footerInset = useBottomBarInset(footerHeight)
@@ -62,71 +59,36 @@ export default function CreatePlacesScreen() {
 
   const { submit, error, pending } = useCreateRoomDraft()
   const draft = useRoomStore()
-  const search = usePlaceSearch(createPlacesQuery(pickerScope, draft, i18n.language), { enabled: !!pickerScope })
-  const results = [...new Map((search.data?.pages ?? []).flatMap(page => page.results).map(place => [place.id, place])).values()]
-  const suggestions = results.filter(place => !seedPlaces.some(seed => seed.placeId === place.id))
   const atCap = seedPlaces.length >= MAX_SEED_PLACES
   const limitHint = t('placeWizard.selectionLimitHint', { max: MAX_SEED_PLACES })
-  function loadMore(retry = false) {
-    if (search.hasNextPage && !search.isFetching && !search.isPaused && (retry || !search.isFetchNextPageError)) {
-      void search.fetchNextPage({ cancelRefetch: false })
-    }
-  }
-  const empty = !pickerScope ? null : search.isPaused ? <OfflineState />
-    : search.isPending ? <View testID="create-places-pending"><PlaceListSkeleton /></View>
-    : search.isError ? <View testID="create-places-error"><ErrorState error={search.error} onRetry={() => void search.refetch()} /></View>
-    : <EmptyState title={t('createPlaces.empty')} />
-
   return <WizardScreen step="places">
     <BlockingLoadingOverlay visible={pending} />
-    <PullToRefresh enabled={!!pickerScope && !pending && !search.isPaused} onRefresh={() => search.refetch()}>
-      <FlatList testID="create-places-list" style={styles.scroll} data={pickerScope ? suggestions : []}
-        contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
-        keyExtractor={place => place.id!} onEndReached={() => loadMore()} onEndReachedThreshold={0.5}
-        ListHeaderComponent={<>
-          <WizardStepHeader title={t('createPlaces.title')} subtitle={t('createPlaces.body')} />
-          <View style={styles.addPlace}>
-            <Chip label={t('createPlaces.addPlace')} variant={pickerScope ? 'default' : 'disabled'} disabled={isPickerOpening || atCap || pending} onPress={() => {
-              if (pickerScope && !pickerOpening.current) {
-                pickerOpening.current = true
-                setIsPickerOpening(true)
-                pickerScopeId.current = savePickerScope(pickerScope)
-                router.push({ pathname: '/places/search', params: { picker: '1', pickerScope: pickerScopeId.current } })
-              }
-            }} />
-          </View>
-          {!pickerScope ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">
-            {t('createPlaces.seedScopeUnavailable')}
-          </Text> : null}
+    <ScrollView testID="create-places-list" style={styles.scroll}
+      contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}>
+        <WizardStepHeader title={t('createPlaces.title')} subtitle={t('createPlaces.body')} />
+        <View style={styles.addPlace}>
+          <Chip label={t('createPlaces.addPlace')} variant={pickerScope ? 'default' : 'disabled'} disabled={!pickerScope || isPickerOpening || atCap || pending} onPress={() => {
+            if (pickerScope && !pickerOpening.current) {
+              pickerOpening.current = true
+              setIsPickerOpening(true)
+              pickerScopeId.current = savePickerScope(pickerScope, pickerBudgetCeiling(draft))
+              router.push({ pathname: '/places/search', params: { picker: '1', pickerScope: pickerScopeId.current } })
+            }
+          }} />
+        </View>
+        {!pickerScope ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">
+          {t('createPlaces.seedScopeUnavailable')}
+        </Text> : null}
 
-          {atCap ? <Text accessibilityLiveRegion="polite" color="text.secondary">{limitHint}</Text> : null}
-          {seedPlaces.length ? <View testID="create-places-selected" style={styles.group}>
-            <Text variant="discoveryHeading" accessibilityRole="header">{t('createPlaces.selected', { count: seedPlaces.length })}</Text>
-            <View testID="create-places-seed-list" style={styles.seedList}>
-              {seedPlaces.map(place => <SeedPlaceCard key={place.placeId} seed={place} onRemove={() => removeSeedPlace(place.placeId)} />)}
-            </View>
-          </View> : null}
-          <Text testID="create-places-suggestions-title" variant="discoveryHeading" accessibilityRole="header" style={styles.group}>{t('createPlaces.suggestions')}</Text>
-          {error ? <Text testID="create-places-create-error" variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
-          {results.length > 0 && search.isPaused ? <OfflineState /> : null}
-        </>}
-        ListEmptyComponent={results.length ? null : empty}
-        renderItem={({ item }) => {
-          const place = toPlaceCard(item)
-          const disabled = pending || atCap
-          const label = t('createPlaces.selectPlace', { name: place.name })
-          const add = () => { if (!disabled) draft.addSeedPlace({ placeId: place.id, name: place.name }) }
-          return <View testID="create-places-suggestion" style={styles.result}>
-            <PlaceCardSmall place={place} disabled={disabled}
-              accessibilityLabel={label} accessibilityHint={atCap ? limitHint : undefined} onPress={add}
-              footer={<GhostBtn size="small" label={t('createPlaces.add')} accessibilityLabel={label}
-                accessibilityHint={atCap ? limitHint : undefined} disabled={disabled} onPress={add} style={styles.addAction} />} />
+        {atCap ? <Text accessibilityLiveRegion="polite" color="text.secondary">{limitHint}</Text> : null}
+        {seedPlaces.length ? <View testID="create-places-selected" style={styles.group}>
+          <SectionLabel>{t('createPlaces.selected', { count: seedPlaces.length })}</SectionLabel>
+          <View testID="create-places-seed-list" style={styles.seedList}>
+            {seedPlaces.map(place => <SeedPlaceCard key={place.placeId} seed={place} onRemove={() => removeSeedPlace(place.placeId)} />)}
           </View>
-        }}
-        ListFooterComponent={search.isFetchingNextPage ? <LoadingIndicator testID="create-places-loading-more" />
-          : search.isFetchNextPageError ? <View testID="create-places-footer-error"><ErrorState error={search.error} onRetry={() => loadMore(true)} /></View> : null}
-      />
-    </PullToRefresh>
+        </View> : null}
+        {error ? <Text testID="create-places-create-error" variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+    </ScrollView>
     <GlassBar placement="floating" testID="create-footer" onHeightChange={setFooterHeight}>
       <PrimaryBtn variant="stitch" label={pending ? t('createPlaces.creating') : t('createPlaces.cta')}
         onPress={() => void submit()} icon="arrowRight" loading={pending} disabled={pending} />

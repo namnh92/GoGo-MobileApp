@@ -133,15 +133,13 @@ export function restoreRoomDraft(ownerId: string): DraftStep | null {
  * Back returns to the previous step with restored data instead of leaving
  * the wizard — the same shape the stack has when the user got there by hand.
  */
-export function draftStepPath(step: DraftStep, audience: 'couple' | 'group-host' | 'group-guest'): DraftStep[] {
-  const order: DraftStep[] = audience === 'couple'
-    ? ['type', 'time', 'budget', 'places']
-    : ['type', 'group-setup', 'time', 'budget', 'places']
+export function draftStepPath(step: DraftStep, _audience: 'couple' | 'group-host' | 'group-guest'): DraftStep[] {
+  const order: DraftStep[] = ['type', 'time', 'budget', 'places']
   const index = order.indexOf(currentDraftStep(step))
   return index < 0 ? ['type'] : order.slice(0, index + 1)
 }
 
 /** Retired routes stay readable, but are never emitted by resume/save. */
 export function currentDraftStep(step: DraftStep): DraftStep {
-  return step === 'mood' ? 'places' : step === 'location' ? 'type' : step
+  return step === 'mood' ? 'places' : step === 'location' ? 'type' : step === 'group-setup' ? 'budget' : step
 }

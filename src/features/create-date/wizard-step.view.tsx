@@ -15,16 +15,9 @@ import { Text } from '@/shared/ui/text'
 import { useWizardActions } from './wizard-actions.view'
 import { styles } from './wizard-step.style'
 
-/**
- * The wizard's step chrome, in one place.
- *
- * The create layout renders this once, so adding one never means editing six screens and
- * hoping none says "3 / 4" on its last page. The steps are the path the person
- * is on: a group has the head-count step between type/location and time, a
- * couple does not, so "Bước n / total" counts the steps they will really see.
- */
+/** Both audiences share the same four-step path. */
 const COUPLE_STEPS = ['type', 'time', 'budget', 'places'] as const
-const GROUP_STEPS = ['type', 'group-setup', 'time', 'budget', 'places'] as const
+const GROUP_STEPS = ['type', 'time', 'budget', 'places'] as const
 
 export type WizardStepKey = (typeof GROUP_STEPS)[number]
 export const WizardHeaderOffset = createContext(0)

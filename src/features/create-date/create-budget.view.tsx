@@ -1,5 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
@@ -12,24 +10,25 @@ import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { Text } from '@/shared/ui/text'
-import { DEFAULT_BUDGET_TIER, tierForAmount } from './budget-tiers'
-import { CreateBudgetFields } from './create-budget-fields.view'
+import { tierForAmount } from './budget-tiers'
+import { RoomBudgetField } from '@/shared/ui/room-budget-field.view'
+import { GroupBudgetFields } from '@/shared/ui/group-budget-fields.view'
+import { WizardStepHeader } from './wizard-step-header.view'
 import { budgetPickerSchema } from './budget-picker'
 import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-budget.style'
 
 export default function CreateBudgetScreen() {
   const { t } = useTranslation()
-  const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag, field: visibilityField } = useFieldVisibility('create-budget')
+  const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag } = useFieldVisibility('create-budget')
   const router = useRouter()
-  const { roomType, budgetMode } = useRoom()
+  const { roomType, budgetMode, setBudgetMode, setParticipantCount } = useRoom()
   const unit = roomType === 'couple' ? t('createBudget.unit.couple') : budgetUnitLabel(budgetMode, roomType, t)
   const patchDraft = useRoomStore(state => state.patchDraft)
   const participantCount = useRoomStore(state => state.participantCount)
   const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
   const { status } = useSession()
-  const form = useForm({ resolver: zodResolver(budgetPickerSchema), defaultValues: { budgetAmount: draftBudgetAmount ?? DEFAULT_BUDGET_TIER.amount }, mode: 'onChange' })
-  const selectedAmount = useWatch({ control: form.control, name: 'budgetAmount' })
+  const selectedAmount = draftBudgetAmount
   const valid = budgetPickerSchema.safeParse({ budgetAmount: selectedAmount }).success
 
   // ADR-0022: the profile's usual budget is per person, so it is offered only
@@ -42,14 +41,13 @@ export default function CreateBudgetScreen() {
 
   function useUsualBudget() {
     if (!usualTier) return
-    form.setValue('budgetAmount', usualTier.amount, { shouldValidate: true })
     patchDraft({ budgetAmount: usualTier.amount })
     track('profile_prefill_used', { field: 'usualBudget' })
   }
 
-  function next(value: { budgetAmount: number }) {
+  function next() {
     // The amount is what the API constrains on; the tier key is presentation.
-    patchDraft({ budgetAmount: value.budgetAmount })
+    if (!valid) return
     router.push('/create/places')
   }
 
@@ -64,34 +62,31 @@ export default function CreateBudgetScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.content}
         >
-          <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-            <CreateBudgetFields roomType={roomType} participantCount={participantCount} budgetMode={budgetMode}
-              picker={{ visibilityField, submitAttempt: form.formState.submitCount, value: field.value, onBlur: field.onBlur,
-                onChange: amount => {
-                  field.onChange(amount)
-                  patchDraft({ budgetAmount: budgetPickerSchema.safeParse({ budgetAmount: amount }).success ? amount : null })
-                } }}>
-              {offerUsual && usualTier ? (
-                <View style={styles.prefillRow}>
-                  <Chip
-                    icon="dollar"
-                    label={t('createBudget.useUsualAction')}
-                    accessibilityLabel={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
-                    variant={selectedAmount === usualTier.amount ? 'selected' : 'info'}
-                    onPress={useUsualBudget}
-                  />
-                  <Text variant="bodySmall" style={styles.prefillAmount}>
-                    {t(`createBudget.range.${usualTier.key}`)} {unit}
-                  </Text>
-                </View>
-              ) : null}
+          <WizardStepHeader title={t(roomType === 'group' ? 'createBudget.title_group' : 'createBudget.title')}
+            subtitle={t(roomType === 'group' ? 'createBudget.body_group' : 'createBudget.body')} />
+          {roomType === 'group' ? <GroupBudgetFields count={participantCount} mode={budgetMode}
+            onCountChange={setParticipantCount} onModeChange={setBudgetMode} /> : null}
+          {offerUsual && usualTier ? (
+            <View style={styles.prefillRow}>
+              <Chip
+                icon="dollar"
+                label={t('createBudget.useUsualAction')}
+                accessibilityLabel={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
+                variant={selectedAmount === usualTier.amount ? 'selected' : 'info'}
+                onPress={useUsualBudget}
+              />
+              <Text variant="bodySmall" style={styles.prefillAmount}>
+                {t(`createBudget.range.${usualTier.key}`)} {unit}
+              </Text>
+            </View>
+          ) : null}
 
-            </CreateBudgetFields>
-          } />
+          <RoomBudgetField participantCount={participantCount} testID="create-budget-card" amount={selectedAmount} mode={budgetMode} roomType={roomType} showLabel={roomType === 'group'}
+            onChange={amount => patchDraft({ budgetAmount: amount })} />
         </ScrollView>
       </View>
       <GlassBar placement="docked" testID="create-footer">
-        <PrimaryBtn variant="stitch" label={t('common.continue')} disabled={!valid} onPress={() => void form.handleSubmit(next)()} icon="arrowRight" />
+        <PrimaryBtn variant="stitch" label={t('common.continue')} disabled={!valid} onPress={next} icon="arrowRight" />
       </GlassBar>
     </WizardScreen>
   )

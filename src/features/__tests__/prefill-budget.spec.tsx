@@ -114,12 +114,13 @@ describe('usual budget prefill on the budget step', () => {
 
 // #333: at 375pt the last tier sat under the bottom bar of a step that could
 // not scroll. The step's content now lives in a scroll view.
-it('keeps the last tier inside the step scroll view (#333)', async () => {
+it('keeps the last tier inside the shared sheet scroll view (#333)', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
   // A real scroll view (host RCTScrollView), not a View that kept the test ID.
   const scroll = view.getByTestId('create-budget-scroll')
   expect(scroll.type).toBe('RCTScrollView')
-  expect(within(scroll).getByText('Không quan trọng')).toBeTruthy()
+  await fireEvent.press(view.getByTestId('create-budget-card'))
+  expect(within(view.getByTestId('room-budget-sheet-scroll')).getByText('Không quan trọng')).toBeTruthy()
 })
 
 // #594: the same stored tier keeps its scope on every rendered amount.
@@ -131,9 +132,11 @@ it.each([
   useRoomStore.getState().setAudience(audience)
   useRoomStore.getState().setBudgetMode(mode)
   const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByTestId('create-budget-card'))
   const tier = view.getByRole('radio', { name: /^300.000đ – 500.000đ / })
   expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
   await fireEvent.press(tier)
+  await fireEvent.press(view.getByText('Xác nhận'))
   await fireEvent.press(view.getByText('Tiếp tục'))
   expect(toCreateRoomBody(useRoomStore.getState()).constraint).toMatchObject({ budgetMode: expectedMode, budgetAmount: 500_000 })
   if (audience === 'group-host') expect(view.queryByText(/cả hai|hai người/)).toBeNull()

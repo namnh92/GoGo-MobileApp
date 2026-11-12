@@ -9,6 +9,7 @@ import { spacing } from '@/shared/ui/tokens'
 import { isPastSlot } from './calendar'
 import { freshDay, scheduleToIso } from './schedule-day'
 import { CreateTimeFields } from './create-time-fields.view'
+import { WizardStepHeader } from './wizard-step-header.view'
 import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-time.style'
 
@@ -31,6 +32,7 @@ export default function CreateTimeScreen() {
   }
   return <WizardScreen step="time">
     <ScrollView testID="create-time-scroll" style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}>
+      <WizardStepHeader title={t('createTime.title', { context: roomType })} subtitle={t('createTime.body')} />
       <CreateTimeFields roomType={roomType} startTime={startTime} endTime={endTime} setStartTime={setStartTime} setEndTime={setEndTime}
         durationPreset={durationPreset} setDurationPreset={setDurationPreset} scheduleDay={day} onDayChange={scheduleDay => patchDraft({ scheduleDay })} />
     </ScrollView>

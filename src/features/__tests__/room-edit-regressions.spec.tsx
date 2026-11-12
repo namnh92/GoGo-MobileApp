@@ -374,9 +374,7 @@ it('preserves all typed fields across the full-height area chooser', async () =>
 it('F-12 omits unchanged currency when editing the group size and budget mode', async () => {
   await openArea()
   await press(screen.getByRole('button', { name: i18n.t('groupSetup.increase') }))
-  await openBudget()
-  await press(screen.getByRole('button', { name: i18n.t('groupSetup.groupTotal') }))
-  await confirmBudget()
+  await press(screen.getByRole('radio', { name: i18n.t('groupSetup.groupTotal') }))
   await confirmEditor()
   await confirmEditor()
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {

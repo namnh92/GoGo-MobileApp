@@ -5,5 +5,4 @@ export const styles = StyleSheet.create({
   body: { gap: spacing[6], paddingHorizontal: spacing[4] },
   section: { gap: spacing[2] },
   flex: { flex: 1 },
-  stepper: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 })

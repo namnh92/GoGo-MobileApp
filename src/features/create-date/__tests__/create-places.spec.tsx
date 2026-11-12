@@ -10,7 +10,7 @@ import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useAppAreaStore } from '@/shared/location/app-area'
 import { track } from '@/shared/analytics'
 import { ApiError } from '@/shared/api/errors'
-import { readPickerScope } from '@/shared/location/picker-scope'
+import { readPickerPriceMax, readPickerScope } from '@/shared/location/picker-scope'
 import { redirectSystemPath } from '@/app/+native-intent'
 import i18n from '@/shared/i18n'
 import CreatePlaces from '../create-places.view'
@@ -40,7 +40,6 @@ jest.mock('@/shared/api/endpoints/rooms', () => ({
 jest.mock('@/shared/analytics', () => ({ track: jest.fn() }))
 jest.mock('@/shared/store/assistantIntroStore', () => ({ noteAssistantPlanCreated: (...args: unknown[]) => mockNoteCreated(...args) }))
 const area = { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: '26734', provinceName: 'Hồ Chí Minh', communeName: 'Bến Thành' }
-const found = (id: string) => ({ id, name: `Place ${id}`, isLodging: false })
 const created = { id: 'new-room', type: 'couple', decisionMode: 'match', status: 'collecting' }
 let client: QueryClient
 beforeEach(async () => {
@@ -99,23 +98,23 @@ it.each([
   ['group-host', 'per_person', 200001, 6, 200001, 'group'],
   ['group-host', 'total', null, 4, undefined, 'group'],
   ['couple', 'total', 0, 4, undefined, 'couple'],
-] as const)('sends canonical area and derived price: %s / %s / %s', async (audience, budgetMode, budgetAmount, participantCount, price, suitedFor) => {
+] as const)('sends canonical area and derived price: %s / %s / %s', async (audience, budgetMode, budgetAmount, participantCount, price, _suitedFor) => {
   useRoomStore.setState({ audience, budgetMode, budgetAmount, participantCount })
   await open()
-  await waitFor(() => expect(mockSearch).toHaveBeenCalled())
-  const query = mockSearch.mock.calls[0][0]
-  expect(query).toMatchObject({ datasetVersion: area.datasetVersion, provinceCode: area.provinceCode, communeCode: area.communeCode, suitedFor, limit: 10 })
-  expect(query.priceMaxPerPerson).toBe(price)
-  if (price === undefined) expect(query).not.toHaveProperty('priceMaxPerPerson')
-  expect(query).not.toHaveProperty('lat')
+  expect(mockSearch).not.toHaveBeenCalled()
+  await fireEvent.press(screen.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
+  const id = mockPush.mock.calls[0][0].params.pickerScope
+  expect(readPickerScope(id)).toEqual({ status: 'ready', source: 'selected_area', area })
+  expect(readPickerPriceMax(id)).toBe(price)
 })
 it('uses the exact GPS radius in both search and the opaque + picker scope', async () => {
   useRoomStore.setState({ administrativeArea: null, originLat: 10.77, originLng: 106.7, radiusM: 5000 })
   await open()
-  await waitFor(() => expect(mockSearch).toHaveBeenCalledWith(expect.objectContaining({ lat: 10.77, lng: 106.7, radiusM: 5000, priceMaxPerPerson: 300000 })))
+  expect(mockSearch).not.toHaveBeenCalled()
   await fireEvent.press(screen.getByRole('button', { name: i18n.t('createPlaces.addPlace') }))
   const href = mockPush.mock.calls[0][0]
   expect(href.pathname).toBe('/places/search')
+  expect(readPickerPriceMax(href.params.pickerScope)).toBe(300000)
   expect(readPickerScope(href.params.pickerScope)).toMatchObject({ source: 'gps', position: { lat: 10.77, lng: 106.7 }, radiusM: 5000 })
 })
 it('fails closed without a valid draft area but keeps optional create available', async () => {
@@ -200,89 +199,27 @@ it('redirects non-users to sign in without creating', async () => {
   expect(mockCreate).not.toHaveBeenCalled()
   expect(mockPrepareInvite).not.toHaveBeenCalled()
 })
-it('shows first-page skeleton, empty/error/retry, and reserves the footer inset for every state', async () => {
-  let finish!: (value: unknown) => void
-  mockSearch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+it('has no recommendation search or states and reserves the footer inset', async () => {
   await open()
-  expect(screen.getByTestId('create-places-pending')).toBeTruthy()
+  expect(mockSearch).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('create-places-selected')).toBeNull()
+  expect(screen.queryByTestId('create-places-suggestions-title')).toBeNull()
   await fireEvent(screen.getByTestId('create-footer'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 375, height: 100 } } })
   expect(StyleSheet.flatten(screen.getByTestId('create-places-list').props.contentContainerStyle).paddingBottom).toBeGreaterThanOrEqual(100)
-  await act(async () => finish({ results: [], nextCursor: null }))
-  expect(await screen.findByText(i18n.t('createPlaces.empty'))).toBeTruthy()
-  mockSearch.mockRejectedValueOnce(new Error('server'))
-  await act(async () => { await client.invalidateQueries({ queryKey: ['places'] }) })
-  expect(await screen.findByTestId('create-places-error')).toBeTruthy()
-  await fireEvent.press(screen.getByRole('button', { name: i18n.t('common.retry') }))
-  expect(await screen.findByText(i18n.t('createPlaces.empty'))).toBeTruthy()
 })
-it('shows offline instead of a skeleton while keeping zero-seed creation possible', async () => {
-  onlineManager.setOnline(false)
+it('selected X stays inside the 16pt gutter and removing re-enables the capped picker', async () => {
+  for (let n = 0; n < MAX_SEED_PLACES; n++) useRoomStore.getState().addSeedPlace({ placeId: `seed-${n}`, name: `Seed ${n}` })
   await open()
-  expect(screen.getByText(i18n.t('common.offlineTitle'))).toBeTruthy()
-  expect(screen.queryByTestId('create-places-pending')).toBeNull()
-  expect(mockSearch).not.toHaveBeenCalled()
-})
-it('round 6u: titled groups move suggestions into selected and X restores them; cap disables text and card', async () => {
-  mockSearch.mockResolvedValue({ results: [found('one'), found('two')], nextCursor: null })
-  await open()
-  await screen.findByText('Place one')
-  expect(screen.queryByTestId('create-places-selected')).toBeNull()
-  expect(screen.getByRole('header', { name: 'Gợi ý trong khu vực và ngân sách của bạn' })).toBeTruthy()
-  expect(screen.queryByTestId('icon-plus', { includeHiddenElements: true })).toBeNull()
-  expect(screen.queryByText('+', { exact: true })).toBeNull()
-  const suggestion = screen.getAllByTestId('create-places-suggestion')[0]
-  const addText = within(suggestion).getByText('Thêm')
-  const action = within(suggestion).getAllByRole('button', { name: 'Thêm Place one vào danh sách' })
-    .find(node => within(node).queryByText('Thêm'))!
-  expect(action).toBeTruthy()
-  expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 44, minWidth: 44 })
-  expect(addText).toBeTruthy()
-  await fireEvent.press(action)
-  expect(screen.getByRole('header', { name: 'Đã chọn (1)' })).toBeTruthy()
-  expect(within(screen.getByTestId('create-places-seed-list')).getByText('Place one')).toBeTruthy()
-  expect(screen.getAllByTestId('create-places-suggestion')).toHaveLength(1)
-  expect(within(screen.getAllByTestId('create-places-suggestion')[0]).queryByText('Place one')).toBeNull()
-  await act(async () => {
-    for (let n = 1; n < MAX_SEED_PLACES; n++) useRoomStore.getState().addSeedPlace({ placeId: `seed-${n}`, name: `Seed ${n}` })
-  })
-  for (const button of screen.getAllByRole('button', { name: 'Thêm Place two vào danh sách' })) {
-    expect(button).toBeDisabled()
-    expect(button.props.accessibilityHint).toContain('10')
-    await fireEvent.press(button)
-  }
-  expect(useRoomStore.getState().seedPlaces).toHaveLength(10)
+  await screen.findAllByTestId('place-card-remove')
   expect(screen.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeDisabled()
-  expect(screen.getByText(i18n.t('placeWizard.selectionLimitHint', { max: 10 }))).toBeTruthy()
-  await fireEvent.press(screen.getByRole('button', { name: 'Bỏ Place one khỏi danh sách' }))
-  expect(screen.getByRole('header', { name: 'Đã chọn (9)' })).toBeTruthy()
-  expect(screen.getAllByTestId('create-places-suggestion')).toHaveLength(2)
-  for (const button of screen.getAllByRole('button', { name: 'Thêm Place two vào danh sách' })) expect(button).toBeEnabled()
-  expect(useRoomStore.getState().seedPlaces).toHaveLength(9)
-  // The complete card surface also adds; its text action is a sibling target.
-  const card = screen.getAllByTestId('create-places-suggestion')[0]
-  await fireEvent.press(within(card).getByTestId('place-card-open-target'))
-  expect(within(screen.getByTestId('create-places-seed-list')).getByText('Place one')).toBeTruthy()
-  expect(screen.getAllByTestId('create-places-suggestion')).toHaveLength(1)
-})
-it('loads pages of ten, keeps rows on footer failure, retries cursor and refreshes from page one', async () => {
-  mockSearch.mockResolvedValueOnce({ results: [found('one')], nextCursor: 'next' })
-    .mockRejectedValueOnce(new Error('page failure'))
-    .mockResolvedValueOnce({ results: [found('two')], nextCursor: null })
-    .mockResolvedValueOnce({ results: [found('fresh')], nextCursor: null })
-  await open()
-  await screen.findByText('Place one')
-  await fireEvent(screen.getByTestId('create-places-list'), 'endReached')
-  const footer = await screen.findByTestId('create-places-footer-error')
-  expect(screen.getByText('Place one')).toBeTruthy()
-  expect(mockSearch.mock.calls[1][0]).toMatchObject({ limit: 10, cursor: 'next' })
-  await fireEvent.press(within(footer).getByRole('button', { name: i18n.t('common.retry') }))
-  expect(await screen.findByText('Place two')).toBeTruthy()
-  expect(mockSearch.mock.calls[2][0]).toMatchObject({ limit: 10, cursor: 'next' })
-  const control = screen.getByTestId('create-places-list').props.refreshControl
-  await act(async () => { control.props.onRefresh() })
-  expect(await screen.findByText('Place fresh')).toBeTruthy()
-  expect(screen.queryByText('Place one')).toBeNull()
-  expect(mockSearch.mock.calls[3][0].cursor).toBeUndefined()
+  const list = StyleSheet.flatten(screen.getByTestId('create-places-seed-list').props.style)
+  const content = StyleSheet.flatten(screen.getByTestId('create-places-list').props.contentContainerStyle)
+  const remove = StyleSheet.flatten(screen.getAllByTestId('place-card-remove')[0].props.style)
+  expect(content.paddingHorizontal + list.paddingRight + remove.right).toBe(16)
+  expect(list.paddingTop + remove.top).toBeGreaterThanOrEqual(0)
+  await fireEvent.press(screen.getAllByTestId('place-card-remove')[0])
+  expect(screen.getByRole('header', { name: i18n.t('createPlaces.selected', { count: 9 }) })).toBeTruthy()
+  expect(screen.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeEnabled()
 })
 it('removes the mood route and maps cold/warm legacy links to places', () => {
   expect(existsSync(resolve(__dirname, '../../../app/create/mood.tsx'))).toBe(false)
@@ -291,18 +228,19 @@ it('removes the mood route and maps cold/warm legacy links to places', () => {
   }
 })
 
-it.each(['vi', 'en'])('round 6u: selected group hides after last X, without duplicating or changing wizard copy (%s)', async locale => {
+it.each(['vi', 'en'])('selected group hides after last X with optional wizard copy (%s)', async locale => {
   await i18n.changeLanguage(locale)
-  mockSearch.mockResolvedValue({ results: [found('one')], nextCursor: null })
+  useRoomStore.getState().addSeedPlace({ placeId: 'one', name: 'Place one' })
   await open()
-  await screen.findByText('Place one')
-  await fireEvent.press(screen.getByTestId('place-card-open-target'))
-  expect(screen.queryByTestId('create-places-suggestion')).toBeNull()
   expect(screen.getByText(i18n.t('createPlaces.selected', { count: 1 }))).toBeTruthy()
-  expect(screen.queryByText(i18n.t('createPlaces.empty'))).toBeNull()
   expect(screen.getByText(i18n.t('createPlaces.body'))).toBeTruthy()
-  expect(i18n.t('createPlaces.body')).toMatch(locale === 'vi' ? /^Không bắt buộc — / : /^Optional — /)
   await fireEvent.press(screen.getByTestId('place-card-remove'))
   expect(screen.queryByTestId('create-places-selected')).toBeNull()
-  expect(screen.getByTestId('create-places-suggestion')).toBeTruthy()
+  expect(mockSearch).not.toHaveBeenCalled()
+})
+
+it.each([true, false])('round 6v: normalizes cold/warm legacy group step links (initial %s)', initial => {
+  for (const path of ['/create/group-setup', 'gogo://create/group-setup', 'https://gogo.app/create/group-setup?old=1']) {
+    expect(redirectSystemPath({ path, initial })).toBe('/create/budget')
+  }
 })

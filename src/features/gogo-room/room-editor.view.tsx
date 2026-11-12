@@ -12,13 +12,13 @@ import { spacing } from '@/shared/ui/tokens'
 import { useRoomEditLocation } from './use-room-edit-location'
 import { RoomEditTime } from './room-edit-time.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
-import { Icon } from '@/shared/ui/icons'
+import { PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { Text } from '@/shared/ui/text'
 import type { ConfirmConditions } from './room-condition-confirmation.view'
 import { RoomTitleField } from './room-edit-fields.view'
-import { RoomBudgetField } from './room-budget-field.view'
+import { GroupBudgetFields } from '@/shared/ui/group-budget-fields.view'
+import { RoomBudgetField } from '@/shared/ui/room-budget-field.view'
 import { localScheduleToIso } from './room-schedule'
 import { roomEditorChanges, roomEditorDefaults, roomEditorSchemaFor, validRoomEditorSchedule, type RoomEditorValues } from './room-editor'
 import { styles } from './room-editor.style'
@@ -204,17 +204,10 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
         <View testID="room-edit-area-editor" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
           <CreateLocationFields embedded disabled={pending || !canEdit} model={location.model} />
         </View>
-        {room.type === 'group' ? <View style={styles.section}>
-          <Text variant="label">{t('roomEdit.participantCount')}</Text>
-          <View style={styles.stepper}>
-            <IconBtn accessibilityLabel={t('groupSetup.decrease')} disabled={pending || !canEdit || values.participantCount <= 3}
-              onPress={() => form.setValue('participantCount', values.participantCount - 1, { shouldDirty: true })}><Text variant="title1">−</Text></IconBtn>
-            <Text variant="title1" accessibilityLiveRegion="polite">{t('groupSetup.people', { n: values.participantCount })}</Text>
-            <IconBtn accessibilityLabel={t('groupSetup.increase')} disabled={pending || !canEdit || values.participantCount >= 12}
-              onPress={() => form.setValue('participantCount', values.participantCount + 1, { shouldDirty: true })}><Icon name="plus" size={20} /></IconBtn>
-          </View>
-        </View> : null}
-        <RoomBudgetField amount={values.budgetAmount} mode={values.budgetMode} roomType={room.type} disabled={pending || !canEdit}
+        {room.type === 'group' ? <GroupBudgetFields count={values.participantCount} mode={values.budgetMode} disabled={pending || !canEdit}
+          onCountChange={count => form.setValue('participantCount', count, { shouldDirty: true })}
+          onModeChange={mode => form.setValue('budgetMode', mode, { shouldDirty: true, shouldValidate: true })} /> : null}
+        <RoomBudgetField participantCount={values.participantCount} preserveExisting amount={values.budgetAmount} mode={values.budgetMode} roomType={room.type} disabled={pending || !canEdit}
           onChange={(amount, mode) => {
             form.setValue('budgetAmount', amount, { shouldDirty: true, shouldValidate: true })
             form.setValue('budgetMode', mode, { shouldDirty: true, shouldValidate: true })

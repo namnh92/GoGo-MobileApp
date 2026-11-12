@@ -4,7 +4,6 @@ import { radius, spacing } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing[4] },
-  sectionHeading: { marginBottom: spacing[2] },
   options: { gap: spacing[2], marginBottom: spacing[6] },
   option: {
     height: 56,
@@ -30,7 +29,6 @@ export const styles = StyleSheet.create(theme => ({
   rowRequired: { borderColor: theme.accent.primary },
   rowInvalid: { borderColor: theme.status.danger, backgroundColor: theme.status.dangerSoft },
   rowValue: { flex: 1 },
-  exactLabel: { marginBottom: spacing[3] },
   timeBox: {
     flex: 1,
     backgroundColor: theme.surface.subtle,

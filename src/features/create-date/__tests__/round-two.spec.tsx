@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native'
 import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
 import i18n from '@/shared/i18n'
 import { useRoomStore } from '@/shared/store/roomStore'
-import GroupSetupScreen from '../group-setup.view'
+import GroupSetupScreen from '../create-budget.view'
 import CreateTimeScreen from '../create-time.view'
 
 jest.mock('expo-router', () => ({ useFocusEffect: () => undefined, useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }) }))

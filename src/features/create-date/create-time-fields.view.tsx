@@ -6,7 +6,7 @@ import type { DurationPresetKey } from '@/shared/store/roomStore'
 import { glassStyles } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
-import { WizardStepHeader } from './wizard-step-header.view'
+import { SectionLabel } from '@/shared/ui/section-label.view'
 import { TimePickerSheet } from './time-picker-sheet.view'
 import { DURATION_PRESETS, presetEnd } from './duration-presets'
 import { TIME_SLOTS } from './time-slots'
@@ -100,8 +100,7 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
   }
 
   return <View testID="create-time-section">
-        {sectionTitle ? <Text variant="label" style={styles.sectionHeading}>{sectionTitle}</Text>
-          : <WizardStepHeader title={t('createTime.title', { context: roomType })} subtitle={t('createTime.body')} />}
+        {sectionTitle ? <SectionLabel>{sectionTitle}</SectionLabel> : null}
 
         <DateTimeSheet initialDay={day} onDayChange={onDayChange} disabled={disabled} selectTodayByDefault={mode === 'create'} />
 
@@ -160,7 +159,7 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
         ) : null}
 
         {showDurationPresets ? <>
-        <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
+        <SectionLabel>{t('createTime.durationLabel')}</SectionLabel>
         <View style={styles.options}>
           {DURATION_PRESETS.map(preset => {
             const active = durationPreset === preset.key

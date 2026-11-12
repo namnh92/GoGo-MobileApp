@@ -90,8 +90,8 @@ it.each(['couple', 'group-host'] as const)('uses consistent fact headings and se
   const scroll = screen.getByTestId('room-editor-scroll')
   const headings = audience === 'couple'
     ? ['Tên kèo', 'Khu vực', 'Ngân sách', 'Ngày giờ kèo']
-    : ['Tên kèo', 'Khu vực', 'Số người', 'Ngân sách', 'Ngày giờ kèo']
-  expect(within(scroll).getAllByText(/^(Tên kèo|Khu vực|Số người|Ngân sách|Ngày giờ kèo)$/).map(node => node.props.children)).toEqual(headings)
+    : ['Tên kèo', 'Khu vực', 'Số lượng thành viên dự kiến', 'Ngân sách', 'Ngày giờ kèo']
+  expect(within(scroll).getAllByText(/^(Tên kèo|Khu vực|Số lượng thành viên dự kiến|Ngân sách|Ngày giờ kèo)$/).map(node => node.props.children)).toEqual(headings)
   const titleStyle = StyleSheet.flatten(within(scroll).getByText(headings[0]).props.style)
   for (const heading of headings) {
     const style = StyleSheet.flatten(within(scroll).getByText(heading).props.style)
@@ -261,7 +261,7 @@ it.each([
   expect(save()).toBeDisabled()
 })
 
-it.each(['cancel', 'dismiss', 'swipe'] as const)('discards pending amount and mode on budget sheet %s', async close => {
+it.each(['cancel', 'dismiss', 'swipe'] as const)('discards pending amount on budget sheet %s', async close => {
   await open()
   await press(screen.getByTestId('room-edit-budget-card'))
   const sheet = within(screen.getByTestId('room-budget-sheet'))
@@ -269,7 +269,6 @@ it.each(['cancel', 'dismiss', 'swipe'] as const)('discards pending amount and mo
   expect(sheet.getAllByRole('radio')).toHaveLength(6)
   expect(sheet.getByTestId('budget-option-under300').props.accessibilityState.selected).toBe(true)
   await press(sheet.getByTestId('budget-option-to800'))
-  await press(sheet.getByRole('button', { name: i18n.t('groupSetup.groupTotal') }))
   expect(save()).toBeDisabled()
   expect(mockPatch).not.toHaveBeenCalled()
   if (close === 'cancel') await press(budgetCancel())
@@ -279,7 +278,7 @@ it.each(['cancel', 'dismiss', 'swipe'] as const)('discards pending amount and mo
   expect(save()).toBeDisabled()
   await press(screen.getByTestId('room-edit-budget-card'))
   expect(screen.getByTestId('budget-option-under300').props.accessibilityState.selected).toBe(true)
-  expect(screen.getByRole('button', { name: i18n.t('groupSetup.perPerson') }).props.accessibilityState.selected).toBe(true)
+  expect(within(screen.getByTestId('group-budget-mode')).getByRole('radio', { name: i18n.t('groupSetup.perPerson'), includeHiddenElements: true }).props.accessibilityState.selected).toBe(true)
 })
 
 it('confirms budget locally, marks changes, and clears changed state when restored', async () => {

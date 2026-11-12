@@ -182,7 +182,6 @@ const chipRows = [
   ['features/date-plan/place-report.reasons', () => jest.requireActual('@/features/date-plan/place-report.style').styles.reasons],
   ['features/date-plan/date-plan.stopBadges', () => jest.requireActual('@/features/date-plan/date-plan.style').styles.stopBadges],
   ['features/gogo-room/room-members.flex', () => jest.requireActual('@/features/gogo-room/room-members.style').styles.flex],
-  ['features/gogo-room/room-budget-field.modes', () => jest.requireActual('@/features/gogo-room/room-budget-field.style').styles.modes],
   ['shared/ui/rating-chips.row', () => jest.requireActual('@/shared/ui/rating-chips.style').styles.row],
   ['shared/ui/rating-chips.compactRow', () => jest.requireActual('@/shared/ui/rating-chips.style').styles.compactRow],
   ['shared/ui/place-card.discoveryTags', () => jest.requireActual('@/shared/ui/place-card.style').styles.discoveryTags],
