@@ -43,10 +43,11 @@ jest.mock('react-native', () => {
   Object.defineProperty(mockRN, 'KeyboardAvoidingView', { value: (props: import('react-native').KeyboardAvoidingViewProps) => React.createElement(RN.View, props) })
   return mockRN
 })
-// Delayed native dismissal: a second Modal cannot present until the first closes.
+// Test-controlled native dismissal: a second Modal cannot present until the first closes.
+// Presentation runs in the renderer's act; only flushDismissals releases onDismiss.
 const mockPresenter = {
   presented: new Set<number>(), refused: [] as number[],
-  holdDismissals: false, dismissals: new Map<number, () => void>(),
+  dismissals: new Map<number, () => void>(),
 }
 jest.mock('react-native/Libraries/Modal/Modal', () => {
   const React = jest.requireActual<typeof import('react')>('react')
@@ -62,13 +63,13 @@ jest.mock('react-native/Libraries/Modal/Modal', () => {
         if (mockPresenter.presented.size) { mockPresenter.refused.push(id); return }
         mockPresenter.presented.add(id); setShown(true); onShow?.()
       } else if (!visible && shown) {
-        const dismiss = () => { mockPresenter.presented.delete(id); setShown(false); dismissed.current?.() }
-        if (mockPresenter.holdDismissals) {
-          mockPresenter.dismissals.set(id, dismiss)
-          return () => { mockPresenter.dismissals.delete(id) }
-        }
-        const timer = setTimeout(dismiss, 5)
-        return () => clearTimeout(timer)
+        mockPresenter.dismissals.set(id, () => {
+          mockPresenter.dismissals.delete(id)
+          mockPresenter.presented.delete(id)
+          setShown(false)
+          dismissed.current?.()
+        })
+        return () => { mockPresenter.dismissals.delete(id) }
       }
     }, [visible, shown, id, onShow])
     React.useEffect(() => () => { mockPresenter.presented.delete(id); dismissed.current?.() }, [id])
@@ -127,14 +128,22 @@ const title = () => i18n.t('createLocation.failureTitle')
 const manualTitle = () => i18n.t('createLocation.manualTitle')
 const confirm = () => i18n.t('createLocation.confirm')
 const cancel = () => i18n.t('common.cancel')
+async function flushDismissals() {
+  // Flush one native boundary per act so a newly presented sheet commits before
+  // the next dismissal. No callback can race a press, assertion, or cleanup.
+  while (mockPresenter.dismissals.size) {
+    const dismiss = mockPresenter.dismissals.values().next().value!
+    await act(async () => { dismiss() })
+  }
+}
 async function press(view: Awaited<ReturnType<typeof renderScreen>>, name: string) {
   await fireEvent.press(view.getByRole('button', { name }))
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+  await flushDismissals()
 }
 beforeEach(async () => {
   mockResult.mockClear()
   mockPresenter.presented.clear(); mockPresenter.refused = []
-  mockPresenter.holdDismissals = false; mockPresenter.dismissals.clear()
+  mockPresenter.dismissals.clear()
   mockDismiss.mockClear(); mockSave.mockReset().mockResolvedValue(); mockClear.mockReset().mockResolvedValue()
   mockRefresh.mockReset().mockResolvedValue(undefined)
   mockRequest.mockReset().mockImplementation(async () => {
@@ -197,7 +206,7 @@ it.each(['backdrop', 'back'] as const)('round 7: second sheet %s close confirms 
     if (attempt > 0) {
       expect(view.queryByText(i18n.t('home.useLocation'))).toBeNull()
       await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+      await flushDismissals()
     }
     await fireEvent.press(view.getByTestId('create-location-field'))
     await press(view, i18n.t('home.useLocation'))
@@ -206,10 +215,10 @@ it.each(['backdrop', 'back'] as const)('round 7: second sheet %s close confirms 
     expect(view.queryByRole('button', { name: cancel() })).toBeNull()
     if (close === 'backdrop') {
       await fireEvent.press(within(view.getByTestId('native-modal')).getByRole('button', { name: i18n.t('common.close') }))
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+      await flushDismissals()
     } else {
       await fireEvent(view.getByTestId('native-modal'), 'requestClose')
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+      await flushDismissals()
     }
     expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
   }
@@ -223,7 +232,7 @@ it.each(['denied', 'unavailable'] as const)('auto %s is shown once across refocu
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
   await press(view, cancel()); await press(view, confirm())
   await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)) })
+  await flushDismissals()
   await act(async () => { mockFocus.current?.() })
   await view.rerender(wizard(<CreateType />))
   expect(view.queryByText(title())).toBeNull()
@@ -250,9 +259,7 @@ it('F-12 auto failure waits for area dismissal before the manual-choice flow', a
   expect(view.queryByText(title())).toBeNull()
   expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
   expect(mockPresenter.refused).toEqual([])
-  // Own the native dismissal boundary: an awaited press can outlast the real
-  // 5 ms timer under parallel load. Closing is not yet Sheet.onClosed.
-  mockPresenter.holdDismissals = true
+  // Closing is not yet Sheet.onClosed; only flushDismissals releases it.
   await fireEvent.press(within(view.getByTestId('discovery-location-sheet')).getByRole('button', { name: i18n.t('common.close') }))
   expect(mockPresenter.dismissals.size).toBe(1)
   expect(mockPresenter.presented.size).toBe(1)
@@ -260,8 +267,7 @@ it('F-12 auto failure waits for area dismissal before the manual-choice flow', a
   expect(view.queryByText(title())).toBeNull()
   expect(mockResult.mock.calls.some(([props]) => props.visible)).toBe(false)
   expect(mockPresenter.refused).toEqual([])
-  mockPresenter.holdDismissals = false
-  await act(async () => { mockPresenter.dismissals.values().next().value!() })
+  await flushDismissals()
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
   await press(view, cancel()); await press(view, confirm())
   expect(view.getByRole('button', { name: 'Manual province' })).toBeTruthy()
@@ -305,6 +311,9 @@ it('F-12 pending auto failure waits for the time sheet native dismissal', async 
   expect(view.queryByText(title())).toBeNull()
   expect(mockPresenter.refused).toEqual([])
   await view.rerender(wizard(screen(false)))
+  expect(mockPresenter.dismissals.size).toBe(1)
+  expect(view.queryByText(title())).toBeNull()
+  await flushDismissals()
   await waitFor(() => expect(view.getByText(title())).toBeTruthy())
   expect(mockPresenter.refused).toEqual([])
 })

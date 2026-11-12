@@ -1,4 +1,5 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
+import { CheckboxRow } from '@/shared/ui/checkbox-row.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -23,10 +24,10 @@ import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
 import { taxonomyEmoji } from '@/features/create-date/taxonomy-emoji'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
-import { spacing } from '@/shared/ui/tokens'
 
 import { styles } from './preference.style'
 
+const MIN_PREFS = 2
 const MAX_PREFS = 3
 /** The kind this screen collects; the wizard already collected mood/setting. */
 const TAXONOMY_KIND = 'mood'
@@ -47,7 +48,7 @@ export default function PreferenceScreen() {
   const savePreferences = useSaveMyPreferences(roomId)
   const completePreferences = useCompleteMyPreferences(roomId)
 
-  /** Null until the user touches a chip; the saved draft shows through. */
+  /** Null until the user touches a checkbox; the saved draft shows through. */
   const [edited, setEdited] = useState<string[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -100,6 +101,7 @@ export default function PreferenceScreen() {
   }
 
   async function complete() {
+    if (selected.length < MIN_PREFS || selected.length > MAX_PREFS) return
     setError(null)
     const keys = selected
 
@@ -161,7 +163,7 @@ export default function PreferenceScreen() {
       <View>
         <AppHeader title={t('preference.headerTitle')} onBack={() => router.back()} />
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: spacing[5] }}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Chip variant="positive" label={t('preference.selectedCount', { n: selected.length, max: MAX_PREFS })} />
         <Text variant="display" style={styles.title}>{t('preference.title')}</Text>
         <Text color="text.secondary" style={styles.body}>{t('preference.body')}</Text>
@@ -181,14 +183,26 @@ export default function PreferenceScreen() {
           </Pressable>
         ) : null}
 
-        <View style={styles.grid}>
+        <View style={styles.choices}>
           {options.map(option => {
             const active = selected.includes(option.key)
             return (
-              <Chip key={option.key} label={option.label} emoji={option.emoji}
-                variant={active ? 'selected' : 'default'} onPress={() => toggle(option.key)} />
+              <CheckboxRow
+                key={option.key}
+                label={option.label}
+                checked={active}
+                disabled={!active && selected.length >= MAX_PREFS}
+                accessibilityHint={!active && selected.length >= MAX_PREFS ? t('placeWizard.selectionLimitHint', { max: MAX_PREFS }) : undefined}
+                leading={option.emoji ? <Text accessible={false}>{option.emoji}</Text> : undefined}
+                onPress={() => toggle(option.key)}
+              />
             )
           })}
+          {selected.length >= MAX_PREFS ? (
+            <Text variant="caption" color="text.secondary" accessibilityLiveRegion="polite">
+              {t('placeWizard.selectionLimitHint', { max: MAX_PREFS })}
+            </Text>
+          ) : null}
         </View>
 
         {error ? (
@@ -203,6 +217,7 @@ export default function PreferenceScreen() {
           onPress={complete}
           icon="arrowRight"
           loading={pending}
+          disabled={selected.length < MIN_PREFS || selected.length > MAX_PREFS}
         />
       </GlassBar>
     </Atmosphere>
