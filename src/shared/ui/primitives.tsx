@@ -1,12 +1,10 @@
 import { Image, type ImageProps } from 'expo-image'
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { StyleSheet, useUnistyles } from 'react-native-unistyles'
 
 import { useLocaleContent } from '@/shared/i18n'
-import { ScaledText } from '@/shared/ui/text'
 import { AmbientGlow } from './ambient-glow.view'
-import { MaterialIcon } from './material-icon'
 import { Chip } from './chip.view'
 
 export { DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn, type ButtonProps } from '@/shared/ui/button.view'
@@ -67,52 +65,7 @@ export function ProgressDots({ total, current, variant = 'default' }: { total: n
   )
 }
 
-/**
- * One avatar for every surface (RULE-CORE-015). `imageUri` is the profile
- * picture the API composed (ADR-0022); when it is absent, or the bytes fail to
- * load — a purged object, a dead edge cache, no network — the initials are
- * drawn instead, so a broken image never ships. The failed URI is remembered
- * rather than a boolean, so a fresh picture after a failure is tried again.
- */
-export function AvatarCircle({ label, size = 40, background, emoji, imageUri, icon }: {
-  icon?: 'user'
-  label?: string
-  size?: number
-  /** Defaults to the theme accent. */
-  background?: string
-  emoji?: string
-  /** Absolute URL from `GET /me` or `RoomMember.avatarUrl`; null or undefined = initials. */
-  imageUri?: string | null
-}) {
-  const { theme } = useUnistyles()
-  const [failedUri, setFailedUri] = useState<string | null>(null)
-  const [loadedUri, setLoadedUri] = useState<string | null>(null)
-  const uri = imageUri && imageUri !== failedUri ? imageUri : null
-  const circle = { width: size, height: size, borderRadius: size / 2 }
-  return (
-    <View
-      style={[
-        styles.avatar,
-        circle,
-        { backgroundColor: icon ? theme.accent.primaryDeep : emoji ? theme.surface.subtle : background ?? theme.accent.primary },
-      ]}
-    >
-      {icon ? <MaterialIcon name={icon} size={18} color="accent.onAccent" /> : <>
-        {!uri || loadedUri !== uri ? (emoji ? <ScaledText box={size} kind="emoji">{emoji}</ScaledText> : <ScaledText box={size} kind="initials">{label}</ScaledText>) : null}
-        {uri ? <Image
-          testID="avatar-image"
-          source={{ uri, cacheKey: uri }}
-          style={[circle, styles.avatarImage]}
-          contentFit="cover"
-          transition={150}
-          cachePolicy="memory-disk"
-          onLoad={() => setLoadedUri(uri)}
-          onError={() => setFailedUri(uri)}
-        /> : null}
-      </>}
-    </View>
-  )
-}
+export { AvatarCircle } from './avatar-circle.view'
 
 type RemoteImageProps = (
   | { uri: string; source?: never }
@@ -152,10 +105,4 @@ const styles = StyleSheet.create(theme => ({
     backgroundColor: theme.accent.primary,
   },
 
-  avatarImage: { position: 'absolute', top: 0, left: 0 },
-  avatar: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
 }))

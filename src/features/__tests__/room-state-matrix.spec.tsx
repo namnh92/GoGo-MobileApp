@@ -1,7 +1,7 @@
 import { themes } from '@/shared/ui/theme'
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
 import { Alert, StyleSheet } from 'react-native'
-import { surface, text, type } from '@/shared/ui/tokens'
+import { text, type } from '@/shared/ui/tokens'
 import { act, fireEvent, within } from '@testing-library/react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { failed, loaded, pausedOffline, pending, roomFor, renderScreen, type Audience, type QueryLike } from './harness'
@@ -127,12 +127,11 @@ describe('room hub × audience', () => {
     }
   })
 
-  it('uses the shared host chip, and the constraints in a card (#295)', async () => {
+  it('uses the shared host avatar badge, and the constraints in a card (#295)', async () => {
     mockRoom.query = loaded(roomFor('group-host', {}, { everyonePicked: true }))
     const view = await renderScreen(<GoGoRoomScreen />)
-    const label = view.getByText('Chủ phòng')
-    expect(StyleSheet.flatten(label.props.style).color).toBe(text.primary)
-    expect(StyleSheet.flatten(label.parent!.props.style).backgroundColor).toBe(surface.card)
+    expect(view.queryByText('Chủ phòng')).toBeNull()
+    expect(view.getByTestId('avatar-host-badge')).toBeTruthy()
     const heading = view.getByText('Điều kiện phòng')
     expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ ...type.title2, color: text.primary })
   })

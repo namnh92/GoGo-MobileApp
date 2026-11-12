@@ -1,3 +1,6 @@
+import type { TFunction } from 'i18next'
+import type { RoomSummary } from '@/shared/api'
+
 /** Local calendar input; never parse a locale-formatted string with Date.parse. */
 export function localScheduleToIso(value: string): string | null {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(value.trim())
@@ -83,4 +86,15 @@ export function roomScheduleRange(
     start: startLabel,
     end: sameDay && laterOnClock ? end.toLocaleTimeString(locale, TIME_ONLY) : end.toLocaleString(locale, DATE_TIME),
   }
+}
+
+/** Shared lobby/manage label, preserving overnight dates and clock changes. */
+export function roomScheduleRangeLabel(
+  room: Pick<RoomSummary, 'constraints' | 'scheduledDate'>,
+  locale: string,
+  t: TFunction,
+): string {
+  const range = roomScheduleRange(room.constraints?.startAt ?? room.scheduledDate, room.constraints?.endAt, locale)
+  if (!range) return t('roomSchedule.unset')
+  return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
 }

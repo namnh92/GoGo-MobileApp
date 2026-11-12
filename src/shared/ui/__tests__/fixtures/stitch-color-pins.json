@@ -466,10 +466,6 @@
       "border.hairline",
       "surface.card",
       "border.hairline",
-      "accent.primaryDeep",
-      "surface.subtle",
-      "accent.primary",
-      "accent.onAccent",
       "surface.low",
       "surface.subtle",
       "surface.canvas",
@@ -480,6 +476,17 @@
       "surface.canvas",
       "surface.subtle",
       "accent.primary"
+    ],
+    "src/shared/ui/avatar-circle.view.tsx": [
+      "accent.primaryDeep",
+      "surface.subtle",
+      "accent.primary",
+      "accent.onAccent",
+      "accent.primary"
+    ],
+    "src/shared/ui/avatar-circle.style.tsx": [
+      "accent.primary",
+      "surface.card"
     ],
     "src/features/tabs/saved-city.style.tsx": [
       "surface.inset",
@@ -1208,17 +1215,10 @@
       "surface.subtle"
     ],
     "src/features/gogo-room/room-manage.view.tsx": [
-      "status.warningText",
-      "status.warningText",
-      "status.warningText",
       "accent.primary",
       "text.secondary",
       "text.secondary",
       "text.secondary",
-      "status.warningText",
-      "status.warningText",
-      "status.warningText",
-      "status.warningText",
       "accent.primary",
       "accent.primary",
       "text.secondary",
@@ -1232,18 +1232,13 @@
       "status.warningText",
       "text.secondary",
       "text.secondary",
-      "status.infoText",
-      "text.secondary",
-      "status.dangerText",
       "status.dangerText",
       "text.secondary",
       "text.secondary"
     ],
     "src/features/gogo-room/room-manage.style.tsx": [
-      "status.infoSoft",
       "text.primary",
       "surface.subtle",
-      "status.warningSoft",
       "surface.subtle",
       "status.dangerSoft",
       "border.hairline",

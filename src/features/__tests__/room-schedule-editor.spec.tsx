@@ -19,12 +19,18 @@ import { isoToLocalSchedule, localScheduleToIso } from '@/features/gogo-room/roo
 jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-native-unistyles'), 'ScopedTheme').mockImplementation(({ children }) => <>{children}</>)
 
 beforeEach(() => { mockMutate.mockClear(); mockPending = false })
+async function press(node: Parameters<typeof fireEvent.press>[0]) { await act(async () => { await fireEvent.press(node) }) }
+async function confirmSave(view: Awaited<ReturnType<typeof renderScreen>>) {
+  expect(await view.findByText('Đổi điều kiện phòng?')).toBeTruthy()
+  await press(view.getAllByRole('button', { name: 'Xác nhận' }).at(-1)!)
+}
 
 it('sends an explicit local schedule with the version being edited', async () => {
   const room = roomFor('group-host', { constraintVersion: 7 })
   const view = await renderScreen(<RoomScheduleEditor room={room} />)
   await fireEvent.changeText(view.getByLabelText('Bắt đầu'), '12/09/2026 19:00')
-  await fireEvent.press(view.getByText('Lưu'))
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  await confirmSave(view)
   await waitFor(() => expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({
     startAt: localScheduleToIso('12/09/2026 19:00'), expectedConstraintVersion: 7,
     budgetAmount: room.constraints!.budgetAmount,
@@ -35,7 +41,7 @@ it('rejects an end before the start without sending a request', async () => {
   const view = await renderScreen(<RoomScheduleEditor room={roomFor('group-host', { constraintVersion: 7 })} />)
   await fireEvent.changeText(view.getByLabelText('Bắt đầu'), '12/09/2026 19:00')
   await fireEvent.changeText(view.getByLabelText('Kết thúc (không bắt buộc)'), '12/09/2026 18:00')
-  await fireEvent.press(view.getByText('Lưu'))
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(view.getByText(/Kiểm tra ngày giờ hợp lệ/)).toBeTruthy())
   expect(mockMutate).not.toHaveBeenCalled()
 })
@@ -48,12 +54,14 @@ it('clears an existing end when the host empties the field, and keeps it otherwi
   const view = await renderScreen(<RoomScheduleEditor room={room} />)
   // Still before the prefilled end in any time zone the test may run in.
   await fireEvent.changeText(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-09-10T13:00:00Z'))
-  await fireEvent.press(view.getByText('Lưu'))
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  await confirmSave(view)
   await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(1))
   expect(mockMutate.mock.calls[0][0]).toMatchObject({ startAt: '2026-09-10T13:00:00.000Z', endAt: '2026-09-10T15:00:00.000Z' })
 
   await fireEvent.changeText(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
-  await fireEvent.press(view.getByText('Lưu'))
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  await confirmSave(view)
   await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(2))
   // GoGo-BE#576: RoomConstraintPatch keeps a field that is omitted, so only an
   // explicit null clears the end. Omitting it silently kept the old end.
@@ -82,7 +90,7 @@ describe.each(['orange', 'orangeDark'] as const)('595 schedule through real shee
       </RoomEditSheet>
     </ThemeScopeProvider>
     const view = await renderScreen(element)
-    await fireEvent.press(view.getByText('Sửa'))
+    await press(view.getByText('Sửa'))
     const input = view.getByLabelText('Bắt đầu')
     expect(input.props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule('2026-11-14T11:30:00Z'))
     expect(view.getByLabelText('Kết thúc (không bắt buộc)').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule('2026-11-14T15:00:00Z'))
@@ -102,7 +110,8 @@ describe.each(['orange', 'orangeDark'] as const)('595 schedule through real shee
     } else if (state === 'error' && audience !== 'group-guest') {
       mockMutate.mockRejectedValueOnce(new Error('offline'))
       await fireEvent.changeText(input, isoToLocalSchedule('2026-11-14T12:00:00Z'))
-      await fireEvent.press(view.getByText('Lưu'))
+      await press(view.getByRole('button', { name: 'Xác nhận' }))
+      await confirmSave(view)
       expect(await view.findByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
       expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
       expect(input.props.value).toBe(isoToLocalSchedule('2026-11-14T12:00:00Z'))
@@ -125,7 +134,7 @@ describe.each(['vi', 'en'] as const)('595 owner sim layout / %s', language => {
         {close => <><RoomTitleEditor room={roomFor('group-host')} /><RoomScheduleEditor room={roomFor('group-host')} onCancel={close} /></>}
       </RoomEditSheet>
     </ThemeScopeProvider>)
-    await fireEvent.press(view.getByText(i18n.t('roomLobby.edit')))
+    await press(view.getByText(i18n.t('roomLobby.edit')))
     const start = view.getByText(i18n.t('roomSchedule.start'))
     const end = view.getByText(language === 'vi' ? 'Kết thúc' : 'End')
     expect(start.props.numberOfLines).toBe(1)
@@ -146,7 +155,7 @@ describe.each(['vi', 'en'] as const)('595 owner sim layout / %s', language => {
       expect(StyleSheet.flatten(view.getByTestId(id).props.style)).toMatchObject({ gap: spacing[2], padding: spacing[0], marginBottom: spacing[0] })
     }
     expect(StyleSheet.flatten(view.getByTestId('room-title-field').props.style).gap).toBe(spacing[2])
-    expect(view.getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
+    expect(view.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
   })
 })
 
@@ -154,4 +163,21 @@ it('595 owner sim layout spacing uses section and field tokens without card inse
   expect(editStyles.editorBody).toEqual({ gap: spacing[4], paddingTop: spacing[2] })
   expect(editStyles.editorSection).toEqual({ padding: spacing[0], marginBottom: spacing[0], gap: spacing[2] })
   expect(editStyles.fieldGroup).toEqual({ gap: spacing[2] })
+})
+
+it('confirms schedule changes before mutating and preserves the draft on cancel', async () => {
+  const view = await renderScreen(<RoomScheduleEditor room={roomFor('group-host')} />)
+  expect(view.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
+  await act(async () => { await fireEvent.changeText(view.getByLabelText('Bắt đầu'), '12/09/2026 19:00') })
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  expect(await view.findByText('Đổi điều kiện phòng?')).toBeTruthy()
+  expect(view.getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
+  expect(mockMutate).not.toHaveBeenCalled()
+  await press(view.getByRole('button', { name: 'Huỷ' }))
+  expect(mockMutate).not.toHaveBeenCalled()
+  expect(view.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
+  expect(view.getByLabelText('Bắt đầu').props.value).toBe('12/09/2026 19:00')
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  await confirmSave(view)
+  await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(1))
 })

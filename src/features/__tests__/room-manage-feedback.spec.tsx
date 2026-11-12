@@ -1,3 +1,4 @@
+import i18n from '@/shared/i18n'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { QueryClient } from '@tanstack/react-query'
 import { StyleSheet } from 'react-native'
@@ -12,6 +13,7 @@ jest.spyOn(jest.requireMock('react-native-unistyles') as typeof import('react-na
 
 const mockArea = { datasetVersion: 'ds-2026', provinceCode: '01', provinceName: 'Thành phố Hà Nội', communeCode: '00004', communeName: 'Phường Ba Đình', status: 'current' as const }
 const mockRoom: { query: QueryLike } = { query: mockLoaded(roomFor('group-host')) }
+const mockPlaceDetail = jest.fn()
 const mockPush = jest.fn()
 const mockRemoveSeed = jest.fn()
 const mockPatch = jest.fn()
@@ -29,6 +31,8 @@ jest.mock('@/shared/api/endpoints/rooms', () => ({
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
   useRoom: () => mockRoom.query,
+  usePlaceDetail: (placeId: string) => mockPlaceDetail(placeId),
+  useTaxonomies: () => mockLoaded({ version: 1, kinds: { category: [{ key: 'cafe', labels: { vi: 'Cà phê', en: 'Cafe' } }] } }),
   useRoomInvites: () => mockLoaded([]),
   useRevokeRoomInvite: () => ({ mutate: jest.fn() }),
   useRemoveRoomMember: () => ({ mutate: jest.fn() }),
@@ -45,6 +49,7 @@ import RoomManageScreen from '@/features/gogo-room/room-manage.view'
 let client: QueryClient
 beforeEach(() => {
   jest.clearAllMocks()
+  mockPlaceDetail.mockReturnValue({ data: undefined, isPending: true, isError: false })
   mockDatasetVersion = 'ds-2026'
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
   mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: { budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: mockArea }, seedPlaces: [{ placeId: 'seed-1', name: 'Quán thật' }] }))
@@ -118,6 +123,7 @@ it('saves area codes through the real mutation and marks suggestions/plan stale'
   expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
   await chooseArea()
   await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
     administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
     originLat: null, originLng: null, radiusM: null,
@@ -138,6 +144,7 @@ it('clears the GPS origin and radius when switching a Hanoi GPS room to a manual
   await openArea()
   await chooseArea()
   await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
     administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
     originLat: null, originLng: null, radiusM: null,
@@ -173,6 +180,7 @@ it('blocks repeated submits and sheet dismissal until the area API resolves', as
   await openArea()
   await chooseArea()
   await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
   const modal = screen.getByTestId('room-edit-sheet-modal')
   expect(within(modal).getByTestId('blocking-loading-overlay')).toBeTruthy()
@@ -190,7 +198,127 @@ it.each([409, 400])('keeps the draft and reports API %s without claiming success
   await openArea()
   await chooseArea()
   await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalled())
   expect(screen.getByText('Thành phố Hồ Chí Minh')).toBeTruthy()
   expect(screen.getAllByText(status === 409 ? 'Người khác vừa sửa điều kiện. Tải lại rồi thử lại nhé.' : 'Chưa lưu được. Thử lại nhé.').length).toBeGreaterThan(0)
+})
+
+it('omits the danger heading, host permission card and inline warnings', async () => {
+  await render(<RoomManageScreen />, client)
+  for (const key of ['roomLobby.danger', 'roomManage.hostOnlyTitle', 'roomManage.hostOnlyBody', 'roomLobby.warning', 'roomManage.staleWarning']) {
+    expect(screen.queryByText(i18n.t(key))).toBeNull()
+  }
+  expect(screen.getByRole('button', { name: 'Huỷ phòng' })).toBeTruthy()
+  expect(screen.getByText(i18n.t('roomManage.cancelBody'))).toBeTruthy()
+  await press(screen.getAllByRole('button', { name: 'Sửa' })[1])
+  expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
+})
+it.each(['budget', 'area'])('confirms %s saves and preserves the sheet and draft on cancel', async editor => {
+  if (editor === 'area') {
+    await openArea()
+    await chooseArea()
+  } else {
+    await render(<RoomManageScreen />, client)
+    const edit = screen.getAllByRole('button', { name: 'Sửa' }).find(node => node.props.accessibilityHint === i18n.t('roomManage.budgetTitle'))!
+    await press(edit)
+    await press(screen.getAllByRole('button').find(node => String(node.props.accessibilityLabel).includes('500'))!)
+  }
+  expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
+  await press(screen.getByRole('button', { name: 'Lưu' }))
+  expect(within(screen.getByTestId('room-edit-sheet-modal')).getByText('Đổi điều kiện phòng?')).toBeTruthy()
+  expect(screen.getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
+  expect(mockPatch).not.toHaveBeenCalled()
+  await press(screen.getAllByRole('button', { name: 'Huỷ' }).at(-1)!)
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.getByTestId('room-edit-sheet')).toBeTruthy()
+  expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
+  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(false)
+  if (editor === 'area') expect(screen.getByText('Thành phố Hồ Chí Minh')).toBeTruthy()
+  else expect(screen.getAllByRole('button').find(node => String(node.props.accessibilityLabel).includes('500'))!.props.accessibilityState.selected).toBe(true)
+  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
+  expect(mockPatch.mock.calls[0][1]).toMatchObject(editor === 'area'
+    ? { administrativeArea: { provinceCode: '79' }, expectedConstraintVersion: 7 }
+    : { budgetAmount: 500000, expectedConstraintVersion: 7 })
+})
+
+it('hydrates the common small seed card with detail photo, address and Google rating', async () => {
+  mockPlaceDetail.mockReturnValue(mockLoaded({
+    id: 'seed-1', name: 'Quán chi tiết', addressText: '12 Đường Hoa',
+    photos: [{ url: 'https://example.com/seed.jpg', source: 'manual' }],
+    rating: 4.7, ratingCount: 123,
+    taxonomies: [{ kind: 'category', key: 'cafe' }],
+    prices: [{ priceMin: 50000, priceMax: 80000, currency: 'VND', unit: 'per_person', confidence: 1 }],
+  }))
+  await render(<RoomManageScreen />, client)
+  expect(mockPlaceDetail).toHaveBeenCalledWith('seed-1')
+  expect(screen.getByTestId('place-card-name')).toHaveTextContent('Quán chi tiết')
+  expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Đường Hoa')
+  expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,7 (123) Google')
+  expect(screen.getByTestId('place-photo-image').props).toMatchObject({
+    source: [{ uri: 'https://example.com/seed.jpg', cacheKey: 'https://example.com/seed.jpg' }], cachePolicy: 'memory-disk',
+  })
+  await press(screen.getByTestId('place-card-remove'))
+  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+})
+it.each(['loading', 'error'])('keeps a name-only removable seed on detail %s', async state => {
+  mockPlaceDetail.mockReturnValue({ data: state === 'error' ? { id: 'seed-1', name: 'Stale detail', rating: 5, ratingCount: 10 } : undefined, isPending: state === 'loading', isError: state === 'error' })
+  await render(<RoomManageScreen />, client)
+  expect(screen.getByTestId('place-card-name')).toHaveTextContent('Quán thật')
+  for (const id of ['place-card-meta', 'place-google-rating', 'place-card-price', 'place-card-tags', 'place-photo-image']) {
+    expect(screen.queryByTestId(id)).toBeNull()
+  }
+  await press(screen.getByTestId('place-card-remove'))
+  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+})
+it.each(['vi', 'en'])('orders manage facts and renders the overnight end date in %s', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  try {
+    const startAt = new Date(2026, 10, 11, 23).toISOString()
+    const endAt = new Date(2026, 10, 12, 1).toISOString()
+    mockRoom.query = mockLoaded(roomFor('group-host', { constraints: {
+      budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: mockArea, startAt, endAt,
+    } }))
+    await render(<RoomManageScreen />, client)
+    expect(screen.getAllByTestId(/^room-fact-/).map(node => node.props.testID)).toEqual([
+      'room-fact-name', 'room-fact-area', 'room-fact-budget', 'room-fact-schedule',
+    ])
+    const start = new Date(startAt).toLocaleString(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const end = new Date(endAt).toLocaleString(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    expect(within(screen.getByTestId('room-fact-schedule')).getByText(`${start} – ${end}`)).toBeTruthy()
+    await press(within(screen.getByTestId('room-fact-schedule')).getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    expect(screen.getByLabelText(i18n.t('roomSchedule.start'))).toBeTruthy()
+    expect(screen.getByTestId('room-title-field')).toBeTruthy()
+    await press(screen.getByRole('button', { name: i18n.t('common.cancel') }))
+    await press(within(screen.getByTestId('room-fact-name')).getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    expect(screen.getByTestId('room-title-field')).toBeTruthy()
+    expect(screen.getByTestId('room-schedule-section')).toBeTruthy()
+  } finally {
+    await act(async () => { await i18n.changeLanguage('vi') })
+  }
+})
+it('renders start alone when the manage schedule has no end', async () => {
+  const startAt = new Date(2026, 10, 11, 23).toISOString()
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraints: { budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: null, startAt } }))
+  await render(<RoomManageScreen />, client)
+  const schedule = within(screen.getByTestId('room-fact-schedule'))
+  expect(schedule.getByText('23:00 11/11/2026')).toBeTruthy()
+  expect(schedule.queryByText(/ – /)).toBeNull()
+})
+
+it('marks the host avatar and announces the role while showing only selection status', async () => {
+  await render(<RoomManageScreen />, client)
+  const host = screen.getByLabelText(/^Tôi, Chủ phòng,/)
+  expect(within(host).getByTestId('avatar-host-badge')).toBeTruthy()
+  expect(within(host).getByText('Chưa chọn')).toBeTruthy()
+  const member = screen.getByLabelText(/^Người 1, Thành viên,/)
+  expect(within(member).queryByTestId('avatar-host-badge')).toBeNull()
+  expect(within(member).getByText('Chưa chọn')).toBeTruthy()
+  expect(screen.getAllByTestId('avatar-host-badge')).toHaveLength(1)
+  expect(screen.queryByText(/Chủ phòng ·/)).toBeNull()
+  expect(screen.queryByText('Chủ phòng')).toBeNull()
+  expect(within(member).getByRole('button', { name: 'Xoá' })).toBeTruthy()
+  expect(within(host).queryByRole('button', { name: 'Xoá' })).toBeNull()
 })

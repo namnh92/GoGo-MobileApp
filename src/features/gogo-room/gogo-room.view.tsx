@@ -1,7 +1,6 @@
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { onlineManager } from '@tanstack/react-query'
-import type { TFunction } from 'i18next'
 import * as Clipboard from 'expo-clipboard'
 import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo-router'
 
@@ -49,27 +48,12 @@ import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { spacing } from '@/shared/ui/tokens'
 
 import { resolveInviteDisplay } from './invite-state'
-import { roomScheduleLabel, roomScheduleRange } from './room-schedule'
+import { roomScheduleLabel, roomScheduleRangeLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
+import { RoomFacts } from './room-facts.view'
 import { useScreenFocused } from '@/shared/hooks/use-screen-focused'
 import type { MessageKey } from '@/shared/i18n/types'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
-
-/**
- * The room's date/time chip. GoGo-MobileApp#201 — `constraints.endAt` is part
- * of the schedule and was never rendered, so a room booked 19:00–22:00 read as
- * "19:00". No end stored, or an end that is not after the start, leaves the
- * chip at the start alone rather than drawing a range that cannot be true.
- */
-function scheduleChipLabel(
-  room: Pick<RoomSummary, 'constraints' | 'scheduledDate'>,
-  locale: string,
-  t: TFunction,
-): string {
-  const range = roomScheduleRange(room.constraints?.startAt ?? room.scheduledDate, room.constraints?.endAt, locale)
-  if (!range) return t('roomSchedule.unset')
-  return range.end ? t('roomSchedule.range', { start: range.start, end: range.end }) : range.start
-}
 
 /** The API mints invites only while a room still takes members (GoGo-BE `createInvite`). */
 const JOINABLE: readonly RoomSummary['status'][] = ['draft', 'collecting']
@@ -680,25 +664,22 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
               <Text variant="title2" style={styles.sectionTitle}>{t('gogoRoom.constraints')}</Text>
               {capabilities.isHost ? <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/manage`)} /> : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>}
             </View>
-                        {/* GoGo-MobileApp#246 — the area saved with the room, with the labels
-                stored when it was chosen. A dataset change keeps those labels
-                and says in words that the host must choose again. */}
-            {summary.constraints.administrativeArea ? (
-              <InfoRow icon="mapPin" tone="accent" label={t('roomLobby.area')}>{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
-            ) : null}
-            {summary.constraints.administrativeArea?.status === 'needs_reselection' ? (
-              <InfoRow icon="alert" tone="warning" label={t('roomLobby.area')}>{t('gogoRoom.areaNeedsReselection')}</InfoRow>
-            ) : null}
-            {summary.constraints.startAt || summary.scheduledDate ? <InfoRow icon="calendar" tone="info" label={t('roomSchedule.title')}>{scheduleChipLabel(summary, i18n.language, t)}</InfoRow> : null}
-            {summary.constraints.budgetAmount ? (
-              <InfoRow icon="dollar" tone="success" label={t('roomManage.budgetTitle')}>
-                {`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(
-                  summary.constraints.budgetMode,
-                  roomType,
-                  t,
-                )}`}
-              </InfoRow>
-            ) : null}
+            <RoomFacts facts={{
+              area: summary.constraints.administrativeArea ? <>
+                <InfoRow icon="mapPin" tone="accent" label={t('roomLobby.area')}>{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
+                {summary.constraints.administrativeArea.status === 'needs_reselection' ? (
+                  <InfoRow icon="alert" tone="warning" label={t('roomLobby.area')}>{t('gogoRoom.areaNeedsReselection')}</InfoRow>
+                ) : null}
+              </> : null,
+              budget: summary.constraints.budgetAmount ? (
+                <InfoRow icon="dollar" tone="success" label={t('roomManage.budgetTitle')}>
+                  {`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(summary.constraints.budgetMode, roomType, t)}`}
+                </InfoRow>
+              ) : null,
+              schedule: summary.constraints.startAt || summary.scheduledDate ? (
+                <InfoRow icon="calendar" tone="info" label={t('roomSchedule.title')}>{roomScheduleRangeLabel(summary, i18n.language, t)}</InfoRow>
+              ) : null,
+            }} />
           </Card>
         ) : null}
 
@@ -716,18 +697,16 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
               {members.map((member: RoomMember, index: number) => {
                 const chip = STATUS_CHIP[member.selectionStatus]
                 return (
-                  <View key={member.id} style={[styles.memberRow, roomType === 'group' && capabilities.isHost && styles.hostMemberRow]}>
+                  <View key={member.id} accessible accessibilityLabel={[member.displayName, t(`roomManage.role.${member.role}`), t(chip.key)].join(', ')} style={[styles.memberRow, roomType === 'group' && capabilities.isHost && styles.hostMemberRow]}>
                     <AvatarCircle
                       label={initial(member.displayName)}
                       size={44}
                       background={avatarColors[index % avatarColors.length]}
                       imageUri={member.avatarUrl}
+                      host={member.role === 'host'}
                     />
                     <View style={styles.memberNameRow}>
                       <Text variant="body" style={styles.memberName} numberOfLines={1}>{member.displayName}</Text>
-                      {member.role === 'host' ? (
-                        <Chip label={t('gogoRoom.hostBadge')} />
-                      ) : null}
                       {member.role !== 'host' && !member.isGuest ? <Chip label={t('roomManage.role.member')} variant="info" /> : null}
                       {member.isGuest ? (
                         <Chip label={t('gogoRoom.guestBadge')} variant="info" />
