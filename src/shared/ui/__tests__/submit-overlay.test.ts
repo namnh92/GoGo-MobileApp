@@ -24,7 +24,7 @@ const submitScreens = {
   'home/quick-join': 'pending',
   // The unified sheet owns title, budget, area and schedule submissions.
   'gogo-room/room-editor': 'pending',
-  'gogo-room/room-manage': 'transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending',
+  'gogo-room/room-manage': 'transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending || inviteBusy',
   'gogo-room/gogo-room': 'startMatching.isPending || createInvite.isPending || revokeInvite.isPending',
   'matching/preference': 'pending',
   'matching/match-result': 'finalize.isPending || regenerate.isPending',

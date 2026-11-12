@@ -16,6 +16,7 @@ import {
   useRemoveRoomMember,
   useRemoveRoomSeedPlace,
   useRevokeRoomInvite,
+  useCreateRoomInvite,
   useRoom,
   useRoomInvites,
   useTransitionRoom,
@@ -31,9 +32,13 @@ import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
 
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
+import { useInviteExpiry } from './use-invite-expiry'
+import { activeRoomInvites } from './invite-state'
+import { shareRoomInvite } from './invite-share'
 import { RoomEditor } from './room-editor.view'
 import { RoomEditSheet } from './room-edit-sheet.view'
-import { roomScheduleRangeLabel } from './room-schedule'
+import { isoToLocalSchedule, roomScheduleRangeLabel } from './room-schedule'
 import { RoomFacts } from './room-facts.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/location/picker-scope'
@@ -69,7 +74,20 @@ export default function RoomManageScreen() {
   const seedDetails = useSeedPlaceDetails(room.data?.seedPlaces ?? [])
   const waitingForNetwork = useWaitingForNetwork(room)
   const invites = useRoomInvites(roomId)
+  const invitesWaitingForNetwork = useWaitingForNetwork(invites)
   const revokeInvite = useRevokeRoomInvite(roomId)
+  const createInvite = useCreateRoomInvite(roomId)
+  const [inviteConfirm, setInviteConfirm] = useState(false)
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const inviteLock = useRef(false)
+  const confirmedReplacement = useRef(false)
+  const pendingShare = useRef<(() => Promise<void>) | null>(null)
+  const [inviteError, setInviteError] = useState<'create' | 'revoke' | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [inviteClock, setInviteClock] = useState(() => Date.now())
+  const activeInvites = activeRoomInvites(invites.data, inviteClock)
+  const currentInvite = activeInvites?.[activeInvites.length - 1]
+  useInviteExpiry(activeInvites?.length ? Math.min(...activeInvites.map(invite => Date.parse(invite.expiresAt))) : undefined, setInviteClock, inviteClock)
   const removeMember = useRemoveRoomMember(roomId)
   const transitionRoom = useTransitionRoom(roomId)
   const removeSeedPlace = useRemoveRoomSeedPlace(roomId)
@@ -83,7 +101,7 @@ export default function RoomManageScreen() {
   useFocusEffect(useCallback(() => {
     pickerOpening.current = false
     setIsPickerOpening(false)
-  }, []))
+  }, [setIsPickerOpening]))
   useEffect(() => () => clearPickerScope(pickerScopeId.current), [])
 
   const summary = room.data
@@ -163,10 +181,54 @@ export default function RoomManageScreen() {
   }
 
   const members = summary.members ?? []
+  const inviteJoinable = summary.status === 'draft' || summary.status === 'collecting'
+  const [expiryDate, expiryTime] = isoToLocalSchedule(currentInvite?.expiresAt).split(' ')
+  const inviteUnavailable = invites.isPending || invites.isError || !activeInvites || inviteBusy || !inviteJoinable
+
+  async function makeInvite(replace: boolean) {
+    if (inviteLock.current || inviteUnavailable) return
+    inviteLock.current = true
+    setInviteConfirm(false)
+    setInviteBusy(true)
+    setInviteError(null)
+    setLinkCopied(false)
+    let phase: 'revoke' | 'create' = replace ? 'revoke' : 'create'
+    try {
+      // Refresh before revoking: include links another device created meanwhile.
+      const fresh = await invites.refetch({ cancelRefetch: false })
+      const active = fresh.isError ? null : activeRoomInvites(fresh.data, Date.now())
+      if (!active) throw new Error('Invite metadata unavailable')
+      if (!replace && active.length) return
+      if (replace) {
+        for (const invite of active) await revokeInvite.mutateAsync(invite.inviteId)
+      }
+      phase = 'create'
+      const invite = await createInvite.mutateAsync({ maxUses: 20 })
+      await invites.refetch()
+      // iOS can present the native chooser only after the submit modal leaves.
+      pendingShare.current = async () => {
+        try {
+          if (await shareRoomInvite(invite.code, t('gogoRoom.title', { context: summary?.type })) === 'copied') setLinkCopied(true)
+        } catch { setInviteError('create') }
+      }
+    } catch {
+      setInviteError(phase)
+      // Revocation updates the query cache too, so a failed refresh cannot
+      // resurrect a link that was revoked before creation failed.
+      await invites.refetch()
+    } finally {
+      setInviteBusy(false)
+      inviteLock.current = false
+    }
+  }
 
   return (
     <Atmosphere>
-      <BlockingLoadingOverlay visible={transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending} />
+      <BlockingLoadingOverlay visible={transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending || inviteBusy} onClosed={() => {
+        const share = pendingShare.current
+        pendingShare.current = null
+        if (share) void share()
+      }} />
       {header}
       <PullToRefresh onRefresh={async () => { await Promise.all([
         room.refetch(), invites.refetch(),
@@ -225,8 +287,8 @@ export default function RoomManageScreen() {
         </View>
         <Card padded={false} style={styles.card}>
           {members.length === 0 ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.noMembers')}</Text> : null}
-          {members.map(member => (
-            <View key={member.id} accessible={member.role === 'host'} accessibilityLabel={[member.displayName, t(`roomManage.role.${member.role}`), t(`roomManage.selection.${member.selectionStatus}`)].join(', ')} style={styles.row}>
+          {members.map((member, index) => (
+            <View testID={`room-manage-member-${index}`} key={member.id} accessible={member.role === 'host'} accessibilityLabel={[member.displayName, t(`roomManage.role.${member.role}`), t(`roomManage.selection.${member.selectionStatus}`)].join(', ')} style={[styles.row, index > 0 && styles.rowSeparator]}>
               <AvatarCircle label={member.displayName.trim().charAt(0).toUpperCase() || '?'} size={44} imageUri={member.avatarUrl} host={member.role === 'host'} />
               <View style={styles.flex}>
                 <Text variant="body" numberOfLines={1}>{member.displayName}</Text>
@@ -254,36 +316,28 @@ export default function RoomManageScreen() {
           <Text variant="discoveryHeading">{t('roomManage.invitesTitle')}</Text>
         </View>
         <Card padded={false} style={styles.card}>
-          {(invites.data as { inviteId?: string; expiresAt?: string; maxUses?: number }[] | undefined)?.map(
-            invite => (
-              <View key={invite.inviteId} style={styles.row}>
-                <View style={styles.flex}>
-                  <Text variant="body">
-                    {invite.maxUses != null
-                      ? t('roomManage.inviteUses', { n: invite.maxUses })
-                      : t('roomManage.invite')}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => invite.inviteId && revokeInvite.mutate(invite.inviteId)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('roomManage.revoke')}
-                  style={styles.rowAction}
-                >
-                  <Text variant="label" color="status.dangerText">{t('roomManage.revoke')}</Text>
-                </Pressable>
+          {invites.isPending ? (invitesWaitingForNetwork ? <OfflineState /> : <Skeleton width="100%" height={64} />) : invites.isError || !activeInvites ? (
+            <ErrorState error={invites.error} onRetry={() => void invites.refetch()} />
+          ) : (
+            <View testID="room-manage-invite-row" style={styles.row}>
+              <View style={styles.flex}>
+                <Text variant="body">{t(currentInvite ? 'roomManage.currentInvite' : 'roomManage.noInvite')}</Text>
+                {currentInvite ? <Text variant="caption" color="text.secondary">
+                  {[
+                    currentInvite.maxUses != null ? t(currentInvite.useCount != null ? 'roomManage.remainingUses' : 'roomManage.maximumUses', {
+                      n: currentInvite.maxUses - (currentInvite.useCount ?? 0),
+                    }) : null,
+                    t('roomManage.inviteExpiry', { date: `${expiryTime} ${expiryDate}` }),
+                  ].filter(Boolean).join(' · ')}
+                </Text> : null}
               </View>
-            ),
+              <GhostBtn size="small" label={t(currentInvite ? 'roomManage.changeInvite' : 'roomManage.createInvite')}
+                disabled={inviteUnavailable} onPress={() => currentInvite ? setInviteConfirm(true) : void makeInvite(false)} />
+            </View>
           )}
-          {invites.isError ? (
-            <Text variant="caption" color="status.warningText">{t('common.errorBody')}</Text>
-          ) : null}
-          {/* The endpoint returns metadata only — codes are shown once, at
-              creation, and never listed again. */}
-          <View style={styles.noteBox}>
-            <Icon name="info" size={18} color="text.secondary" />
-            <Text variant="bodySmall" color="text.secondary" style={styles.flex}>{t('roomManage.invitesBody')}</Text>
-          </View>
+          {!inviteJoinable ? <Text variant="caption" color="text.secondary">{t('roomManage.inviteUnavailable')}</Text> : null}
+          {inviteError ? <Text variant="caption" color="status.dangerText" accessibilityLiveRegion="polite">{t(inviteError === 'revoke' ? 'gogoRoom.reissueFailed' : 'gogoRoom.inviteFailed')}</Text> : null}
+          {linkCopied ? <Text variant="caption" accessibilityLiveRegion="polite">{t('common.copied')}</Text> : null}
         </Card>
 
         <Card padded={false} style={styles.dangerCard}>
@@ -301,6 +355,15 @@ export default function RoomManageScreen() {
 
       </ScrollView>
       </PullToRefresh>
+      <ResultSheet visible={inviteConfirm} variant="warning" testID="room-manage-invite-confirm"
+        title={t('roomManage.changeInviteTitle')} body={t('roomManage.changeInviteBody')}
+        secondaryAction={{ label: t('account.deleteCancel'), onPress: () => setInviteConfirm(false) }}
+        primaryAction={{ label: t('roomManage.changeInviteConfirm'), onPress: () => { confirmedReplacement.current = true; setInviteConfirm(false) }, disabled: inviteUnavailable }}
+        onClose={() => setInviteConfirm(false)} onClosed={() => {
+          if (!confirmedReplacement.current) return
+          confirmedReplacement.current = false
+          void makeInvite(true)
+        }} />
       {dialog}
     </Atmosphere>
   )

@@ -6,7 +6,7 @@ import { useLocalSearchParams, useNavigationContainerRef, useRouter } from 'expo
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, Platform, ScrollView, Share, View } from 'react-native'
+import { AccessibilityInfo, Platform, ScrollView, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 
 import {
@@ -26,7 +26,6 @@ import {
   useStartMatching,
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
-import { env } from '@/shared/config/env'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { useSession } from '@/shared/providers/session-provider'
 import { formatMoney } from '@/shared/pricing/money'
@@ -47,7 +46,9 @@ import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
 import { spacing } from '@/shared/ui/tokens'
 
+import { useInviteExpiry } from './use-invite-expiry'
 import { resolveInviteDisplay } from './invite-state'
+import { roomInviteUrl, shareRoomInvite } from './invite-share'
 import { roomScheduleLabel, roomScheduleRangeLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
 import { RoomFacts } from './room-facts.view'
@@ -257,12 +258,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
   })
   const shownExpiry = inviteDisplay.kind === 'code' || inviteDisplay.kind === 'active-elsewhere'
     ? inviteDisplay.expiresAt : null
-  useEffect(() => {
-    if (!shownExpiry) return
-    const remaining = Date.parse(shownExpiry) - Date.now()
-    const timer = setTimeout(() => setInviteClock(Date.now()), Math.min(Math.max(0, remaining), 2_147_483_647))
-    return () => clearTimeout(timer)
-  }, [shownExpiry, inviteClock])
+  useInviteExpiry(shownExpiry ? Date.parse(shownExpiry) : undefined, setInviteClock, inviteClock)
   // Revoked, expired, used up or no longer listed: the code can never let anyone in.
   const deadInviteId = forgetStoredInvite ? storedInvite?.inviteId : undefined
   const forgetInvite = createInvite.forget
@@ -411,7 +407,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
   const participantCount = summary.participantCount
   const members = summary.members ?? []
   const progress = memberProgress(summary)
-  const inviteUrl = inviteCode ? `${env.webBaseUrl}/r/${inviteCode}` : null
+  const inviteUrl = inviteCode ? roomInviteUrl(inviteCode) : null
   const joinable = JOINABLE.includes(summary.status)
   // The same facts the auto-route reads: a confirmed run that sends this member to the deck,
   // and at least one card still without their vote. Finished, empty or moved on: no button.
@@ -462,14 +458,9 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
     try {
       const code = await verifiedInviteCode()
       if (!code) return
-      const url = `${env.webBaseUrl}/r/${code}`
       track('gogo_invite_shared', { channel: 'native_share', roomType })
-      try {
-        // Single share CTA → native share sheet; no hard-coded social buttons.
-        shareCalled = true
-        await Share.share({ message: `${t('gogoRoom.title', { context: roomType })} ${url}`, url })
-      } catch {
-        await Clipboard.setStringAsync(url).catch(() => {})
+      shareCalled = true
+      if (await shareRoomInvite(code, t('gogoRoom.title', { context: roomType })).catch(() => null) === 'copied') {
         flash(setLinkCopied)
       }
     } finally {

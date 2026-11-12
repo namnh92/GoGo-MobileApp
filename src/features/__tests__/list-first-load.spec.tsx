@@ -36,6 +36,7 @@ jest.mock('@/shared/api', () => ({
   useRemoveRoomMember: () => mockMutation,
   useRemoveRoomSeedPlace: () => mockMutation,
   useRevokeRoomInvite: () => mockMutation,
+  useCreateRoomInvite: () => mockMutation,
   useTransitionRoom: () => mockMutation,
   useUpdateRoomConstraints: () => mockMutation,
 }))

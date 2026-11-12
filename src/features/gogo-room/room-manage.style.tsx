@@ -26,11 +26,10 @@ export const styles = StyleSheet.create(theme => ({
     alignItems: 'center',
     gap: spacing[3],
     minHeight: touchTarget.min,
-    borderTopWidth: 1,
-    borderTopColor: theme.border.hairline,
     paddingTop: spacing[3],
     paddingBottom: spacing[1],
   },
+  rowSeparator: { borderTopWidth: 1, borderTopColor: theme.border.hairline },
   rowMeta: { marginTop: spacing[1] },
   rowAction: {
     minHeight: touchTarget.min,
