@@ -76,6 +76,22 @@ it.each([true, false])('a chip sends its source and option together only when it
   await settle()
 })
 
+it.each([true, false])('a place_topic chip sends its text and includes both identifiers only with an id (%s)', async hasId => {
+  const selected: AssistantFollowUpGroup = {
+    ...group('place_topic', hasId ? 'topic_address_2' : null),
+    options: [{ ...(hasId ? { id: 'topic_address_2' } : {}), label: 'Địa chỉ', text: 'Địa chỉ của quán thứ 2 ở đâu?' }],
+  }
+  const { view, backend } = await openReply([selected])
+  await act(async () => { await fireEvent.press(view.getByRole('button', { name: 'Thông tin khác Địa chỉ' })) })
+  await waitFor(() => expect(callsTo(backend, 'sendMessage')).toHaveLength(1))
+  expect(callsTo(backend, 'sendMessage')[0]![1]).toEqual({
+    text: selected.options[0]!.text,
+    locale: 'vi',
+    ...(hasId ? { replyToMessageId: REPLY_ID, followUpOptionId: 'topic_address_2' } : {}),
+  })
+  await settle()
+})
+
 it.each([false, true])('typed text matching a chip sends neither identifier, including after a failed chip (%s)', async failedChip => {
   const { view, backend } = await openReply([group()])
   if (failedChip) {
@@ -137,4 +153,20 @@ it('keeps the shared small card with name only and omits absent image, address, 
   for (const id of ['place-photo-image', 'place-card-address-row', 'place-card-ratings', 'place-google-rating', 'place-gogo-rating', 'place-card-price']) {
     expect(result.queryByTestId(id)).toBeNull()
   }
+})
+
+it('renders both places in a comparison as separate shared small PlaceCards in response order', async () => {
+  const compared: AssistantPlaceCard[] = [
+    { ...card, placeId: 'place-z', facts: { name: 'First comparison café' } },
+    { ...card, placeId: 'place-a', facts: { name: 'Second comparison café' } },
+  ]
+  const { view } = await openReply([], compared)
+  const results = view.getAllByTestId(/^assistant-card-place-/)
+  expect(results.map(result => result.props.testID)).toEqual(['assistant-card-place-z', 'assistant-card-place-a'])
+  expect(view.getAllByTestId('place-card-small')).toHaveLength(2)
+  results.forEach((result, index) => {
+    const smallCards = within(result).getAllByTestId('place-card-small')
+    expect(smallCards).toHaveLength(1)
+    expect(within(smallCards[0]!).getByTestId('place-card-name')).toHaveTextContent(compared[index]!.facts.name)
+  })
 })
