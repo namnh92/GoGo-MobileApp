@@ -13,6 +13,7 @@ import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.vie
 import { Chip, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
+import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { Text } from '@/shared/ui/text'
 import type { ConfirmConditions } from './room-condition-confirmation.view'
 import { RoomScheduleField, RoomTitleField } from './room-edit-fields.view'
@@ -33,6 +34,7 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
   onChoosingChange: (value: boolean) => void
 }) {
   const { t } = useTranslation()
+  const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag, field: visibilityField } = useFieldVisibility('room-editor')
   const [initial, setInitial] = useState(room)
   const [base, setBase] = useState(() => roomEditorDefaults(initial))
   const [scheduleWindow, setScheduleWindow] = useState({ start: initial.constraints?.startAt ?? initial.scheduledDate, end: initial.constraints?.endAt })
@@ -208,7 +210,7 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
         variant={values.budgetMode === mode ? 'selected' : 'default'} disabled={pending || !canEdit}
         onPress={() => form.setValue('budgetMode', mode, { shouldDirty: true })} />)}</View> : null}
       <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-        <BudgetPicker {...field} enforceBounds={changed.budgetAmount} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
+        <BudgetPicker {...field} visibilityField={visibilityField} submitted={form.formState.submitCount > 0} enforceBounds={changed.budgetAmount} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
       } />
       <View testID="room-schedule-section" style={styles.section}>
         <Text variant="label">{t('roomSchedule.title')}</Text>
@@ -236,5 +238,12 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
       {conflict ? <SecondaryBtn label={t('roomEdit.reload')} disabled={pending} onPress={() => void reloadAfterConflict()} /> : null}
     </View>
   </View>
-  return choosing ? body : <ScrollView style={styles.shrink} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bounces={false}>{body}</ScrollView>
+  return choosing ? body : <View ref={viewportRef} testID="room-editor-viewport" collapsable={false} style={styles.shrink} onLayout={schedule}>
+    <ScrollView ref={scrollRef} testID="room-editor-scroll" style={styles.shrink}
+      onLayout={schedule} onContentSizeChange={schedule}
+      onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag} scrollEventThrottle={16}
+      keyboardShouldPersistTaps="handled" keyboardDismissMode="none" bounces={false}>
+      {body}
+    </ScrollView>
+  </View>
 }

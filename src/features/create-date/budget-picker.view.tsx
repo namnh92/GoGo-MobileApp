@@ -7,6 +7,8 @@ import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
 import { Chip } from '@/shared/ui/chip.view'
 import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { Text } from '@/shared/ui/text'
+import type { TextInputRef } from '@/shared/ui/text-input'
+import type { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { BUDGET_TIERS } from './budget-tiers'
 import { budgetAmountSchema, formatBudgetInput, parseBudgetInput } from './budget-picker'
 import { styles } from './budget-picker.style'
@@ -15,7 +17,9 @@ const isTier = (value: number | null) => BUDGET_TIERS.some(tier => tier.amount =
 
 /** The caller owns the numeric value; local state preserves invalid text and
  * keeps custom entry open even when its amount matches a tier. */
-export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true }: {
+export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true, visibilityField, submitted = false }: {
+  visibilityField?: ReturnType<typeof useFieldVisibility>['field']
+  submitted?: boolean
   value: number | null
   onChange: (value: number | null) => void
   onBlur?: () => void
@@ -28,12 +32,25 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   const [custom, setCustom] = useState(() => !isTier(value))
   const [focused, setFocused] = useState(false)
   const [raw, setRaw] = useState<string | null>(null)
+  const [touched, setTouched] = useState(false)
+  const [focusRequest, setFocusRequest] = useState(0)
+  const inputRef = useRef<TextInputRef>(null)
+  const field = visibilityField?.('budget')
+  // A chip can request focus again while custom entry is already mounted.
+  const handledFocusRequest = useRef(0)
+  useEffect(() => {
+    if (disabled || handledFocusRequest.current === focusRequest) return
+    handledFocusRequest.current = focusRequest
+    inputRef.current?.focus()
+    field?.onFocus()
+  })
   const lastValue = useRef(value)
   useEffect(() => {
     // Profile prefill / conflict reload may replace the caller's value.
     if (!Object.is(lastValue.current, value)) {
       setCustom(!isTier(value))
       setRaw(null)
+      setTouched(false)
     }
     lastValue.current = value
   }, [value])
@@ -46,27 +63,34 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   const validation = budgetAmountSchema.safeParse(value)
   const errorKey = !validation.success ? validation.error.issues[0]!.message : null
   const invalidPaste = raw !== null && !Number.isFinite(parseBudgetInput(raw)) && raw !== ''
-  const error = invalidPaste ? t('budgetPicker.format') : custom && enforceBounds && errorKey ? t(errorKey === 'budgetPicker.required' ? 'budgetPicker.required'
+  const validationError = invalidPaste ? t('budgetPicker.format') : custom && enforceBounds && errorKey ? t(errorKey === 'budgetPicker.required' ? 'budgetPicker.required'
     : errorKey === 'budgetPicker.format' ? 'budgetPicker.format'
     : errorKey === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds') : undefined
+
+  const error = touched || submitted ? validationError : undefined
 
   return <View style={styles.body}>
     <View style={styles.chips}>
       {BUDGET_TIERS.map(tier => <Chip key={tier.key} multiline
         label={`${t(`createBudget.range.${tier.key}`)}${tier.key === 'flexible' ? '' : ` ${unit}`}`}
         variant={!custom && value === tier.amount ? 'selected' : 'default'}
-        disabled={disabled} onPress={() => { setCustom(false); setRaw(null); change(tier.amount) }} />)}
+        disabled={disabled} onPress={() => { setCustom(false); setRaw(null); setTouched(false); change(tier.amount) }} />)}
       <Chip label={t('budgetPicker.custom')} variant={custom ? 'selected' : 'default'} disabled={disabled}
-        onPress={() => { if (!custom) { setCustom(true); setRaw(null); change(null) } }} />
+        onPress={() => {
+          if (!custom) { setCustom(true); setRaw(null); setTouched(false); change(null) }
+          setFocusRequest(request => request + 1)
+        }} />
     </View>
-    {custom ? <><LabelledInput label={t('budgetPicker.amount')} icon="payments"
+    {custom ? <LabelledInput {...field} groupTestID="budget-custom-field" ref={inputRef} appearance="plain" boxTestID="budget-input-box" label={t('budgetPicker.amount')} icon="payments"
       accessibilityLabel={`${t('budgetPicker.amount')} ${unit}`} keyboardType="number-pad"
       value={invalidPaste ? raw! : focused ? raw ?? (value !== null && Number.isFinite(value) ? String(value) : '') : formatBudgetInput(value)}
       onFocus={() => {
+        field?.onFocus()
         setFocused(true)
         if (!invalidPaste) setRaw(value !== null && Number.isFinite(value) ? String(value) : '')
       }}
       onChangeText={text => {
+        setTouched(true)
         if (/^\d*$/.test(text)) {
           setRaw(text)
           change(text === '' ? null : Number(text))
@@ -75,11 +99,11 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
           setRaw(Number.isFinite(amount) ? String(amount) : text)
           change(amount)
         }
-      }} onBlur={() => { setFocused(false); onBlur?.() }}
+      }} onBlur={() => { setFocused(false); setTouched(true); field?.onBlur(); onBlur?.() }}
       placeholder={t('budgetPicker.placeholder')} editable={!disabled} error={error}
-      trailing={<Text variant="bodySmall">{t('budgetPicker.currency')} {unit}</Text>} />
+      trailing={<Text variant="bodySmall">{t('budgetPicker.currency')} {unit}</Text>}>
       {value !== null && Number.isFinite(value) && !invalidPaste && (!enforceBounds || validation.success)
         ? <Text variant="bodySmall">{formatMoney(value, 'VND', 'standard')} {unit}</Text> : null}
-    </> : null}
+    </LabelledInput> : null}
   </View>
 }

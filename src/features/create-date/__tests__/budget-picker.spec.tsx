@@ -1,6 +1,6 @@
-import { AccessibilityInfo } from 'react-native'
+import { AccessibilityInfo, Keyboard, ScrollView, StyleSheet, TextInput, View, type KeyboardEvent, type KeyboardEventName } from 'react-native'
 import { LabelledInput } from '@/shared/ui/labelled-input.view'
-import { act, fireEvent } from '@testing-library/react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { renderScreen, loaded as mockLoaded, roomFor } from '../../__tests__/harness'
@@ -71,11 +71,12 @@ it('prefills non-tier amounts and keeps flexible as its existing ceiling', async
   expect(view.queryByLabelText(inputLabel())).toBeNull()
 })
 
-it('requires an amount on a fresh custom selection', async () => {
+it('keeps a fresh custom selection pristine while Continue stays disabled', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
   await fireEvent.press(view.getByRole('button', { name: customLabel() }))
   expect(view.getByLabelText(inputLabel()).props.value).toBe('')
-  expect(view.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
+  expect(view.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
+  expect(view.getByLabelText(inputLabel()).props['aria-invalid']).not.toBe(true)
   expect(view.getByRole('button', { name: i18n.t('common.continue') }).props.accessibilityState.disabled).toBe(true)
 })
 
@@ -250,4 +251,71 @@ it.each([NaN, null, Infinity, 650000.5, 9999, 100000001])('refuses final wizard 
   await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.cta') }))
   expect(mockCreate).not.toHaveBeenCalled()
   expect(useRoomStore.getState().creationPending).toBe(false)
+})
+
+
+it('shows the required error after blurring an untouched custom amount', async () => {
+  const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent(view.getByLabelText(inputLabel()), 'blur', {})
+  expect(view.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
+  expect(view.getByLabelText(inputLabel()).props['aria-invalid']).toBe(true)
+})
+
+
+it('uses one filled bordered budget box and recolours only that box on error', async () => {
+  const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  const box = () => view.getByTestId('budget-input-box')
+  const initial = StyleSheet.flatten(box().props.style)
+  expect(initial.borderWidth).toBe(1)
+  // The icon, input and suffix are direct children of the single shell.
+  expect(view.getByLabelText(inputLabel()).parent).toBe(box())
+  expect(within(box()).getByText(`đ ${i18n.t('createBudget.unit.couple')}`).parent).toBe(box())
+  expect(StyleSheet.flatten(view.getByLabelText(inputLabel()).props.style).borderWidth).toBeUndefined()
+  await fireEvent(view.getByLabelText(inputLabel()), 'blur', {})
+  const invalid = StyleSheet.flatten(box().props.style)
+  expect(invalid.borderColor).not.toBe(initial.borderColor)
+  expect(invalid).toEqual({ ...initial, borderColor: invalid.borderColor })
+})
+
+it('focuses and reveals the custom input with its preview, including later focus with the keyboard open', async () => {
+  jest.useFakeTimers()
+  const listeners: Partial<Record<KeyboardEventName, (event: KeyboardEvent) => void>> = {}
+  jest.spyOn(Keyboard, 'addListener').mockImplementation(((name: KeyboardEventName, callback: (event: KeyboardEvent) => void) => {
+    listeners[name] = callback
+    return { remove: jest.fn() }
+  }) as unknown as typeof Keyboard.addListener)
+  const focus = jest.spyOn(TextInput.prototype, 'focus').mockImplementation(() => {})
+  const move = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {})
+  jest.spyOn(View.prototype, 'measureInWindow').mockImplementation(function (this: { props: { testID?: string } }, callback) {
+    if (this.props.testID === 'create-budget-viewport') callback(0, 100, 390, 600)
+    else if (this.props.testID === 'budget-custom-field') callback(16, 450, 358, 140)
+    else callback(16, 450, 358, 80)
+  })
+  try {
+    const view = await renderScreen(<CreateBudgetScreen />)
+    await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+    expect(focus).toHaveBeenCalledTimes(1)
+    await act(async () => { listeners.keyboardDidShow?.({ endCoordinates: { screenY: 550 } } as KeyboardEvent); jest.runOnlyPendingTimers() })
+    expect(move).toHaveBeenLastCalledWith(expect.objectContaining({ y: 48 }))
+    await fireEvent.changeText(view.getByLabelText(inputLabel()), '650000')
+    expect(within(view.getByTestId('budget-custom-field')).getByText('650.000đ / cả phòng (2 người)')).toBeTruthy()
+    move.mockClear()
+    await fireEvent(view.getByLabelText(inputLabel()), 'blur', {})
+    await fireEvent(view.getByLabelText(inputLabel()), 'focus', {})
+    await act(async () => { jest.runOnlyPendingTimers() })
+    expect(move).toHaveBeenLastCalledWith(expect.objectContaining({ y: 48 }))
+    expect(StyleSheet.flatten(view.getByTestId('create-footer').props.style).position).not.toBe('absolute')
+    expect(within(view.getByTestId('create-budget-viewport')).queryByTestId('create-footer')).toBeNull()
+    await view.unmount()
+  } finally {
+    jest.useRealTimers()
+    jest.restoreAllMocks()
+  }
+})
+
+it('shows validation on a submitted custom amount even when untouched', async () => {
+  const view = await renderScreen(<BudgetPicker value={null} onChange={jest.fn()} roomType="couple" budgetMode="total" submitted />)
+  expect(view.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
 })

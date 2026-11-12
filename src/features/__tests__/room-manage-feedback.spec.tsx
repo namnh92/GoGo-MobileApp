@@ -3,7 +3,7 @@ const mockDialog = jest.spyOn(DialogModule, 'Dialog')
 import i18n from '@/shared/i18n'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { QueryClient } from '@tanstack/react-query'
-import { StyleSheet } from 'react-native'
+import { Keyboard, ScrollView, StyleSheet, TextInput, View, type KeyboardEvent, type KeyboardEventName } from 'react-native'
 import { loaded as mockLoaded, roomFor, type QueryLike } from './harness'
 import { render } from '@/shared/ui/__tests__/query-render'
 import { queryKeys } from '@/shared/api/query-keys'
@@ -935,4 +935,49 @@ it('F-14 retains invalid budget paste and disables room Confirm until corrected'
   await press(save())
   await press(save())
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', expect.objectContaining({ budgetAmount: 650000 })))
+})
+
+
+it('reveals the custom budget and preview in the sheet while keeping actions in its scroll', async () => {
+  jest.useFakeTimers()
+  const listeners: Partial<Record<KeyboardEventName, (event: KeyboardEvent) => void>> = {}
+  jest.spyOn(Keyboard, 'addListener').mockImplementation(((name: KeyboardEventName, callback: (event: KeyboardEvent) => void) => {
+    listeners[name] = callback
+    return { remove: jest.fn() }
+  }) as unknown as typeof Keyboard.addListener)
+  const focus = jest.spyOn(TextInput.prototype, 'focus').mockImplementation(() => {})
+  const move = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {})
+  jest.spyOn(View.prototype, 'measureInWindow').mockImplementation(function (this: { props: { testID?: string } }, callback) {
+    if (this.props.testID === 'room-editor-viewport') callback(0, 150, 390, 600)
+    else if (this.props.testID === 'budget-custom-field') callback(16, 460, 358, 150)
+    else callback(16, 460, 358, 80)
+  })
+  try {
+    await openArea()
+    await press(screen.getByRole('button', { name: i18n.t('budgetPicker.custom') }))
+    expect(focus).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
+    const input = () => screen.getByLabelText(`${i18n.t('budgetPicker.amount')} ${i18n.t('datePlan.perPerson')}`)
+    expect(input().props['aria-invalid']).not.toBe(true)
+    expect(screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') }).props.accessibilityState.disabled).toBe(true)
+    await act(async () => { listeners.keyboardDidShow?.({ endCoordinates: { screenY: 550 } } as KeyboardEvent); jest.runOnlyPendingTimers() })
+    expect(move).toHaveBeenLastCalledWith(expect.objectContaining({ y: 68 }))
+    await fireEvent.changeText(input(), '650000')
+    expect(within(screen.getByTestId('budget-custom-field')).getByText(`650.000đ ${i18n.t('datePlan.perPerson')}`)).toBeTruthy()
+    await fireEvent(input(), 'blur', {})
+    move.mockClear()
+    await fireEvent(input(), 'focus', {})
+    await act(async () => { jest.runOnlyPendingTimers() })
+    expect(move).toHaveBeenLastCalledWith(expect.objectContaining({ y: 68 }))
+    const scroll = screen.getByTestId('room-editor-scroll')
+    expect(scroll.props.scrollEnabled).not.toBe(false)
+    expect(scroll.props.keyboardShouldPersistTaps).toBe('handled')
+    expect(scroll.props.keyboardDismissMode).toBe('none')
+    expect(within(scroll).getByRole('button', { name: i18n.t('roomEdit.saveSchedule') })).toBeTruthy()
+    expect(within(scroll).getByRole('button', { name: i18n.t('common.cancel') })).toBeTruthy()
+    await screen.unmount()
+  } finally {
+    jest.useRealTimers()
+    jest.restoreAllMocks()
+  }
 })

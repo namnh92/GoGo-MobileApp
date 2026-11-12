@@ -451,6 +451,8 @@
       "surface.card",
       "surface.low",
       "text.primary",
+      "surface.subtle",
+      "border.hairline",
       "status.danger",
       "accent.primary"
     ],
