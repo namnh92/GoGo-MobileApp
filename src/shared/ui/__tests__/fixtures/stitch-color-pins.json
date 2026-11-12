@@ -202,6 +202,8 @@
       "text.secondary",
       "text.secondary",
       "accent.text",
+      "accent.text",
+      "text.secondary",
       "accent.text"
     ],
     "src/shared/administrative/administrative-picker.style.tsx": [
