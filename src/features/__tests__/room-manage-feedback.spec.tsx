@@ -881,3 +881,58 @@ it.each(['couple', 'group-host'] as const)('prefills custom budget, compares num
     budgetAmount: 675000, budgetMode: mode, expectedConstraintVersion: 7,
   })))
 })
+
+it.each([0, 5000, 150000000, null])('F-13 saves a title with unchanged server budget %s', async amount => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraints: amount === null ? undefined : {
+    budgetMode: 'per_person', budgetAmount: amount, currency: 'VND', administrativeArea: mockArea,
+  } }))
+  await openArea()
+  await typeField('Tên kèo', 'Tên mới')
+  const save = screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') })
+  expect(save.props.accessibilityState.disabled).toBe(false)
+  expect(screen.queryByText(i18n.t('budgetPicker.bounds'))).toBeNull()
+  await press(save)
+  await waitFor(() => expect(mockRename).toHaveBeenCalledWith('room-1', { title: 'Tên mới' }))
+  expect(mockPatch).not.toHaveBeenCalled()
+})
+
+it.each([0, 5000, 150000000])('F-13 preserves budget %s in unrelated constraint edits but bounds new amounts', async amount => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: {
+    budgetMode: 'per_person', budgetAmount: amount, currency: 'VND', administrativeArea: mockArea,
+  } }))
+  await openArea()
+  await chooseArea()
+  const save = () => screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') })
+  const label = `${i18n.t('budgetPicker.amount')} ${i18n.t('datePlan.perPerson')}`
+  await typeField(label, '9999')
+  expect(save().props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText(i18n.t('budgetPicker.bounds'))).toBeTruthy()
+  await typeField(label, String(amount))
+  expect(save().props.accessibilityState.disabled).toBe(false)
+  await press(save())
+  await press(save())
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', expect.objectContaining({ budgetAmount: amount })))
+})
+
+it('F-14 retains invalid budget paste and disables room Confirm until corrected', async () => {
+  await openArea()
+  await typeField('Tên kèo', 'Tên mới')
+  await press(screen.getByRole('button', { name: i18n.t('budgetPicker.custom') }))
+  const label = `${i18n.t('budgetPicker.amount')} ${i18n.t('datePlan.perPerson')}`
+  const save = () => screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') })
+  for (const text of ['650000.50', '650.000,50', 'invalid']) {
+    await typeField(label, text)
+    expect(screen.getByLabelText(label).props.value).toBe(text)
+    expect(screen.getByText(i18n.t('budgetPicker.format'))).toBeTruthy()
+    expect(save().props.accessibilityState.disabled).toBe(true)
+    await press(save())
+    expect(mockRename).not.toHaveBeenCalled()
+    expect(mockPatch).not.toHaveBeenCalled()
+  }
+  await typeField(label, '650,000')
+  expect(screen.getByLabelText(label).props.value).toBe('650.000')
+  expect(save().props.accessibilityState.disabled).toBe(false)
+  await press(save())
+  await press(save())
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', expect.objectContaining({ budgetAmount: 650000 })))
+})

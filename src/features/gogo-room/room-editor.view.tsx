@@ -17,7 +17,7 @@ import { Text } from '@/shared/ui/text'
 import type { ConfirmConditions } from './room-condition-confirmation.view'
 import { RoomScheduleField, RoomTitleField } from './room-edit-fields.view'
 import { localScheduleToIso } from './room-schedule'
-import { roomEditorChanges, roomEditorDefaults, roomEditorSchema, validRoomEditorSchedule, type RoomEditorValues } from './room-editor'
+import { roomEditorChanges, roomEditorDefaults, roomEditorSchemaFor, validRoomEditorSchedule, type RoomEditorValues } from './room-editor'
 import { styles } from './room-editor.style'
 
 const EDITABLE: readonly RoomSummary['status'][] = ['draft', 'collecting', 'matching', 'ready']
@@ -51,13 +51,14 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
   const location = useCurrentLocation()
   const pending = requestPending || rename.isPending || update.isPending
   useEffect(() => { onPendingChange(pending) }, [pending, onPendingChange])
-  const form = useForm<RoomEditorValues>({ resolver: zodResolver(roomEditorSchema), defaultValues: base, mode: 'onChange' })
+  const schema = roomEditorSchemaFor(base)
+  const form = useForm<RoomEditorValues>({ resolver: zodResolver(schema), defaultValues: base, mode: 'onChange' })
   const values = useWatch({ control: form.control }) as RoomEditorValues
   const changed = roomEditorChanges(values, base, areaReselected && areaNeedsReselection)
   const constraintsChanged = Object.entries(changed).some(([key, dirty]) => key !== 'title' && dirty)
   const scheduleValid = validRoomEditorSchedule(values, changed, scheduleWindow)
   const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status) && initial.myRole === 'host' && EDITABLE.includes(initial.status)
-  const valid = roomEditorSchema.safeParse(values).success && scheduleValid && (!changed.area || areaValid)
+  const valid = schema.safeParse(values).success && scheduleValid && (!changed.area || areaValid)
     && (!changed.participantCount || room.type !== 'group' || values.participantCount >= 3) && (!constraintsChanged || !!initial.constraints)
 
   async function reloadAfterConflict() {
@@ -207,7 +208,7 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
         variant={values.budgetMode === mode ? 'selected' : 'default'} disabled={pending || !canEdit}
         onPress={() => form.setValue('budgetMode', mode, { shouldDirty: true })} />)}</View> : null}
       <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-        <BudgetPicker {...field} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
+        <BudgetPicker {...field} enforceBounds={changed.budgetAmount} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
       } />
       <View testID="room-schedule-section" style={styles.section}>
         <Text variant="label">{t('roomSchedule.title')}</Text>

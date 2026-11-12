@@ -17,6 +17,16 @@ export const roomEditorSchema = z.object({
 
 export type RoomEditorValues = z.infer<typeof roomEditorSchema>
 
+/** Server-valid ceilings outside custom-entry bounds may remain unchanged. */
+export function roomEditorSchemaFor(base: RoomEditorValues) {
+  return roomEditorSchema.extend({
+    budgetAmount: z.number().int().min(0).refine(
+      amount => amount === base.budgetAmount || budgetAmountSchema.safeParse(amount).success,
+      { error: 'budgetPicker.bounds' },
+    ),
+  })
+}
+
 export function roomEditorDefaults(room: RoomSummary): RoomEditorValues {
   return {
     title: room.title ?? '',

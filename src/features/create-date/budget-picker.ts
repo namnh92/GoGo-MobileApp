@@ -11,9 +11,11 @@ export const budgetAmountSchema = z.number({ error: 'budgetPicker.required' })
 export const budgetPickerSchema = z.object({ budgetAmount: budgetAmountSchema })
 
 export function parseBudgetInput(text: string): number {
-  // Dots are VND grouping separators, never a decimal multiplier.
-  const digits = text.replace(/\./g, '')
-  return /^\d+$/.test(digits) ? Number(digits) : NaN
+  const input = text.replace(/đ$/u, '')
+  // A separator must group exactly three digits. Mixed separators and decimal
+  // tails must never turn into a larger integer by stripping punctuation.
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)$/.test(input)) return NaN
+  return Number(input.replace(/[.,]/g, ''))
 }
 
 export function formatBudgetInput(amount: number): string {

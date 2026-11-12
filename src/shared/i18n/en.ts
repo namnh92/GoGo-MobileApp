@@ -2076,6 +2076,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'budgetPicker.placeholder': 'e.g. 650.000',
   'budgetPicker.currency': 'đ',
   'budgetPicker.required': 'Enter an amount.',
+  'budgetPicker.format': 'Enter whole dong using digits and thousands separators, e.g. 650,000đ.',
   'budgetPicker.integer': 'Enter a whole amount.',
   'budgetPicker.bounds': 'Enter 10.000đ to 100.000.000đ in the selected unit.',
   'createBudget.range.under300': 'Under ₫300,000',

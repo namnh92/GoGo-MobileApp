@@ -16,3 +16,10 @@ describe('custom VND budget ceiling', () => {
     expect(budgetAmountSchema.parse(amount)).toBe(amount)
   })
 })
+
+it.each(['650000', '650.000', '650.000đ', '650,000'])('F-14 accepts whole VND paste %s', text => {
+  expect(parseBudgetInput(text)).toBe(650000)
+})
+it.each(['650000.50', '650.000,50', '650,000.50', '650,50', '650x000', '650.00', '650..000'])('F-14 rejects decimal or malformed paste %s', text => {
+  expect(parseBudgetInput(text)).toBeNaN()
+})

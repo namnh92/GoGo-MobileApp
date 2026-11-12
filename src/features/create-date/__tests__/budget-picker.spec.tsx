@@ -114,3 +114,28 @@ it.each(['couple', 'group-host'] as const)('continues with a custom draft and cr
     budgetAmount: 675_000, budgetMode: audience === 'couple' ? 'total' : 'per_person',
   }) }))
 })
+
+it.each(['vi', 'en'])('F-14 retains invalid paste, blocks Continue, and recovers with whole VND (%s)', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  const view = await renderScreen(<CreateBudgetScreen />)
+  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  const input = () => view.getByLabelText(inputLabel())
+  const next = () => view.getByRole('button', { name: i18n.t('common.continue') })
+  for (const text of ['650000.50', '650.000,50', '650x000', '650,000.50']) {
+    await fireEvent.changeText(input(), text)
+    expect(input().props.value).toBe(text)
+    expect(view.getByText(i18n.t('budgetPicker.format'))).toBeTruthy()
+    expect(next().props.accessibilityState.disabled).toBe(true)
+    await fireEvent.press(next())
+    expect(mockPush).not.toHaveBeenCalled()
+  }
+  for (const text of ['650000', '650.000', '650.000đ', '650,000']) {
+    await fireEvent.changeText(input(), text)
+    expect(input().props.value).toBe('650.000')
+    expect(view.queryByText(i18n.t('budgetPicker.format'))).toBeNull()
+    expect(next().props.accessibilityState.disabled).toBe(false)
+    expect(useRoomStore.getState().budgetAmount).toBe(650000)
+  }
+  await fireEvent.press(next())
+  expect(mockPush).toHaveBeenCalledWith('/create/mood')
+})
