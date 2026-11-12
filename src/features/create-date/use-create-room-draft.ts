@@ -21,7 +21,8 @@ export function useCreateRoomDraft() {
   const router = useRouter()
   const { status, session } = useSession()
   const rememberRoom = useRecentRoomsStore(state => state.remember)
-  const createRoom = useCreateRoom({ idempotencyKey: () => useRoomStore.getState().creationAttempt!.key })
+  const transactionKey = useRef<string | null>(null)
+  const createRoom = useCreateRoom({ idempotencyKey: () => transactionKey.current! })
   const pending = useRoomStore(state => state.creationPending)
   const submitting = useRef(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,38 +34,46 @@ export function useCreateRoomDraft() {
       return
     }
 
-    const invalid = firstInvalidRequiredStep(useRoomStore.getState())
-    if (invalid) {
-      const budget = budgetAmountSchema.safeParse(useRoomStore.getState().budgetAmount)
-      if (invalid === 'budget' && !budget.success) {
-        const key = budget.error.issues[0]!.message
-        setError(t(key === 'budgetPicker.required' ? 'budgetPicker.required'
-          : key === 'budgetPicker.format' ? 'budgetPicker.format'
-          : key === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds'))
-      }
-      router.push(`/create/${invalid}`)
-      return
-    }
-
-    if (submitting.current) return
+    if (submitting.current || useRoomStore.getState().creationPending) return
     submitting.current = true
     useRoomStore.setState({ creationPending: true })
     setError(null)
     try {
-      const body = toCreateRoomBody(useRoomStore.getState())
+      const ownerId = session?.userId
+      if (!ownerId) throw new Error('Room creation requires an authenticated owner')
+      const snapshot = useRoomStore.getState()
+      const body = toCreateRoomBody(snapshot)
       const fingerprint = JSON.stringify(body)
-      const attempt = useRoomStore.getState().creationAttempt
-      if (attempt?.fingerprint !== fingerprint) {
-        useRoomStore.setState({ creationAttempt: { key: newIdempotencyKey(), fingerprint } })
+      let attempt = snapshot.creationAttempt
+      // A matching persisted request is a replay, even after its start time.
+      // Validate only new/changed intent, before allocating a replacement key.
+      if (!attempt?.key || attempt.fingerprint !== fingerprint) {
+        const now = new Date()
+        const invalid = firstInvalidRequiredStep(snapshot, now)
+        if (invalid) {
+          const budget = budgetAmountSchema.safeParse(snapshot.budgetAmount)
+          if (invalid === 'budget' && !budget.success) {
+            const key = budget.error.issues[0]!.message
+            setError(t(key === 'budgetPicker.required' ? 'budgetPicker.required'
+              : key === 'budgetPicker.format' ? 'budgetPicker.format'
+              : key === 'budgetPicker.integer' ? 'budgetPicker.integer' : 'budgetPicker.bounds'))
+          }
+          router.push(`/create/${invalid}`)
+          return
+        }
+        attempt = { key: newIdempotencyKey(), fingerprint }
       }
+      transactionKey.current = attempt.key
+      useRoomStore.setState({ creationAttempt: attempt })
       // Persist the request identity before sending, so a timeout or restart
       // retries the same room creation instead of publishing a second room.
-      if (session?.userId) await saveRoomDraft(session.userId, 'places')
+      // Draft edit actions stay locked until cleanup and navigation complete.
+      await saveRoomDraft(ownerId, 'places')
       const room = await createRoom.mutateAsync(body)
       rememberRoom(room)
       void prepareRoomInvite(queryClient, room.id).catch(() => undefined)
       // A created plan makes the GoGo AI introduction due on Home (#379).
-      if (session?.userId) noteAssistantPlanCreated(session.userId)
+      noteAssistantPlanCreated(ownerId)
       // Every member chooses preferences on the preference screen.
       useRoomStore.getState().finishDraft()
       await clearSavedRoomDraft().catch(() => undefined)

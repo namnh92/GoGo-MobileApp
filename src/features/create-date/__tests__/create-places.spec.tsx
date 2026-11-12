@@ -44,8 +44,9 @@ const created = { id: 'new-room', type: 'couple', decisionMode: 'match', status:
 let client: QueryClient
 beforeEach(async () => {
   // Own FlatList's delayed cell-batching work, which can fire between act calls under load.
-  jest.useFakeTimers()
+  jest.useFakeTimers({ now: new Date(2031, 0, 14, 18, 59) })
   jest.clearAllMocks()
+  mockCreate.mockReset()
   mockPrepareInvite.mockResolvedValue(undefined)
   onlineManager.setOnline(true)
   mockStatus = 'user'
@@ -163,11 +164,15 @@ it('persists retry identity at places before sending, reuses it after timeout, r
   expect(await screen.findByText(i18n.t('createPlaces.createFailed'))).toBeTruthy()
   const identity = useRoomStore.getState().creationAttempt
   expect(identity?.key).toBeTruthy()
+  jest.setSystemTime(new Date(2031, 0, 14, 19, 1))
   await create()
   await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(2))
   expect(mockCreate.mock.calls[1][1]).toBe(mockCreate.mock.calls[0][1])
   expect(useRoomStore.getState().creationAttempt).toEqual(identity)
-  await act(async () => useRoomStore.getState().patchDraft({ title: 'Changed request' }))
+  await act(async () => {
+    useRoomStore.getState().setStartTime('20:00')
+    useRoomStore.getState().patchDraft({ title: 'Changed request', startAt: new Date(2031, 0, 14, 20).toISOString() })
+  })
   await create()
   await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(3))
   expect(mockCreate.mock.calls[2][1]).not.toBe(identity?.key)
