@@ -8,13 +8,15 @@ import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/lo
 import { Card, GhostBtn, IconBtn } from '@/shared/ui/primitives'
 import { PlaceCardSmall, type PlaceCardSmallProps } from '@/shared/ui/place-card-small.view'
 import { Text } from '@/shared/ui/text'
-import { Icon } from '@/shared/ui/icons'
+import { MaterialIcon } from '@/shared/ui/material-icon'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { useReducedMotionPreference } from '@/shared/ui/feedback'
 import { spacing } from '@/shared/ui/tokens'
 import { MAX_SEED_PLACES } from '@/shared/store/roomStore'
 import { canSuggestPlaces, recenterSeedIndex, seedIndex } from './room-seeds.model'
 import { styles } from './room-seeds.style'
+import { styles as sectionStyles } from './room-section.style'
+import { RoomSectionHeading, RoomSectionDescription } from './room-section.view'
 /** One cached detail query per seed; unknown/loading/error facts stay omitted. */
 function SeedPlaceCard({ placeId, name, detail, onRemove }: {
   placeId: string; name: string
@@ -101,21 +103,17 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
     })
   }
   return <>
-    <Card testID="room-lobby-seeds" style={styles.card}>
-      <View style={styles.heading}>
-        <Icon name="mapPin" size={20} color="accent.primary" />
-        <Text variant="discoveryHeading" accessibilityRole="header" style={styles.title}>{t('roomManage.seedTitle')}</Text>
-        {canSuggest ? <IconBtn testID="room-lobby-seeds-add" accessibilityLabel={t('roomManage.addSeedPlaces')} accessibilityHint={atLimit ? limitHint : undefined} style={styles.add}
+    <Card testID="room-lobby-seeds" style={sectionStyles.card}>
+      <RoomSectionHeading icon="mapPin" title={t('roomManage.seedTitle')} action={canSuggest ? <IconBtn variant="plain" testID="room-lobby-seeds-add" accessibilityLabel={t('roomManage.addSeedPlaces')} accessibilityHint={atLimit ? limitHint : undefined}
           disabled={atLimit || !scope || pickerOpening} onPress={() => {
             if (atLimit || !canSuggest || !scope || opening.current) return
             opening.current = true; setPickerOpening(true)
             clearPickerScope(scopeId.current)
             scopeId.current = savePickerScope(scope)
             router.push({ pathname: '/places/search', params: { picker: '1', roomId: room.id, pickerScope: scopeId.current } })
-          }}><Icon name="plus" size={20} color="accent.primary" /></IconBtn> : null}
-      </View>
-      <View style={styles.rows}><Text variant="bodySmall" color="text.secondary">{t(seeds.length ? 'createPlaces.body' : 'roomSeeds.empty')}</Text>
-      {seeds.length ? <FlatList ref={list} testID="room-lobby-seeds-list"
+          }}><MaterialIcon name="plus" size={20} color="accent.primary" /></IconBtn> : null} />
+      <View style={styles.rows}><RoomSectionDescription>{t(seeds.length ? 'createPlaces.body' : 'roomSeeds.empty')}</RoomSectionDescription>
+      {seeds.length ? <View><FlatList ref={list} testID="room-lobby-seeds-list"
         key={`${room.id}:${seeds.map(seed => seed.placeId).join(',')}:${looping}:${cardWidth}`}
         horizontal data={row} style={styles.row} contentContainerStyle={styles.rowContent}
         onLayout={event => setRowWidth(event.nativeEvent.layout.width)}
@@ -141,7 +139,10 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
             <SeedPlaceCard {...item} detail={details.byPlaceId.get(item.placeId)!}
               onRemove={isHost ? () => { if (!lock.current) { setFailed(false); setTarget(item) } } : undefined} />
           </View>
-        }} /> : null}
+        }} />
+        {/* Keep the preceding loop copy's overlapping badge out of the leading inset. */}
+        <View testID="room-lobby-seeds-leading-inset" pointerEvents="none" style={styles.leadingInset} />
+      </View> : null}
       {canSuggest && atLimit ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">{limitHint}</Text> : null}
       {canSuggest && !scope ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.seedScopeUnavailable')}</Text> : null}
       </View>

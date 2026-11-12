@@ -169,10 +169,13 @@ export function DangerBtn(props: ButtonProps) {
  * Icon-only. The glyph is not a label, so `accessibilityLabel` is required —
  * a screen reader announcing "button" and nothing else is a dead end. Drawn at
  * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
+ * The plain variant has no container and reserves at least 44pt in the layout.
  */
-export function IconBtn({ testID, children, onPress, accessibilityLabel, accessibilityHint, active = false, disabled = false, style, size = 'small' }: {
+export function IconBtn({ testID, children, onPress, accessibilityLabel, accessibilityHint, active = false, disabled = false, style, size = 'small', variant = 'default' }: {
   testID?: string
   size?: ButtonSize
+  /** Unframed header action, with a full 44pt minimum layout target. */
+  variant?: 'default' | 'plain'
   children: ReactNode
   onPress: () => void
   accessibilityLabel: string
@@ -198,6 +201,9 @@ export function IconBtn({ testID, children, onPress, accessibilityLabel, accessi
         size === 'regular' ? styles.iconRegular : styles.iconSmall,
         active && styles.iconActive,
         disabled && styles.iconDisabled,
+        variant === 'plain' && styles.iconPlain,
+        variant === 'plain' && size === 'small' && styles.iconPlainSmall,
+        variant === 'plain' && disabled && styles.iconPlainDisabled,
         style,
       ]}
     >

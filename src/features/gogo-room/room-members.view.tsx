@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
 import { memberProgress, roomCapabilities, type RoomMember, type RoomSummary, useRemoveRoomMember } from '@/shared/api'
 import { AvatarCircle, Card, Chip, GhostBtn } from '@/shared/ui/primitives'
-import { Icon } from '@/shared/ui/icons'
+import { RoomSectionHeading, RoomSectionDescription } from './room-section.view'
+import { styles as sectionStyles } from './room-section.style'
 import { Text } from '@/shared/ui/text'
 import { Sheet } from '@/shared/ui/sheet.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
@@ -71,9 +72,9 @@ export function RoomMembers({ room, onRefresh, hold, testID = 'room-lobby' }: {
     })
   }
   return <>
-    <Card testID={`${testID}-members`} style={styles.card}>
-      <View style={styles.sectionHead}><Icon name="users" size={20} color="accent.primary" /><Text variant="discoveryHeading" accessibilityRole="header">{t('roomManage.membersTitle')}</Text></View>
-      <View style={styles.rows}><Text variant="caption" color="text.secondary">{t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })} · {t('groupSetup.people', { n: room.participantCount })}</Text>
+    <Card testID={`${testID}-members`} style={sectionStyles.card}>
+      <RoomSectionHeading icon="users" title={t('roomManage.membersTitle')} />
+      <View style={styles.rows}><RoomSectionDescription>{t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })} · {t('groupSetup.people', { n: room.participantCount })}</RoomSectionDescription>
       {members.length ? <MemberRows list={members.slice(0, 5)} inSheet={false} isHost={isHost} myMemberId={room.myMemberId} testID={testID} onRemove={request} /> : <Text variant="bodySmall" color="text.secondary">{t('roomManage.noMembers')}</Text>}
       {room.type !== 'couple' && members.length > 5 ? <GhostBtn testID={`${testID}-members-all`} label={t('roomMembers.showAll', { n: members.length })} onPress={() => setExpanded(true)} /> : null}
       </View>

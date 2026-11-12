@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { buttonSizes, motion } from '@/shared/ui/tokens'
+import { buttonSizes, motion, touchTarget } from '@/shared/ui/tokens'
 
 /**
  * Pressing keeps the resting fill/tint (owner 2026-11-08). Existing shadow
@@ -77,6 +77,9 @@ export const styles = StyleSheet.create(theme => ({
   },
   iconRegular: { width: buttonSizes.regular.minHeight, height: buttonSizes.regular.minHeight, borderRadius: buttonSizes.regular.minHeight / 2 },
   iconSmall: { width: buttonSizes.small.minHeight, height: buttonSizes.small.minHeight },
+  iconPlainSmall: { width: touchTarget.min, height: touchTarget.min },
+  iconPlain: { borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' },
+  iconPlainDisabled: { opacity: 0.5 },
   iconActive: { backgroundColor: theme.accent.soft, borderColor: theme.accent.primary },
   iconDisabled: { backgroundColor: theme.surface.subtle, borderColor: 'transparent' },
 }))

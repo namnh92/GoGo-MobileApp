@@ -135,7 +135,7 @@ it.each([null, { ...mockArea, status: 'needs_reselection' }])('requires a curren
 it.each(['member', 'guest'] as const)('hides area editing for %s', async role => {
   mockRoom.query = mockLoaded(roomFor('group-guest', { members: [{ id: 'me', displayName: 'Tôi', role: 'member', isGuest: role === 'guest', selectionStatus: 'pending' }] }))
   await render(<GoGoRoomScreen />, client)
-  expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Sửa điều kiện phòng' })).toBeNull()
   expect(mockPatch).not.toHaveBeenCalled()
 })
 it('omits the danger heading, host permission card and inline warnings', async () => {
@@ -145,7 +145,7 @@ it('omits the danger heading, host permission card and inline warnings', async (
   }
   expect(screen.getByRole('button', { name: 'Huỷ phòng' })).toBeTruthy()
   expect(screen.queryByText(i18n.t('roomManage.cancelBody'))).toBeNull()
-  await press(screen.getByRole('button', { name: 'Sửa' }))
+  await press(screen.getByRole('button', { name: 'Sửa điều kiện phòng' }))
   expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
 })
 it.each(['vi', 'en'])('hydrates the lobby seed with protected rating facts in %s', async language => {
@@ -204,7 +204,7 @@ it.each(['vi', 'en'])('orders lobby facts and renders the overnight end date in 
     const start = new Date(startAt).toLocaleString(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     const end = new Date(endAt).toLocaleString(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     expect(within(screen.getByTestId('room-fact-schedule')).getByText(`${start} – ${end}`)).toBeTruthy()
-    await press(screen.getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomLobby.editConditions') }))
     expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
   } finally {
     await act(async () => { await i18n.changeLanguage('vi') })
@@ -265,4 +265,32 @@ it('pull-to-refresh refetches each current seed detail along with the room', asy
   expect(refetchOne).toHaveBeenCalledTimes(1)
   expect(refetchTwo).toHaveBeenCalledTimes(1)
   expect(mockRoom.query.refetch).toHaveBeenCalledTimes(1)
+})
+
+it('round 6t: descriptions share bodySmall/secondary and a 12pt heading gap', async () => {
+  await render(<GoGoRoomScreen />, client)
+  const descriptions = ['members', 'seeds'].map(section => {
+    const card = screen.getByTestId(`room-lobby-${section}`)
+    expect(StyleSheet.flatten(card.props.style).gap).toBe(12)
+    return within(card).getByText(section === 'members' ? /^Thành viên ·/ : 'Không bắt buộc — GoGo sẽ ưu tiên đưa vào phương án.')
+  })
+  const styles = descriptions.map(node => StyleSheet.flatten(node.props.style))
+  expect(styles[0]).toEqual(styles[1])
+  expect(styles[0]).toMatchObject(type.bodySmall)
+})
+it('round 6t: matching plain header icons retain accessible names and edit navigation', async () => {
+  await render(<GoGoRoomScreen />, client)
+  const edit = screen.getByRole('button', { name: 'Sửa điều kiện phòng' })
+  const add = screen.getByRole('button', { name: 'Thêm địa điểm gợi ý' })
+  expect(within(edit).queryAllByText(/Sửa/)).toHaveLength(0)
+  for (const action of [edit, add]) {
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ width: 44, height: 44, borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' })
+    expect(StyleSheet.flatten(action.parent!.props.style).alignItems).toBe('center')
+  }
+  expect(StyleSheet.flatten(edit.props.style)).toEqual(StyleSheet.flatten(add.props.style))
+  for (const [action, icon] of [[edit, 'edit'], [add, 'plus']] as const) {
+    expect(within(action).getByTestId(`material-icon-${icon}`, { includeHiddenElements: true }).props).toMatchObject({ width: 20, height: 20 })
+  }
+  await press(edit)
+  expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
 })

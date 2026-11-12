@@ -869,6 +869,7 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'roomLobby.coupleTitle': 'Couple room',
   'roomLobby.group': 'Group lobby',
   'roomLobby.area': 'Area',
+  'roomLobby.editConditions': 'Edit room conditions',
   'roomLobby.edit': 'Edit',
   'roomLobby.setByHost': 'Set by the host',
   'roomLobby.waitHost': 'Wait for the host to start matching after everyone finishes choosing.',

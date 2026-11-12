@@ -2,6 +2,7 @@ import { render } from './query-render'
 import { fireEvent, screen, within } from '@testing-library/react-native'
 import { StyleSheet, View } from 'react-native'
 import '@/shared/i18n'
+import { constrainedTouchTarget } from './touch-target-geometry'
 import { themes, type AppTheme } from '../theme'
 import type { PlaceCard as PlaceCardModel } from '@/shared/api'
 
@@ -37,7 +38,7 @@ it.each([0, 4, 20])('keeps small-card rating badges on one line with their sourc
   }
 })
 
-it.each(['orange', 'orangeDark'] as const)('round 5: optional remove overlays inside the top-right, reserves text and cannot open (%s)', async themeName => {
+it.each(['orange', 'orangeDark'] as const)('round 6t: remove overlaps the corner, frees text width and cannot open (%s)', async themeName => {
   const theme = themes[themeName]
   currentTheme = theme
   try {
@@ -49,10 +50,18 @@ it.each(['orange', 'orangeDark'] as const)('round 5: optional remove overlays in
     expect(within(surface).getByRole('button', { name: 'Remove cafe' })).toBe(button)
     expect(within(target).queryByRole('button', { name: 'Remove cafe' })).toBeNull()
     const style = StyleSheet.flatten(button.props.style)
-    expect(style).toMatchObject({ position: 'absolute', top: theme.spacing[2], right: theme.spacing[2], width: 32, height: 32, borderRadius: 16, backgroundColor: theme.surface.high })
-    expect(button.props.hitSlop).toEqual({ top: 0, right: 0, left: 12, bottom: 12 })
-    // The whole text column (including the address) clears the visual and inward target.
-    expect(flat('place-card-body').paddingRight).toBeGreaterThanOrEqual(style.width + button.props.hitSlop.left + theme.spacing[2])
+    expect(style).toMatchObject({ position: 'absolute', top: -12, right: -12, width: 24, height: 24, borderRadius: 12, backgroundColor: theme.surface.high, borderWidth: 1, borderColor: theme.border.hairline })
+    expect(style.width + button.props.hitSlop.left + button.props.hitSlop.right).toBeGreaterThanOrEqual(44)
+    expect(style.height + button.props.hitSlop.top + button.props.hitSlop.bottom).toBeGreaterThanOrEqual(44)
+    // Parent bounds clip the exterior half: the inward area alone must be 44pt.
+    const targetArea = constrainedTouchTarget(
+      { x: 320 - style.right - style.width, y: style.top, width: style.width, height: style.height },
+      { x: 0, y: 0, width: 320, height: 120 }, button.props.hitSlop,
+    )
+    expect(targetArea).toEqual({ width: 44, height: 44 })
+    expect(within(button).getByTestId('place-card-remove-glyph').props.width).toBe(14)
+    expect(StyleSheet.flatten(surface.props.style).overflow).toBe('visible')
+    expect(flat('place-card-body').paddingRight ?? 0).toBe(0)
     await fireEvent.press(button)
     expect(remove).toHaveBeenCalledTimes(1); expect(open).not.toHaveBeenCalled()
     await fireEvent.press(target)

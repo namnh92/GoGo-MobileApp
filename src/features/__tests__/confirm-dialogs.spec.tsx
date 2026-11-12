@@ -109,7 +109,7 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
       expect(view.queryByText('Chỉ chủ phòng')).toBeNull()
       expect(view.getByTestId('room-lobby-seeds')).toBeTruthy()
       expect(view.queryByText('Huỷ phòng')).toBeNull()
-      expect(view.queryByText('Sửa')).toBeNull()
+      expect(view.queryByRole('button', { name: 'Sửa điều kiện phòng' })).toBeNull()
     } else {
       expect(view.queryByText('Lưu ý quan trọng')).toBeNull()
       expect(view.queryByText('Chỉ chủ phòng')).toBeNull()
@@ -117,7 +117,7 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
       expect(view.getByText('Huỷ phòng')).toBeTruthy()
       if (state === 'empty') expect(view.getByText('Chưa ai tham gia.')).toBeTruthy()
       expect(view.queryByLabelText('Tên kèo')).toBeNull()
-      await press(view.getByRole('button', { name: 'Sửa' }))
+      await press(view.getByRole('button', { name: 'Sửa điều kiện phòng' }))
       expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
     }
   })
@@ -151,7 +151,7 @@ describe('room management waits for network', () => {
 
 it('595 opens the full-screen title editor route from manage', async () => {
   const view = await renderScreen(<GoGoRoomScreen />)
-  await press(view.getByRole('button', { name: 'Sửa' }))
+  await press(view.getByRole('button', { name: 'Sửa điều kiện phòng' }))
   expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
   expect(view.queryByLabelText('Tên kèo')).toBeNull()
 })

@@ -231,6 +231,18 @@ describe('onAccent — on an accent-coloured hero', () => {
 })
 
 describe('IconBtn', () => {
+  it.each([false, true])('plain keeps an unframed 44pt action and its hint (disabled=%s)', async disabled => {
+    const onPress = jest.fn()
+    await render(<IconBtn variant="plain" accessibilityLabel="Add place" accessibilityHint="Selection limit" onPress={onPress} disabled={disabled}><></></IconBtn>)
+    const node = button('Add place')
+    expect(flat(node)).toMatchObject({ width: 44, height: 44, borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' })
+    expect(node.props.accessibilityHint).toBe('Selection limit')
+    expect(node.props.accessibilityState.disabled).toBe(disabled)
+    expect(flat(node).opacity ?? 1).toBe(disabled ? 0.5 : 1)
+    await act(async () => fireEvent.press(node))
+    expect(onPress).toHaveBeenCalledTimes(disabled ? 0 : 1)
+  })
+
   it('is a 40pt hairline circle with slop, and its label is the accessibility name', async () => {
     await render(<IconBtn accessibilityLabel="Sao chép" onPress={jest.fn()}><></></IconBtn>)
     const node = button('Sao chép')

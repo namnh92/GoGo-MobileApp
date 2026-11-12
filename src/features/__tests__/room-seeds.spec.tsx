@@ -69,7 +69,14 @@ it.each([false, true])('insets cards equally and sizes against the measured row 
   const inset = spacing[4]
   const contentWidth = 360 - inset * 2
   expect(StyleSheet.flatten(row.props.style).marginHorizontal).toBe(-inset)
-  expect(StyleSheet.flatten(row.props.contentContainerStyle).paddingHorizontal).toBe(inset)
+  const padding = StyleSheet.flatten(row.props.contentContainerStyle)
+  expect(padding.paddingHorizontal).toBe(inset)
+  // The 24pt corner badge extends 12pt beyond the card, including at rest.
+  expect(padding.paddingVertical).toBeGreaterThanOrEqual(12)
+  expect(padding.paddingHorizontal).toBeGreaterThanOrEqual(12)
+  const mask = screen.getByTestId('room-lobby-seeds-leading-inset')
+  expect(mask.props.pointerEvents).toBe('none')
+  expect(StyleSheet.flatten(mask.props.style)).toMatchObject({ position: 'absolute', left: -inset, width: inset })
   expect(StyleSheet.flatten(screen.getByTestId('room-lobby-seed-item').props.style).width).toBe(contentWidth)
   expect(row.props.scrollEnabled).toBe(false)
   if (loading) expect(screen.getByTestId('place-card-small-loading')).toBeTruthy()
@@ -103,6 +110,8 @@ it('disables the header + at the limit, explains why and still lets the host rem
   await render(<RoomSeeds {...props(MAX_SEED_PLACES)} />)
   const add = screen.getByTestId('room-lobby-seeds-add')
   expect(add).toBeDisabled()
+  expect(add.props.accessibilityLabel).toBe('Thêm địa điểm gợi ý')
+  expect(StyleSheet.flatten(add.props.style)).toMatchObject({ borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' })
   expect(screen.getByText('Tối đa 10 địa điểm gợi ý. Bỏ một địa điểm để thêm địa điểm khác.')).toBeTruthy()
   expect(add.props.accessibilityHint).toContain('10')
   await fireEvent.press(add)

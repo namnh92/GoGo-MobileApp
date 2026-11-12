@@ -55,9 +55,9 @@ it.each(['couple', 'group-host'] as const)('shows manage only to the host in %s 
   for (const myRole of ['host', 'member'] as const) {
     mockRoom.query = mockLoaded(roomFor(audience, { myRole }))
     const view = await renderScreen(<GoGoRoomScreen />)
-    if (myRole === 'host') expect(view.getByRole('button', { name: 'Sửa' })).toBeTruthy()
+    if (myRole === 'host') expect(view.getByRole('button', { name: 'Sửa điều kiện phòng' })).toBeTruthy()
     else {
-      expect(view.queryByRole('button', { name: 'Sửa' })).toBeNull()
+      expect(view.queryByRole('button', { name: 'Sửa điều kiện phòng' })).toBeNull()
       expect(view.queryByRole('button', { name: 'Quản lý phòng' })).toBeNull()
       expect(view.getByText('Thiết lập bởi chủ phòng')).toBeTruthy()
     }

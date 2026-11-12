@@ -369,9 +369,9 @@ describe.each(['orange', 'orangeDark'] as const)('595 owner sim lobby / %s', the
     expect(view.queryByRole('button', { name: 'Quản lý phòng' })).toBeNull()
     expect(within(view.getByTestId('room-lobby-header')).queryByRole('button', { name: 'Mời người tham gia' }) !== null).toBe(audience !== 'group-guest')
     expect(view.queryByText(/không cần cài app/)).toBeNull()
-    if (audience === 'group-guest') expect(view.queryByText('Sửa')).toBeNull()
+    if (audience === 'group-guest') expect(view.queryByRole('button', { name: 'Sửa điều kiện phòng' })).toBeNull()
     else {
-      await fireEvent.press(view.getByText('Sửa'))
+      await fireEvent.press(view.getByRole('button', { name: 'Sửa điều kiện phòng' }))
       expect(mockPush).toHaveBeenCalledWith(`/room/${mockParams.roomId}/edit`)
     }
   })

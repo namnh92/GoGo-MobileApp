@@ -28,7 +28,7 @@ import { alertWithHold, useRoutingHold } from '@/shared/navigation/routing-hold'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { RoomConnectionNotice } from '@/shared/ui/room-connection-notice.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
-import { Atmosphere, Card, GhostBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { RoomMemberSkeleton } from '@/shared/ui/skeleton.view'
 import { Icon, type IconName } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
@@ -38,6 +38,9 @@ import { spacing } from '@/shared/ui/tokens'
 
 import { roomScheduleRangeLabel } from './room-schedule'
 import { styles } from './gogo-room.style'
+import { MaterialIcon } from '@/shared/ui/material-icon'
+import { styles as sectionStyles } from './room-section.style'
+import { RoomSectionHeading } from './room-section.view'
 import { RoomFacts } from './room-facts.view'
 import { RoomMembers } from './room-members.view'
 import { RoomSeeds } from './room-seeds.view'
@@ -373,12 +376,10 @@ export default function GoGoRoomScreen() {
       <ScrollView testID="room-lobby-scroll" contentContainerStyle={[styles.content, { paddingBottom: actionInset + spacing[4] }]}>
         {hostActions.feedback}
         {/* What the room is actually constrained by — facts, composed here. */}
-        <Card testID="room-lobby-conditions" style={styles.sectionCard}>
-            <View style={styles.sectionHead}>
-              <Icon name="sliders" size={20} color="accent.primary" />
-              <Text variant="discoveryHeading" accessibilityRole="header" style={styles.sectionTitle}>{t('gogoRoom.constraints')}</Text>
-              {capabilities.isHost ? <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/edit`)} /> : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>}
-            </View>
+        <Card testID="room-lobby-conditions" style={sectionStyles.card}>
+            <RoomSectionHeading icon="sliders" title={t('gogoRoom.constraints')} action={capabilities.isHost
+              ? <IconBtn variant="plain" accessibilityLabel={t('roomLobby.editConditions')} onPress={() => router.push(`/room/${roomId}/edit`)}><MaterialIcon name="edit" size={20} color="accent.primary" /></IconBtn>
+              : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>} />
             <View style={styles.rows}><RoomFacts facts={{
               name: summary.title?.trim()
                 ? <InfoRow icon="info" tone="info" label={t('roomTitle.title')}>{summary.title.trim()}</InfoRow> : null,

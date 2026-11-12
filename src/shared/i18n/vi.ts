@@ -849,6 +849,7 @@ export const viMessages = {
   'roomLobby.coupleTitle': 'Phòng hẹn hò đôi',
   'roomLobby.group': 'Phòng chờ chung',
   'roomLobby.area': 'Khu vực',
+  'roomLobby.editConditions': 'Sửa điều kiện phòng',
   'roomLobby.edit': 'Sửa',
   'roomLobby.setByHost': 'Thiết lập bởi chủ phòng',
   'roomLobby.waitHost': 'Đợi chủ phòng bắt đầu ghép khi mọi người chọn xong.',
