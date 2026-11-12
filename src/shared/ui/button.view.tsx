@@ -28,6 +28,7 @@ export interface ButtonProps {
   size?: ButtonSize
   variant?: 'pill' | 'default' | 'neutral' | 'neutralPill' | 'stitch' | 'stitchSubtle' | 'stitchGuest' | 'stitchSkip' | 'stitchSkipPill' | 'discovery' | 'discoveryJoin' | 'area'
   label: string
+  accessibilityLabel?: string
   /** Allow full action labels to wrap in narrow shared layouts. */
   wrapLabel?: boolean
   onPress: () => void
@@ -81,7 +82,7 @@ function kindStyles(kind: Kind, onAccent: boolean, pressed: boolean, disabled: b
   return [styles[kind], pressed && kind === 'primary' && styles.primaryPressed, disabled && styles[`${kind}Disabled`]]
 }
 
-function Button({ testID, kind, label, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
+function Button({ testID, kind, label, accessibilityLabel, onPress, accessibilityHint, disabled = false, loading = false, onAccent = false, icon, leadingIcon, trailingIcon, style, wrapLabel, variant = 'default', size = variant === 'stitchGuest' || variant === 'stitchSkip' || variant === 'stitchSkipPill' ? 'small' : 'regular' }: ButtonProps & {
   kind: Kind
   onAccent?: boolean
 }) {
@@ -107,7 +108,7 @@ function Button({ testID, kind, label, onPress, accessibilityHint, disabled = fa
       accessibilityRole="button"
       // #271: Android writes contentDescription only when label + state is
       // non-empty, so without a label a button kept saying "busy" after loading.
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
       style={({ pressed }) => [
@@ -169,13 +170,13 @@ export function DangerBtn(props: ButtonProps) {
  * Icon-only. The glyph is not a label, so `accessibilityLabel` is required —
  * a screen reader announcing "button" and nothing else is a dead end. Drawn at
  * 40pt with slop so the touch area still clears 44 (RULE-DS touch targets).
- * The plain variant has no container and reserves at least 44pt in the layout.
+ * The plain variant reserves 44pt; plainCompact uses 20pt plus hitSlop for dense headings.
  */
 export function IconBtn({ testID, children, onPress, accessibilityLabel, accessibilityHint, active = false, disabled = false, style, size = 'small', variant = 'default' }: {
   testID?: string
   size?: ButtonSize
-  /** Unframed header action, with a full 44pt minimum layout target. */
-  variant?: 'default' | 'plain'
+  /** Unframed actions; plainCompact keeps a 44pt touch target with hitSlop. */
+  variant?: 'default' | 'plain' | 'plainCompact'
   children: ReactNode
   onPress: () => void
   accessibilityLabel: string
@@ -195,15 +196,16 @@ export function IconBtn({ testID, children, onPress, accessibilityLabel, accessi
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled, selected: active }}
-      hitSlop={hitSlop}
+      hitSlop={variant === 'plainCompact' ? { top: 12, bottom: 12, left: 12, right: 12 } : hitSlop}
       style={[
         styles.icon,
         size === 'regular' ? styles.iconRegular : styles.iconSmall,
         active && styles.iconActive,
         disabled && styles.iconDisabled,
-        variant === 'plain' && styles.iconPlain,
+        variant !== 'default' && styles.iconPlain,
         variant === 'plain' && size === 'small' && styles.iconPlainSmall,
-        variant === 'plain' && disabled && styles.iconPlainDisabled,
+        variant !== 'default' && disabled && styles.iconPlainDisabled,
+        variant === 'plainCompact' && styles.iconPlainCompact,
         style,
       ]}
     >

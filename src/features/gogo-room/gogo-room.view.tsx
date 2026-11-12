@@ -377,9 +377,10 @@ export default function GoGoRoomScreen() {
         {hostActions.feedback}
         {/* What the room is actually constrained by — facts, composed here. */}
         <Card testID="room-lobby-conditions" style={sectionStyles.card}>
-            <RoomSectionHeading icon="sliders" title={t('gogoRoom.constraints')} action={capabilities.isHost
-              ? <IconBtn variant="plain" accessibilityLabel={t('roomLobby.editConditions')} onPress={() => router.push(`/room/${roomId}/edit`)}><MaterialIcon name="edit" size={20} color="accent.primary" /></IconBtn>
-              : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>} />
+            <RoomSectionHeading icon="sliders" title={t('gogoRoom.constraints')} compactAction={capabilities.isHost
+              ? actionStyle => <IconBtn style={actionStyle} variant="plainCompact" accessibilityLabel={t('roomLobby.editConditions')} onPress={() => router.push(`/room/${roomId}/edit`)}><MaterialIcon name="edit" size={20} color="accent.primary" /></IconBtn>
+              : undefined}
+              action={capabilities.isHost ? undefined : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>} />
             <View style={styles.rows}><RoomFacts facts={{
               name: summary.title?.trim()
                 ? <InfoRow icon="info" tone="info" label={t('roomTitle.title')}>{summary.title.trim()}</InfoRow> : null,

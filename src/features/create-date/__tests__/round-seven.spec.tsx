@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
-import { BackHandler } from 'react-native'
+import { BackHandler, StyleSheet } from 'react-native'
+import { spacing, type } from '@/shared/ui/tokens'
 import type { ComponentType } from 'react'
 import { loaded as mockLoaded, renderScreen } from '../../__tests__/harness'
 import { useRoomStore } from '@/shared/store/roomStore'
@@ -134,4 +135,15 @@ it('round 7: Back exit-save uses the first step after returning from mood', asyn
   await fireEvent.press(view.getByRole('button', { name: 'Lưu nháp' }))
   await waitFor(() => expect(mockDismiss).toHaveBeenCalledWith('/(tabs)'))
   expect(mockSave).toHaveBeenCalledWith('owner', 'type')
+})
+
+it.each(['type', 'time', 'budget', 'places'])('round 6u: %s uses the shared display header and standard content gaps', async step => {
+  const Screen = mockScreens[step]
+  const view = await renderScreen(<Screen />)
+  expect(view.getAllByTestId('wizard-step-header')).toHaveLength(1)
+  const title = view.getByTestId('wizard-step-title')
+  expect(StyleSheet.flatten(title.props.style)).toMatchObject(type.display)
+  expect(StyleSheet.flatten(title.props.style).marginTop ?? 0).toBe(0)
+  expect(StyleSheet.flatten(view.getByTestId('wizard-step-subtitle').props.style)).toMatchObject({ ...type.body, marginTop: spacing[2] })
+  expect(StyleSheet.flatten(view.getByTestId('wizard-step-header').props.style)).toEqual({ marginBottom: spacing[6] })
 })

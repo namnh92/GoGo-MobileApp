@@ -96,11 +96,13 @@ describe.each(['orange', 'orangeDark'] as const)('595 owner sim 3 / %s', theme =
     await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: 'Xoá' }))
     expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
   })
-  it('opens a room-area picker with an icon-only 44pt add button in the title row', async () => {
+  it('opens a room-area picker with a compact title action and 44pt touch area', async () => {
     await render(<ThemeScopeProvider name={theme}><GoGoRoomScreen /></ThemeScopeProvider>, client)
     const add = screen.getByRole('button', { name: 'Thêm địa điểm gợi ý' })
     expect(within(add).queryByText('Thêm địa điểm gợi ý')).toBeNull()
-    expect(StyleSheet.flatten(add.props.style)).toMatchObject({ width: touchTarget.min, height: touchTarget.min })
+    const size = StyleSheet.flatten(add.props.style)
+    expect(size).toMatchObject({ width: 20, height: 20 })
+    expect(size.height + add.props.hitSlop.top + add.props.hitSlop.bottom).toBe(touchTarget.min)
     expect(within(add.parent!).getByText('Địa điểm gợi ý')).toBeTruthy()
     await press(add)
     const href = mockPush.mock.calls[0][0]
@@ -272,20 +274,27 @@ it('round 6t: descriptions share bodySmall/secondary and a 12pt heading gap', as
   const descriptions = ['members', 'seeds'].map(section => {
     const card = screen.getByTestId(`room-lobby-${section}`)
     expect(StyleSheet.flatten(card.props.style).gap).toBe(12)
-    return within(card).getByText(section === 'members' ? /^Thành viên ·/ : 'Không bắt buộc — GoGo sẽ ưu tiên đưa vào phương án.')
+    return within(card).getByText(section === 'members' ? /^Thành viên ·/ : 'GoGo sẽ ưu tiên đưa vào phương án.')
   })
   const styles = descriptions.map(node => StyleSheet.flatten(node.props.style))
   expect(styles[0]).toEqual(styles[1])
   expect(styles[0]).toMatchObject(type.bodySmall)
+  const memberHeading = screen.getByText('Thành viên', { exact: true })
+  const seedHeading = screen.getByText('Địa điểm gợi ý', { exact: true })
+  const titleHeight = StyleSheet.flatten(seedHeading.props.style).lineHeight
+  const addHeight = StyleSheet.flatten(screen.getByTestId('room-lobby-seeds-add').props.style).height
+  expect(Math.max(titleHeight, addHeight)).toBe(StyleSheet.flatten(memberHeading.props.style).lineHeight)
 })
-it('round 6t: matching plain header icons retain accessible names and edit navigation', async () => {
+it('round 6u: matching compact header icons retain accessible names and edit navigation', async () => {
   await render(<GoGoRoomScreen />, client)
   const edit = screen.getByRole('button', { name: 'Sửa điều kiện phòng' })
   const add = screen.getByRole('button', { name: 'Thêm địa điểm gợi ý' })
   expect(within(edit).queryAllByText(/Sửa/)).toHaveLength(0)
   for (const action of [edit, add]) {
-    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ width: 44, height: 44, borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' })
-    expect(StyleSheet.flatten(action.parent!.props.style).alignItems).toBe('center')
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ width: 20, height: 20, borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' })
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ position: 'absolute', top: 16, right: 16 })
+    expect(action.parent!.props.testID).toMatch(/^room-lobby-(conditions|seeds)$/)
+    expect(action.props.hitSlop).toEqual({ top: 12, bottom: 12, left: 12, right: 12 })
   }
   expect(StyleSheet.flatten(edit.props.style)).toEqual(StyleSheet.flatten(add.props.style))
   for (const [action, icon] of [[edit, 'edit'], [add, 'plus']] as const) {

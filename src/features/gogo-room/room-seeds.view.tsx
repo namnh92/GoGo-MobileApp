@@ -104,15 +104,15 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
   }
   return <>
     <Card testID="room-lobby-seeds" style={sectionStyles.card}>
-      <RoomSectionHeading icon="mapPin" title={t('roomManage.seedTitle')} action={canSuggest ? <IconBtn variant="plain" testID="room-lobby-seeds-add" accessibilityLabel={t('roomManage.addSeedPlaces')} accessibilityHint={atLimit ? limitHint : undefined}
+      <RoomSectionHeading icon="mapPin" title={t('roomManage.seedTitle')} compactAction={canSuggest ? actionStyle => <IconBtn style={actionStyle} variant="plainCompact" testID="room-lobby-seeds-add" accessibilityLabel={t('roomManage.addSeedPlaces')} accessibilityHint={atLimit ? limitHint : undefined}
           disabled={atLimit || !scope || pickerOpening} onPress={() => {
             if (atLimit || !canSuggest || !scope || opening.current) return
             opening.current = true; setPickerOpening(true)
             clearPickerScope(scopeId.current)
             scopeId.current = savePickerScope(scope)
             router.push({ pathname: '/places/search', params: { picker: '1', roomId: room.id, pickerScope: scopeId.current } })
-          }}><MaterialIcon name="plus" size={20} color="accent.primary" /></IconBtn> : null} />
-      <View style={styles.rows}><RoomSectionDescription>{t(seeds.length ? 'createPlaces.body' : 'roomSeeds.empty')}</RoomSectionDescription>
+          }}><MaterialIcon name="plus" size={20} color="accent.primary" /></IconBtn> : undefined} />
+      <View style={styles.rows}><RoomSectionDescription>{t(seeds.length ? 'roomSeeds.body' : 'roomSeeds.empty')}</RoomSectionDescription>
       {seeds.length ? <View><FlatList ref={list} testID="room-lobby-seeds-list"
         key={`${room.id}:${seeds.map(seed => seed.placeId).join(',')}:${looping}:${cardWidth}`}
         horizontal data={row} style={styles.row} contentContainerStyle={styles.rowContent}

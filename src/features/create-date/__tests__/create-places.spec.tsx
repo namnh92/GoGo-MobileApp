@@ -222,22 +222,47 @@ it('shows offline instead of a skeleton while keeping zero-seed creation possibl
   expect(screen.queryByTestId('create-places-pending')).toBeNull()
   expect(mockSearch).not.toHaveBeenCalled()
 })
-it('adds/removes with selected state and check glyph, caps additions, preserves top-right X', async () => {
+it('round 6u: titled groups move suggestions into selected and X restores them; cap disables text and card', async () => {
   mockSearch.mockResolvedValue({ results: [found('one'), found('two')], nextCursor: null })
   await open()
-  await fireEvent.press(await screen.findByRole('button', { name: 'Thêm Place one vào danh sách' }))
-  expect(screen.getByRole('button', { name: 'Bỏ Place one khỏi danh sách', selected: true })).toBeTruthy()
-  expect(screen.getByTestId('icon-check', { includeHiddenElements: true })).toBeTruthy()
-  expect(within(screen.getByTestId('create-places-seed-list')).getByTestId('place-card-remove')).toBeTruthy()
+  await screen.findByText('Place one')
+  expect(screen.queryByTestId('create-places-selected')).toBeNull()
+  expect(screen.getByRole('header', { name: 'Gợi ý trong khu vực và ngân sách của bạn' })).toBeTruthy()
+  expect(screen.queryByTestId('icon-plus', { includeHiddenElements: true })).toBeNull()
+  expect(screen.queryByText('+', { exact: true })).toBeNull()
+  const suggestion = screen.getAllByTestId('create-places-suggestion')[0]
+  const addText = within(suggestion).getByText('Thêm')
+  const action = within(suggestion).getAllByRole('button', { name: 'Thêm Place one vào danh sách' })
+    .find(node => within(node).queryByText('Thêm'))!
+  expect(action).toBeTruthy()
+  expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 44, minWidth: 44 })
+  expect(addText).toBeTruthy()
+  await fireEvent.press(action)
+  expect(screen.getByRole('header', { name: 'Đã chọn (1)' })).toBeTruthy()
+  expect(within(screen.getByTestId('create-places-seed-list')).getByText('Place one')).toBeTruthy()
+  expect(screen.getAllByTestId('create-places-suggestion')).toHaveLength(1)
+  expect(within(screen.getAllByTestId('create-places-suggestion')[0]).queryByText('Place one')).toBeNull()
   await act(async () => {
     for (let n = 1; n < MAX_SEED_PLACES; n++) useRoomStore.getState().addSeedPlace({ placeId: `seed-${n}`, name: `Seed ${n}` })
   })
-  expect(screen.getByRole('button', { name: 'Thêm Place two vào danh sách' })).toBeDisabled()
+  for (const button of screen.getAllByRole('button', { name: 'Thêm Place two vào danh sách' })) {
+    expect(button).toBeDisabled()
+    expect(button.props.accessibilityHint).toContain('10')
+    await fireEvent.press(button)
+  }
+  expect(useRoomStore.getState().seedPlaces).toHaveLength(10)
   expect(screen.getByRole('button', { name: i18n.t('createPlaces.addPlace') })).toBeDisabled()
   expect(screen.getByText(i18n.t('placeWizard.selectionLimitHint', { max: 10 }))).toBeTruthy()
-  await fireEvent.press(screen.getByRole('button', { name: 'Bỏ Place one khỏi danh sách', selected: true }))
-  expect(screen.getByRole('button', { name: 'Thêm Place two vào danh sách' })).toBeEnabled()
+  await fireEvent.press(screen.getByRole('button', { name: 'Bỏ Place one khỏi danh sách' }))
+  expect(screen.getByRole('header', { name: 'Đã chọn (9)' })).toBeTruthy()
+  expect(screen.getAllByTestId('create-places-suggestion')).toHaveLength(2)
+  for (const button of screen.getAllByRole('button', { name: 'Thêm Place two vào danh sách' })) expect(button).toBeEnabled()
   expect(useRoomStore.getState().seedPlaces).toHaveLength(9)
+  // The complete card surface also adds; its text action is a sibling target.
+  const card = screen.getAllByTestId('create-places-suggestion')[0]
+  await fireEvent.press(within(card).getByTestId('place-card-open-target'))
+  expect(within(screen.getByTestId('create-places-seed-list')).getByText('Place one')).toBeTruthy()
+  expect(screen.getAllByTestId('create-places-suggestion')).toHaveLength(1)
 })
 it('loads pages of ten, keeps rows on footer failure, retries cursor and refreshes from page one', async () => {
   mockSearch.mockResolvedValueOnce({ results: [found('one')], nextCursor: 'next' })
@@ -264,4 +289,20 @@ it('removes the mood route and maps cold/warm legacy links to places', () => {
   for (const initial of [true, false]) for (const path of ['/create/mood', 'gogo://create/mood', 'https://gogo.app/create/mood?old=1']) {
     expect(redirectSystemPath({ path, initial })).toBe('/create/places')
   }
+})
+
+it.each(['vi', 'en'])('round 6u: selected group hides after last X, without duplicating or changing wizard copy (%s)', async locale => {
+  await i18n.changeLanguage(locale)
+  mockSearch.mockResolvedValue({ results: [found('one')], nextCursor: null })
+  await open()
+  await screen.findByText('Place one')
+  await fireEvent.press(screen.getByTestId('place-card-open-target'))
+  expect(screen.queryByTestId('create-places-suggestion')).toBeNull()
+  expect(screen.getByText(i18n.t('createPlaces.selected', { count: 1 }))).toBeTruthy()
+  expect(screen.queryByText(i18n.t('createPlaces.empty'))).toBeNull()
+  expect(screen.getByText(i18n.t('createPlaces.body'))).toBeTruthy()
+  expect(i18n.t('createPlaces.body')).toMatch(locale === 'vi' ? /^Không bắt buộc — / : /^Optional — /)
+  await fireEvent.press(screen.getByTestId('place-card-remove'))
+  expect(screen.queryByTestId('create-places-selected')).toBeNull()
+  expect(screen.getByTestId('create-places-suggestion')).toBeTruthy()
 })

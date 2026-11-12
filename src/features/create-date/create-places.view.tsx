@@ -7,10 +7,9 @@ import { detailToPlaceCard, toPlaceCard, usePlaceDetail, usePlaceSearch } from '
 import { MAX_SEED_PLACES, useRoom, useRoomStore, type SeedPlaceRef } from '@/shared/store/roomStore'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
-import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
+import { Chip, GhostBtn, PrimaryBtn } from '@/shared/ui/primitives'
 import { PlaceListSkeleton } from '@/shared/ui/skeleton.view'
 import { Text } from '@/shared/ui/text'
-import { Icon } from '@/shared/ui/icons'
 import { LoadingIndicator } from '@/shared/ui/loading-indicator.view'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { spacing } from '@/shared/ui/tokens'
@@ -20,6 +19,7 @@ import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { createPlacesQuery } from './create-places-query'
 import { useCreateRoomDraft } from './use-create-room-draft'
 import { WizardScreen } from './wizard-step.view'
+import { WizardStepHeader } from './wizard-step-header.view'
 import { styles } from './create-places.style'
 
 /** Facts stay in the query cache; restored drafts need only their id/name refs. */
@@ -64,7 +64,9 @@ export default function CreatePlacesScreen() {
   const draft = useRoomStore()
   const search = usePlaceSearch(createPlacesQuery(pickerScope, draft, i18n.language), { enabled: !!pickerScope })
   const results = [...new Map((search.data?.pages ?? []).flatMap(page => page.results).map(place => [place.id, place])).values()]
+  const suggestions = results.filter(place => !seedPlaces.some(seed => seed.placeId === place.id))
   const atCap = seedPlaces.length >= MAX_SEED_PLACES
+  const limitHint = t('placeWizard.selectionLimitHint', { max: MAX_SEED_PLACES })
   function loadMore(retry = false) {
     if (search.hasNextPage && !search.isFetching && !search.isPaused && (retry || !search.isFetchNextPageError)) {
       void search.fetchNextPage({ cancelRefetch: false })
@@ -78,15 +80,11 @@ export default function CreatePlacesScreen() {
   return <WizardScreen step="places">
     <BlockingLoadingOverlay visible={pending} />
     <PullToRefresh enabled={!!pickerScope && !pending && !search.isPaused} onRefresh={() => search.refetch()}>
-      <FlatList testID="create-places-list" style={styles.scroll} data={pickerScope ? results : []}
+      <FlatList testID="create-places-list" style={styles.scroll} data={pickerScope ? suggestions : []}
         contentContainerStyle={[styles.content, { paddingBottom: footerInset + spacing[4] }]}
         keyExtractor={place => place.id!} onEndReached={() => loadMore()} onEndReachedThreshold={0.5}
         ListHeaderComponent={<>
-          <Text variant="discoveryHeading" style={styles.sectionTitle}>{t('createPlaces.title')}</Text>
-          <Text variant="bodySmall" color="text.secondary" style={styles.seedHint}>{t('createPlaces.body')}</Text>
-          <View testID="create-places-seed-list" style={styles.seedList}>
-            {seedPlaces.map(place => <SeedPlaceCard key={place.placeId} seed={place} onRemove={() => removeSeedPlace(place.placeId)} />)}
-          </View>
+          <WizardStepHeader title={t('createPlaces.title')} subtitle={t('createPlaces.body')} />
           <View style={styles.addPlace}>
             <Chip label={t('createPlaces.addPlace')} variant={pickerScope ? 'default' : 'disabled'} disabled={isPickerOpening || atCap || pending} onPress={() => {
               if (pickerScope && !pickerOpening.current) {
@@ -101,20 +99,28 @@ export default function CreatePlacesScreen() {
             {t('createPlaces.seedScopeUnavailable')}
           </Text> : null}
 
-          {atCap ? <Text accessibilityLiveRegion="polite" color="text.secondary">{t('placeWizard.selectionLimitHint', { max: MAX_SEED_PLACES })}</Text> : null}
+          {atCap ? <Text accessibilityLiveRegion="polite" color="text.secondary">{limitHint}</Text> : null}
+          {seedPlaces.length ? <View testID="create-places-selected" style={styles.group}>
+            <Text variant="discoveryHeading" accessibilityRole="header">{t('createPlaces.selected', { count: seedPlaces.length })}</Text>
+            <View testID="create-places-seed-list" style={styles.seedList}>
+              {seedPlaces.map(place => <SeedPlaceCard key={place.placeId} seed={place} onRemove={() => removeSeedPlace(place.placeId)} />)}
+            </View>
+          </View> : null}
+          <Text testID="create-places-suggestions-title" variant="discoveryHeading" accessibilityRole="header" style={styles.group}>{t('createPlaces.suggestions')}</Text>
           {error ? <Text testID="create-places-create-error" variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
           {results.length > 0 && search.isPaused ? <OfflineState /> : null}
         </>}
-        ListEmptyComponent={empty}
+        ListEmptyComponent={results.length ? null : empty}
         renderItem={({ item }) => {
           const place = toPlaceCard(item)
-          const selected = seedPlaces.some(seed => seed.placeId === place.id)
-          const disabled = pending || (!selected && atCap)
-          return <View style={styles.result}>
-            <PlaceCardSmall place={place} selected={selected} disabled={disabled}
-              accessibilityLabel={t(selected ? 'createPlaces.removePlace' : 'createPlaces.selectPlace', { name: place.name })}
-              onPress={() => selected ? removeSeedPlace(place.id) : draft.addSeedPlace({ placeId: place.id, name: place.name })}
-              headerAction={<Icon name={selected ? 'check' : 'plus'} color={disabled ? 'text.secondary' : 'accent.primary'} size={20} />} />
+          const disabled = pending || atCap
+          const label = t('createPlaces.selectPlace', { name: place.name })
+          const add = () => { if (!disabled) draft.addSeedPlace({ placeId: place.id, name: place.name }) }
+          return <View testID="create-places-suggestion" style={styles.result}>
+            <PlaceCardSmall place={place} disabled={disabled}
+              accessibilityLabel={label} accessibilityHint={atCap ? limitHint : undefined} onPress={add}
+              footer={<GhostBtn size="small" label={t('createPlaces.add')} accessibilityLabel={label}
+                accessibilityHint={atCap ? limitHint : undefined} disabled={disabled} onPress={add} style={styles.addAction} />} />
           </View>
         }}
         ListFooterComponent={search.isFetchingNextPage ? <LoadingIndicator testID="create-places-loading-more" />

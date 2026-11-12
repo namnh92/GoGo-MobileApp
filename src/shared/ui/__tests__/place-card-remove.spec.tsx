@@ -72,6 +72,8 @@ it.each(['orange', 'orangeDark'] as const)('round 6t: remove overlaps the corner
 it('round 5: callers without remove retain their existing body, name and header actions', async () => {
   const view = await render(<PlaceCardSmall place={fixture()} />)
   expect(screen.queryByTestId('place-card-remove')).toBeNull()
+  expect(screen.queryByTestId('icon-plus', { includeHiddenElements: true })).toBeNull()
+  expect(screen.queryByText('+', { exact: true })).toBeNull()
   expect(flat('place-card-body').paddingRight).toBeUndefined()
   expect(flat('place-card-name').paddingRight).toBeUndefined()
   await view.rerender(<PlaceCardSmall place={fixture()} headerAction={<View testID="existing-header-action" />} />)

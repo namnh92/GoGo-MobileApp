@@ -2,6 +2,8 @@ import { AccessibilityInfo, FlatList, StyleSheet } from 'react-native'
 import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { render } from '@/shared/ui/__tests__/query-render'
 import { MAX_SEED_PLACES } from '@/shared/store/roomStore'
+import i18n from '@/shared/i18n'
+import { constrainedTouchTarget } from '@/shared/ui/__tests__/touch-target-geometry'
 import { spacing } from '@/shared/ui/tokens'
 import { loaded, roomFor } from './harness'
 import type { RoomSummary, useSeedPlaceDetails } from '@/shared/api'
@@ -72,7 +74,8 @@ it.each([false, true])('insets cards equally and sizes against the measured row 
   const padding = StyleSheet.flatten(row.props.contentContainerStyle)
   expect(padding.paddingHorizontal).toBe(inset)
   // The 24pt corner badge extends 12pt beyond the card, including at rest.
-  expect(padding.paddingVertical).toBeGreaterThanOrEqual(12)
+  expect(padding.paddingTop).toBe(12)
+  expect(padding.paddingBottom).toBe(0)
   expect(padding.paddingHorizontal).toBeGreaterThanOrEqual(12)
   const mask = screen.getByTestId('room-lobby-seeds-leading-inset')
   expect(mask.props.pointerEvents).toBe('none')
@@ -171,4 +174,36 @@ it('keeps detail skeletons in the same horizontal row', async () => {
   await render(<RoomSeeds {...input} />)
   expect(screen.getByTestId('room-lobby-seeds-list').props.horizontal).toBe(true)
   expect(screen.getAllByTestId('place-card-small-loading')).toHaveLength(3)
+})
+
+it('round 6u: keeps heading and row rhythm as dense as members, with only X clearance', async () => {
+  await render(<RoomSeeds {...props(1)} />)
+  const card = screen.getByTestId('room-lobby-seeds')
+  const cardStyle = StyleSheet.flatten(card.props.style)
+  expect(cardStyle).toMatchObject({ padding: spacing[4], gap: spacing[3] })
+  const description = screen.getByText('GoGo sẽ ưu tiên đưa vào phương án.')
+  expect(StyleSheet.flatten(description.parent!.props.style).gap).toBe(spacing[2])
+  const rowStyle = StyleSheet.flatten(screen.getByTestId('room-lobby-seeds-list').props.contentContainerStyle)
+  expect(spacing[2] + rowStyle.paddingTop).toBe(20)
+  expect(rowStyle.paddingBottom).toBe(0)
+  const add = screen.getByTestId('room-lobby-seeds-add')
+  const size = StyleSheet.flatten(add.props.style)
+  expect(size.height).toBe(20)
+  expect(size.height + add.props.hitSlop.top + add.props.hitSlop.bottom).toBe(44)
+  expect(add.parent).toBe(card)
+  expect(constrainedTouchTarget(
+    { x: 360 - size.right - size.width, y: size.top, width: size.width, height: size.height },
+    { x: 0, y: 0, width: 360, height: 240 }, add.props.hitSlop,
+  )).toEqual({ width: 44, height: 44 })
+  expect(screen.queryByText(/^Không bắt buộc/)).toBeNull()
+})
+
+it.each(['vi', 'en'])('round 6u: lobby copy omits optional prefix without changing wizard copy (%s)', async locale => {
+  await act(async () => { await i18n.changeLanguage(locale) })
+  try {
+    await render(<RoomSeeds {...props(1)} />)
+    expect(screen.getByText(locale === 'vi' ? 'GoGo sẽ ưu tiên đưa vào phương án.' : 'GoGo will prioritize these places in the plan.')).toBeTruthy()
+    expect(screen.queryByText(i18n.t('createPlaces.body'))).toBeNull()
+    expect(i18n.t('createPlaces.body')).toMatch(locale === 'vi' ? /^Không bắt buộc — / : /^Optional — /)
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })

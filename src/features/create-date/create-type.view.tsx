@@ -21,6 +21,7 @@ import { CreateLocationFields } from './create-location-fields.view'
 import { useCreateLocation } from './use-create-location'
 
 import { WizardScreen } from './wizard-step.view'
+import { WizardStepHeader } from './wizard-step-header.view'
 import { styles } from './create-type.style'
 
 const nameSchema = z.object({ title: z.string().trim().max(80) })
@@ -79,8 +80,7 @@ export default function CreateTypeScreen() {
           onLayout={schedule} onContentSizeChange={schedule}
           onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag} scrollEventThrottle={16}
           keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-          <Text variant="introTitle" style={styles.title}>{t('createType.title')}</Text>
-          <Text color="text.secondary" style={styles.body}>{t('createType.body')}</Text>
+          <WizardStepHeader title={t('createType.title')} subtitle={t('createType.body')} />
           <View style={styles.options} accessibilityRole="radiogroup">
             {options.map(option => {
               const active = selected === option.type

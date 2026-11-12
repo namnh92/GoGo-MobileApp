@@ -78,6 +78,7 @@ export const styles = StyleSheet.create(theme => ({
   iconRegular: { width: buttonSizes.regular.minHeight, height: buttonSizes.regular.minHeight, borderRadius: buttonSizes.regular.minHeight / 2 },
   iconSmall: { width: buttonSizes.small.minHeight, height: buttonSizes.small.minHeight },
   iconPlainSmall: { width: touchTarget.min, height: touchTarget.min },
+  iconPlainCompact: { width: 20, height: 20 },
   iconPlain: { borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent' },
   iconPlainDisabled: { opacity: 0.5 },
   iconActive: { backgroundColor: theme.accent.soft, borderColor: theme.accent.primary },
