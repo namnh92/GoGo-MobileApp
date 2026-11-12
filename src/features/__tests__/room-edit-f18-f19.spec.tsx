@@ -1,5 +1,5 @@
 import i18n from '@/shared/i18n'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native'
 import { QueryClient } from '@tanstack/react-query'
 import { render } from '@/shared/ui/__tests__/query-render'
 import { loaded as mockLoaded, roomFor, type QueryLike } from './harness'
@@ -12,7 +12,7 @@ jest.mock('@react-navigation/native', () => ({ ...jest.requireActual('@react-nav
   useNavigation: () => ({ dispatch: mockDispatch }),
   usePreventRemove: (enabled: boolean, callback: typeof mockPrevent.callback) => { mockPrevent = { enabled, callback } },
 }))
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }), useLocalSearchParams: () => ({ roomId: 'room-1' }) }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, canGoBack: () => true }), useLocalSearchParams: () => ({ roomId: 'room-1' }) }))
 const mockRoom: { query: QueryLike } = { query: mockLoaded(roomFor('group-host')) }
 const mockPreferencesRead = jest.fn()
 const mockTaxonomyRead = jest.fn()
@@ -92,6 +92,7 @@ it('F-18 waits for Sheet.onClosed before starting PATCH or showing the overlay',
   await act(async () => mockClosed?.())
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
   expect(screen.getByTestId('blocking-loading-overlay')).toBeTruthy()
+  expect(mockPrevent.enabled).toBe(true)
   await act(async () => finish(roomFor('group-host', { constraintVersion: 8 })))
   // Duplicate dismissal notifications cannot submit twice.
   await act(async () => mockClosed?.())

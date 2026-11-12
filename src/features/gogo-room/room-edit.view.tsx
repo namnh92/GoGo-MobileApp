@@ -53,6 +53,11 @@ export default function RoomEditScreen() {
       </View> : <ErrorState error={room.error} onRetry={() => void room.refetch()} />
         : room.data.myRole !== 'host' ? <EmptyState title={t('roomManage.hostOnlyTitle')} body={t('roomManage.hostOnlyBody')} />
           : <RoomEditor room={room.data} onPendingChange={setPending} onDirtyChange={setDirty} confirmConditions={confirmation.confirm}
+            onSaved={() => {
+              // Commit the removal-guard change before dispatching navigation.
+              next.current = () => { if (router.canGoBack()) router.back(); else router.replace(`/room/${roomId}/manage`) }
+              setLeaving(true)
+            }}
             reloadRoom={async () => {
               const fresh = await room.refetch({ cancelRefetch: false })
               if (fresh.isError || !fresh.data) throw fresh.error

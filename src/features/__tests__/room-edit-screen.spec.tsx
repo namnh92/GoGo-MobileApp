@@ -16,7 +16,7 @@ jest.mock('@react-navigation/native', () => ({ ...jest.requireActual('@react-nav
   useNavigation: () => ({ dispatch: mockDispatch }),
   usePreventRemove: (enabled: boolean, callback: typeof mockPrevent.callback) => { mockPrevent = { enabled, callback } },
 }))
-jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack }), useLocalSearchParams: () => ({ roomId: 'room-1' }) }))
+jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, canGoBack: () => true }), useLocalSearchParams: () => ({ roomId: 'room-1' }) }))
 const mockRoom: { query: QueryLike } = { query: mockLoaded(roomFor('group-host')) }
 const mockPreferencesRead = jest.fn()
 const mockTaxonomyRead = jest.fn()
@@ -112,14 +112,14 @@ it('uses the real shared wheel for a schedule-only sparse PATCH with required bu
   await press(save()); expect(mockPatch).not.toHaveBeenCalled()
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', { expectedConstraintVersion: 7, budgetMode: 'per_person', budgetAmount: 300000,
-    startAt: new Date(2026, 10, 14, 20, 15).toISOString(), endAt: new Date(2026, 10, 14, 23, 15).toISOString() }))
+    startAt: new Date(2026, 10, 14, 20, 15).toISOString() }))
   expect(mockSave).not.toHaveBeenCalled(); expect(mockRename).not.toHaveBeenCalled()
 })
 it('shows a custom multi-day non-preset schedule unchanged and omits both timestamps on an unrelated edit', async () => {
   await open()
   expect(within(screen.getByTestId('create-time-start-row')).getByText(/19:17/)).toBeTruthy()
   expect(within(screen.getByTestId('create-time-end-row')).getByText(/22:43/)).toBeTruthy()
-  for (const label of ['1–2 giờ', '2–3 giờ', '3–4 giờ', 'Cả tối']) expect(screen.getByRole('button', { name: label }).props.accessibilityState.selected).toBe(false)
+  for (const label of ['1–2 giờ', '2–3 giờ', '3–4 giờ', 'Cả tối']) expect(screen.queryByRole('button', { name: label })).toBeNull()
   expect(save()).toBeDisabled()
   await press(screen.getByRole('button', { name: i18n.t('groupSetup.increase') })); await press(save())
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
@@ -168,7 +168,7 @@ it('keeps a non-preset sub-minute duration custom instead of selecting a rounded
     startAt: new Date(2026, 10, 14, 19, 0, 30).toISOString(), endAt: new Date(2026, 10, 14, 22, 0, 45).toISOString() } }))
   await open()
   expect(screen.getByTestId('create-time-custom')).toBeTruthy()
-  expect(screen.getByRole('button', { name: '2–3 giờ' }).props.accessibilityState.selected).toBe(false)
+  expect(screen.queryByRole('button', { name: '2–3 giờ' })).toBeNull()
   expect(save()).toBeDisabled()
 })
 it('stages the chosen calendar day before an initially unset start without inventing a schedule', async () => {

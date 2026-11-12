@@ -25,24 +25,27 @@ import { styles } from './room-editor.style'
 
 const EDITABLE: readonly RoomSummary['status'][] = ['draft', 'collecting', 'matching', 'ready']
 
-/** Query updates never replace an open draft. Conflict recovery explicitly
+/** Query updates never replace a dirty draft. Conflict recovery explicitly
  * reloads the baseline while preserving fields the user still wants to change. */
-export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChange, onDirtyChange }: {
+export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChange, onDirtyChange, onSaved }: {
   room: RoomSummary
   reloadRoom: () => Promise<RoomSummary>
   confirmConditions: ConfirmConditions
   onPendingChange: (value: boolean) => void
   onDirtyChange: (value: boolean) => void
+  onSaved: () => void
 }) {
   const { t } = useTranslation()
   const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag } = useFieldVisibility('room-editor')
   const [initial, setInitial] = useState(room)
+  const observedRoom = useRef(room)
   const [base, setBase] = useState(() => roomEditorDefaults(initial))
   const [scheduleWindow, setScheduleWindow] = useState({ start: initial.constraints?.startAt ?? initial.scheduledDate, end: initial.constraints?.endAt })
   const [areaReselected, setAreaReselected] = useState(false)
   const [areaNeedsReselection, setAreaNeedsReselection] = useState(initial.constraints?.administrativeArea?.status === 'needs_reselection')
   const [requestPending, setPending] = useState(false)
   const submitting = useRef(false)
+  const saveCompleted = useRef(false)
   const constraintVersion = useRef(initial.constraintVersion)
   const [notice, setNotice] = useState<string | null>(null)
   const [conflict, setConflict] = useState(false)
@@ -59,6 +62,22 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
   const changed = roomEditorChanges(values, base, areaReselected && areaNeedsReselection)
   const dirty = Object.values(changed).some(Boolean)
   useEffect(() => { onDirtyChange(dirty) }, [dirty, onDirtyChange])
+  useEffect(() => {
+    if (observedRoom.current === room) return
+    observedRoom.current = room
+    // A cached summary may precede the response carrying the stored schedule.
+    // Hydrate only an untouched form; mutation results and 409 recovery keep
+    // their explicit baseline handling and never overwrite a user's draft.
+    if (dirty || pending || submitting.current || conflict || saveCompleted.current) return
+    const freshBase = roomEditorDefaults(room)
+    form.reset(freshBase)
+    setBase(freshBase)
+    setInitial(room)
+    constraintVersion.current = room.constraintVersion
+    setScheduleWindow({ start: room.constraints?.startAt ?? room.scheduledDate, end: room.constraints?.endAt })
+    setAreaNeedsReselection(room.constraints?.administrativeArea?.status === 'needs_reselection')
+    setAreaReselected(false)
+  }, [room, dirty, pending, conflict, form])
   const constraintsChanged = Object.entries(changed).some(([key, dirty]) => key !== 'title' && dirty)
   const scheduleValid = validRoomEditorSchedule(values, changed, scheduleWindow)
   const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status) && initial.myRole === 'host' && EDITABLE.includes(initial.status)
@@ -154,6 +173,7 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
         setAreaReselected(false)
       }
       setNotice(t(constraintsChanged ? 'roomManage.savedStale' : value.title.trim() ? 'roomTitle.saved' : 'roomTitle.cleared'))
+      saveCompleted.current = true
     } catch (error) {
       if (isApiError(error) && error.status === 409 && error.code !== 'ROOM_NOT_EDITABLE') setConflict(true)
       const reason = isApiError(error) && error.code === 'ROOM_NOT_EDITABLE' ? t('roomTitle.locked')
@@ -166,7 +186,13 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
   }
 
   return <>
-    <BlockingLoadingOverlay visible={pending} />
+    <BlockingLoadingOverlay visible={pending} onClosed={() => {
+      // A success leaves only after the native blocking modal has gone. Reload
+      // and failure dismissals stay here; duplicate native events do nothing.
+      if (!saveCompleted.current) return
+      saveCompleted.current = false
+      onSaved()
+    }} />
     <View ref={viewportRef} testID="room-editor-viewport" collapsable={false} style={styles.flex} onLayout={schedule}>
       <ScrollView ref={scrollRef} testID="room-editor-scroll" style={styles.flex}
         contentContainerStyle={[styles.body, { paddingBottom: footerInset + spacing[4] }]}
@@ -194,7 +220,7 @@ export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChang
             form.setValue('budgetMode', mode, { shouldDirty: true, shouldValidate: true })
           }} />
         <View testID="room-schedule-section" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
-          <RoomEditTime key={`${scheduleWindow.start ?? ''}:${scheduleWindow.end ?? ''}`} storedWindow={scheduleWindow} disabled={pending || !canEdit} form={form} values={values} roomType={room.type} />
+          <RoomEditTime key={`${scheduleWindow.start ?? ''}:${scheduleWindow.end ?? ''}`} disabled={pending || !canEdit} form={form} values={values} roomType={room.type} />
           {!scheduleValid ? <Text color="status.warningText">{t('roomSchedule.invalid')}</Text> : null}
         </View>
         {!canEdit ? <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text> : null}

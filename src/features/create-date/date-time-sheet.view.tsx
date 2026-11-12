@@ -10,7 +10,8 @@ import { localDayKey } from './schedule-day'
 import { styles } from './date-time-sheet.style'
 
 /** Inline calendar; time is selected separately through the start row's wheel. */
-export function DateTimeSheet({ initialDay, onDayChange, disabled = false }: {
+export function DateTimeSheet({ initialDay, onDayChange, disabled = false, selectTodayByDefault = true }: {
+  selectTodayByDefault?: boolean
   disabled?: boolean
   initialDay: string | null
   onDayChange: (day: string | null) => void
@@ -80,7 +81,7 @@ export function DateTimeSheet({ initialDay, onDayChange, disabled = false }: {
             if (!date) return <View key={i} style={styles.cellWrap} />
             const key = localDayKey(date)
             const off = disabled || key < todayKey
-            const selected = key === day
+            const selected = (initialDay !== null || selectTodayByDefault) && key === day
             const isToday = key === todayKey
             const label = date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
             return (

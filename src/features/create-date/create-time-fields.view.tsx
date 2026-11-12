@@ -27,7 +27,9 @@ function hoursBetween(start: string, end: string): number {
  * contract has no duration field (see `duration-presets.ts`). It fills in the
  * end once a start exists, and Continue is never unlocked by an invented time.
  */
-export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, setEndTime, setPresetEndTime, durationPreset, setDurationPreset, scheduleDay, onDayChange, selectedEndDate, customSchedule = false, disabled = false, sectionTitle }: {
+export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, setEndTime, setPresetEndTime, durationPreset, setDurationPreset, scheduleDay, onDayChange, selectedEndDate, customSchedule = false, disabled = false, sectionTitle, mode = 'create', showDurationPresets = true }: {
+  mode?: 'create' | 'edit'
+  showDurationPresets?: boolean
   sectionTitle?: string
   customSchedule?: boolean
   disabled?: boolean
@@ -58,7 +60,7 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
   // A start already over today is shown as invalid and blocks Continue: the slot
   // helpers would roll it to tomorrow, and the row must never say today while
   // the room is made for tomorrow.
-  const startPast = startTime !== null && isPastSlot(startTime, day, now)
+  const startPast = mode === 'create' && startTime !== null && isPastSlot(startTime, day, now)
   const canContinue = startTime !== null && !startPast
   // "01:00" after "23:00" is tomorrow; `endSlotToIso` rolls it forward the same way.
   // Display only: what the two times add up to, rolling past midnight like `endSlotToIso`.
@@ -103,7 +105,7 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
         <Text color="text.secondary" style={styles.body}>{t('createTime.body')}</Text>
         </>}
 
-        <DateTimeSheet initialDay={day} onDayChange={onDayChange} disabled={disabled} />
+        <DateTimeSheet initialDay={day} onDayChange={onDayChange} disabled={disabled} selectTodayByDefault={mode === 'create'} />
 
         <View style={styles.rows}>
           <Pressable
@@ -112,17 +114,17 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
             accessibilityRole="button"
             accessibilityLabel={`${t('createTime.start')}: ${startTime ? dayTimeLabel(startDate, startTime, locale) : t('createTime.notSet')}`}
             testID="create-time-start-row"
-            style={[styles.row, startTime === null && styles.rowRequired, startPast && styles.rowInvalid]}
+            style={[styles.row, mode === 'create' && startTime === null && styles.rowRequired, startPast && styles.rowInvalid]}
           >
             <Icon name="calendar" size={20} color={startPast ? 'status.dangerText' : 'accent.primary'} />
             <Text variant="label" color="text.secondary">{t('createTime.start')} *</Text>
             <Text
               variant="discoveryHeading"
-              color={startPast ? 'status.dangerText' : startTime === null ? 'accent.primary' : 'text.primary'}
+              color={startPast ? 'status.dangerText' : mode === 'create' && startTime === null ? 'accent.primary' : 'text.primary'}
               numberOfLines={1}
               style={styles.rowValue}
             >
-              {startTime ? dayTimeLabel(startDate, startTime, locale) : `${dayLabel(startDate, locale)} · ${t('createTime.notSet')}`}
+              {startTime ? dayTimeLabel(startDate, startTime, locale) : mode === 'edit' && !day ? t('createTime.notSet') : `${dayLabel(startDate, locale)} · ${t('createTime.notSet')}`}
             </Text>
             <Icon name="chevronRight" size={16} color="text.secondary" />
           </Pressable>
@@ -147,19 +149,20 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
           {startPast ? (
             <Text variant="caption" color="status.dangerText" style={styles.requiredHint}>{t('createTime.startPast')}</Text>
           ) : null}
-          {!canContinue && !startPast ? (
+          {mode === 'create' && !canContinue && !startPast ? (
             <Text variant="caption" color="accent.primary" style={styles.requiredHint}>
               {t(durationPreset ? 'createTime.presetNeedsStart' : 'createTime.startRequired')}
             </Text>
           ) : null}
         </View>
         {customSchedule ? <Text testID="create-time-custom" variant="bodySmall" color="text.secondary">{t('createTime.customSchedule')}</Text> : null}
-        {spanHours !== null ? (
+        {showDurationPresets && spanHours !== null ? (
           <Text variant="bodySmall" color="text.secondary" style={styles.estimate}>
             {t('createTime.estimated', { hours: spanHours })}
           </Text>
         ) : null}
 
+        {showDurationPresets ? <>
         <Text variant="bodySmall" color="text.secondary" style={styles.exactLabel}>{t('createTime.durationLabel')}</Text>
         <View style={styles.options}>
           {DURATION_PRESETS.map(preset => {
@@ -181,6 +184,7 @@ export function CreateTimeFields({ roomType, startTime, endTime, setStartTime, s
             )
           })}
         </View>
+        </> : null}
 
       <TimePickerSheet visible={!disabled && pickerFor === 'start'} initialTime={startTime ?? TIME_SLOTS.find(slot => !isPastSlot(slot, day, now)) ?? '23:59'}
         title={`${t('createTime.pickTime')} · ${t('createTime.start')}`}

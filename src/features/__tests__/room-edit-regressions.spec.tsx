@@ -25,7 +25,7 @@ jest.mock('@/shared/location/use-current-location', () => ({
   useCurrentLocation: () => ({ request: mockLocationRequest, state: { status: 'unavailable' } }),
 }))
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, back: mockBack, replace: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: mockBack, canGoBack: () => true, replace: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
   useFocusEffect: () => undefined,
 }))

@@ -5,6 +5,38 @@ Ngày: 2026-11-12. Branch `feature/GOGO-595-redesign-g05b-room`, HEAD
 Quyết định owner ngày 12/11 trong `GoGo/dev/policy/decisions-log.md:5–7`
 thay thế phần Mood của round 6. Không sửa BE hay OpenAPI.
 
+## Round 6g — prefill lịch và hoàn tất lưu
+
+Theo brief owner 12/11, làm trên HEAD `c240e8ea`, giữ F-18/F-19; không commit,
+stash hoặc push. Regression được viết trước. FAIL-before dùng bản sao riêng
+trong `/private/tmp` với production sources từ `git show HEAD`, không đổi cây làm việc.
+
+- Root cause tái hiện được: `RoomEditor` giữ `initial`/`base` từ cached room ở
+  lần mount; response mới có lịch không cập nhật form dù chưa sửa gì. Nay chỉ
+  hydrate khi pristine; dirty draft, mutation và 409 explicit rebase vẫn được giữ.
+  Chưa có payload của đúng phòng trong screenshot để xác nhận cache là nguyên
+  nhân duy nhất của lần owner thấy lỗi. Calendar không có effect xoá lịch quá khứ.
+- Shared time body có `mode="edit"`: giữ ngày/giờ đã lưu theo timezone thiết bị,
+  không báo lỗi creation-only cho lịch quá khứ hoặc lịch trống; lịch trống không
+  tô chọn hôm nay hay tự điền ngày trên hàng Bắt đầu. Save vẫn disabled khi pristine.
+- Edit truyền `showDurationPresets={false}`: bỏ list thời lượng và dòng “Dự kiến”.
+  Không suy ra preset từ khoảng đã lưu; sửa giờ bắt đầu giữ nguyên kết thúc.
+  Wizard giữ validation, preset và estimate cũ.
+- Giữ `BlockingLoadingOverlay` chung từ request đầu đến cuối, sau khi stale sheet
+  đóng theo F-18. Thành công toàn bộ đợi overlay native đóng, tắt removal guard rồi
+  `router.back()` đúng một lần; không có back stack thì replace manage route.
+  Lỗi/partial failure ở lại, giữ lỗi và chỉ retry phần còn thiếu; 409 không đổi.
+- Bỏ unused import và dùng guard assertion trong F-18 test; lint về baseline.
+
+Local verification: **6 Jest suites / 168 tests**, **3 Vitest files / 62 tests**,
+`pnpm typecheck`, `pnpm lint` (0 errors / 4 baseline warnings), `git diff --check`
+đều PASS. FAIL-before: **11 failed / 49 passed**, gồm hydration, empty/past validation,
+duration và navigation; F-18/F-19 và wizard PASS trên HEAD gốc.
+
+Evidence (mỗi log có lệnh ở đầu):
+`dev/test-evidence/mobile-600-638-2026-11-11/r6g/fail-before.txt` và `pass-after.txt`
+ở workspace GoGo. Chưa chạy simulator, live BFF, CI hoặc DEV acceptance.
+
 ## Màn chỉnh sửa kèo
 
 Route `src/app/room/[roomId]/edit.tsx` là thin re-export của
