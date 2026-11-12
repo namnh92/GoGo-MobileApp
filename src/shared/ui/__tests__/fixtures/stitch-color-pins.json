@@ -1263,8 +1263,6 @@
     "src/features/gogo-room/room-seeds.style.tsx": [],
     "src/features/gogo-room/room-host-actions.view.tsx": [
       "accent.primary",
-      "text.secondary",
-      "text.secondary",
       "status.dangerText"
     ],
     "src/features/gogo-room/room-host-actions.style.tsx": [

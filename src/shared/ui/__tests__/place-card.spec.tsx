@@ -342,8 +342,14 @@ describe('#561 shared small marker card', () => {
       expect(screen.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
       expect(flat('place-card-ratings')).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
       for (const label of ['GoGo · Chưa đủ đánh giá (3)', '★ 4,6 (980) Google']) {
-        expect(screen.getByText(label).props.numberOfLines).toBeUndefined()
-        expect(screen.getByText(label).props.ellipsizeMode).toBeUndefined()
+        const text = screen.getByText(label)
+        expect(text.props.numberOfLines).toBe(1)
+        expect(text.props.ellipsizeMode).toBe('tail')
+        expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(1)
+      }
+      expect(screen.getByLabelText('★ 4,6 (980) Google')).toBe(screen.getByText('★ 4,6 (980) Google'))
+      for (const id of ['place-gogo-rating', 'place-google-rating']) {
+        expect(StyleSheet.flatten(screen.getByTestId(id).props.style)).toMatchObject({ maxWidth: '100%', flexShrink: 1 })
       }
       // The shell padding supplies equal left-content and right-bookmark insets.
       expect(flat('place-card-surface').padding).toBe(theme.spacing[2])

@@ -679,8 +679,14 @@ describe('#561 marker selection and compact map card', () => {
       expect(card.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
       expect(StyleSheet.flatten(card.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
       for (const label of ['GoGo · Chưa đủ đánh giá (3)', '★ 4,6 (980) Google']) {
-        expect(card.getByText(label).props.numberOfLines).toBeUndefined()
-        expect(card.getByText(label).props.ellipsizeMode).toBeUndefined()
+        const text = card.getByText(label)
+        expect(text.props.numberOfLines).toBe(1)
+        expect(text.props.ellipsizeMode).toBe('tail')
+        expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(1)
+      }
+      expect(card.getByLabelText('★ 4,6 (980) Google')).toBe(card.getByText('★ 4,6 (980) Google'))
+      for (const id of ['place-gogo-rating', 'place-google-rating']) {
+        expect(StyleSheet.flatten(card.getByTestId(id).props.style)).toMatchObject({ maxWidth: '100%', flexShrink: 1 })
       }
       for (const text of ['Cà phê', 'Mở đến 20:00']) expect(card.queryByText(text)).toBeNull()
       for (const id of ['place-card-price', 'place-card-hours-badge', 'place-card-tags', 'place-card-distance']) expect(card.queryByTestId(id)).toBeNull()
