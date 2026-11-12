@@ -6,6 +6,7 @@ import { loaded as mockLoaded, roomFor } from './harness'
 import i18n from '@/shared/i18n'
 import { env } from '@/shared/config/env'
 import { prepareRoomInvite } from '@/features/gogo-room/prepare-room-invite'
+import { queryKeys } from '@/shared/api/query-keys'
 
 const mockList = jest.fn()
 const mockCreate = jest.fn()
@@ -114,15 +115,44 @@ it('refetches and revokes ALL active links before creating, then shares once', a
   expect(share).toHaveBeenCalledWith({ url: `${env.webBaseUrl}/r/new-secret`, message: expect.stringContaining('/r/new-secret') })
 })
 it('refetches to the empty state if create fails after revocation, and allows retry', async () => {
-  mockCreate.mockRejectedValueOnce(new Error('offline'))
+  let failCreate!: (error: Error) => void
+  mockCreate.mockImplementationOnce(() => new Promise((_, reject) => { failCreate = reject }))
+  let finishShare!: (result: { action: string }) => void
+  const shared = new Promise<{ action: string }>(resolve => { finishShare = resolve })
+  share.mockImplementationOnce(() => shared)
   await open()
   await replaceFromShare()
+  await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1))
+  const reconciled = new Promise<void>(resolve => {
+    const invites = client.getQueryCache().find({ queryKey: queryKeys.roomInvites('room-1'), exact: true })
+    const unsubscribe = client.getQueryCache().subscribe(event => {
+      if (event.query === invites && event.type === 'updated' && event.action.type === 'success' && !client.isMutating()) {
+        unsubscribe()
+        resolve()
+      }
+    })
+  })
+  await act(async () => {
+    failCreate(new Error('offline'))
+    // Rejection starts an awaited refetch in makeInvite's finally block. Let
+    // that finish before act flushes busy=false and its routing-hold cleanup.
+    await reconciled
+  })
   await waitFor(() => expect(screen.getByText(i18n.t('gogoRoom.inviteFailed'))).toBeTruthy())
   expect(screen.getByText(i18n.t('gogoRoom.inviteFailed'))).toBeTruthy()
   expect(share).not.toHaveBeenCalled()
   await waitFor(() => expect(screen.getByRole('button', { name: 'Mời người tham gia' }).props.accessibilityState.disabled).toBe(false))
   await press('Mời người tham gia')
   await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+  expect(screen.getByRole('button', { name: 'Mời người tham gia' })).toBeDisabled()
+  // Calling the native share API is not the end of the flow. Its settlement
+  // clears outcome and releases the routing hold in a passive effect cleanup.
+  await act(async () => {
+    finishShare({ action: Share.sharedAction })
+    await shared
+  })
+  expect(screen.getByRole('button', { name: 'Mời người tham gia' })).toBeEnabled()
+  expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull()
   expect(mockRevoke).toHaveBeenCalledTimes(1)
 })
 it('does not create or share after a revoke failure', async () => {

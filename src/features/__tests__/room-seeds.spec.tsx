@@ -26,11 +26,20 @@ function props(count: number, role: 'host' | 'member' | 'guest' = 'host') {
   }
 }
 beforeEach(() => {
+  // Own FlatList's delayed cell-batching work, which can fire between act calls under load.
+  jest.useFakeTimers()
   jest.clearAllMocks()
   jest.spyOn(AccessibilityInfo, 'isScreenReaderEnabled').mockResolvedValue(false)
   jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(false)
 })
-afterEach(() => jest.restoreAllMocks())
+afterEach(async () => {
+  try {
+    await act(async () => { jest.runOnlyPendingTimers() })
+  } finally {
+    jest.restoreAllMocks()
+    jest.useRealTimers()
+  }
+})
 
 it.each([2, 3, MAX_SEED_PLACES])('renders %i real cards in one labelled horizontal snapped row', async count => {
   await render(<RoomSeeds {...props(count)} />)
