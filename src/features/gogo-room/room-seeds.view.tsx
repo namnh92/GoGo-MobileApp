@@ -64,8 +64,7 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
   const canSuggest = canSuggestPlaces(room.myRole)
   const loopEnabled = useSeedLoopEnabled()
   const { width } = useWindowDimensions()
-  const cardWidth = width * 0.8
-  const stride = cardWidth + spacing[3]
+  const [rowWidth, setRowWidth] = useState<number | null>(null)
   const list = useRef<FlatList<{ placeId: string; name: string; virtualIndex: number }>>(null)
   const remove = useRemoveRoomSeedPlace(room.id)
   const [target, setTarget] = useState<{ placeId: string; name: string } | null>(null)
@@ -81,6 +80,11 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
   const area = room.constraints?.administrativeArea
   const scope = area?.status === 'current' ? draftPickerScope({ administrativeArea: area, originLat: null, originLng: null, radiusM: null }) : null
   const seeds = (room.seedPlaces ?? []).flatMap(seed => seed.placeId && seed.name ? [{ placeId: seed.placeId, name: seed.name }] : []).slice(0, MAX_SEED_PLACES)
+  // Measure the full-bleed row rather than sizing cards against the window.
+  // Before layout, allow for the lobby's outer padding.
+  const contentWidth = Math.max(0, (rowWidth ?? width - 2 * spacing[4]) - 2 * spacing[4])
+  const cardWidth = Math.max(0, contentWidth - (seeds.length > 1 ? spacing[8] : 0))
+  const stride = cardWidth + spacing[3]
   const atLimit = (room.seedPlaces?.length ?? 0) >= MAX_SEED_PLACES
   const limitHint = t('roomSeeds.limitHint', { max: MAX_SEED_PLACES })
   const looping = loopEnabled && seeds.length >= 2
@@ -114,10 +118,13 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
       {seeds.length ? <FlatList ref={list} testID="room-lobby-seeds-list"
         key={`${room.id}:${seeds.map(seed => seed.placeId).join(',')}:${looping}:${cardWidth}`}
         horizontal data={row} style={styles.row} contentContainerStyle={styles.rowContent}
+        onLayout={event => setRowWidth(event.nativeEvent.layout.width)}
         accessibilityRole="list" accessibilityLabel={t('roomManage.seedTitle')}
         keyExtractor={item => `${item.placeId}:${item.virtualIndex}`}
         showsHorizontalScrollIndicator={false} scrollEnabled={seeds.length > 1}
         initialScrollIndex={looping ? seeds.length : 0} initialNumToRender={row.length}
+        // Scroll by whole strides, leaving the leading content padding visible
+        // at initial positioning, snapping and silent loop recentering.
         getItemLayout={(_, index) => ({ length: stride, offset: stride * index, index })}
         snapToInterval={stride} snapToAlignment="start" decelerationRate="fast" disableIntervalMomentum
         ItemSeparatorComponent={SeedSeparator}

@@ -2,6 +2,7 @@ import { AccessibilityInfo, FlatList, StyleSheet } from 'react-native'
 import { act, fireEvent, screen, within } from '@testing-library/react-native'
 import { render } from '@/shared/ui/__tests__/query-render'
 import { MAX_SEED_PLACES } from '@/shared/store/roomStore'
+import { spacing } from '@/shared/ui/tokens'
 import { loaded, roomFor } from './harness'
 import type { RoomSummary, useSeedPlaceDetails } from '@/shared/api'
 import { RoomSeeds } from '../gogo-room/room-seeds.view'
@@ -46,6 +47,42 @@ it.each([2, 3, MAX_SEED_PLACES])('renders %i real cards in one labelled horizont
   }
   const widths = screen.getAllByTestId('room-lobby-seed-item').map(item => StyleSheet.flatten(item.props.style).width)
   expect(new Set(widths).size).toBe(1)
+})
+it.each([false, true])('insets cards equally and sizes against the measured row (loading: %s)', async loading => {
+  const input = props(1)
+  if (loading) {
+    for (const detail of input.details.byPlaceId.values()) Object.assign(detail, { data: undefined, isPending: true, isFetching: true })
+  }
+  await render(<RoomSeeds {...input} />)
+  let row = screen.getByTestId('room-lobby-seeds-list')
+  await fireEvent(row, 'layout', { nativeEvent: { layout: { width: 360, height: 240, x: 0, y: 0 } } })
+  row = screen.getByTestId('room-lobby-seeds-list')
+  const inset = spacing[4]
+  const contentWidth = 360 - inset * 2
+  expect(StyleSheet.flatten(row.props.style).marginHorizontal).toBe(-inset)
+  expect(StyleSheet.flatten(row.props.contentContainerStyle).paddingHorizontal).toBe(inset)
+  expect(StyleSheet.flatten(screen.getByTestId('room-lobby-seed-item').props.style).width).toBe(contentWidth)
+  expect(row.props.scrollEnabled).toBe(false)
+  if (loading) expect(screen.getByTestId('place-card-small-loading')).toBeTruthy()
+
+  const multiple = props(2)
+  if (loading) {
+    for (const detail of multiple.details.byPlaceId.values()) Object.assign(detail, { data: undefined, isPending: true, isFetching: true })
+  }
+  await screen.rerender(<RoomSeeds {...multiple} />)
+  row = screen.getByTestId('room-lobby-seeds-list')
+  const cardWidth = StyleSheet.flatten(screen.getAllByTestId('room-lobby-seed-item')[0].props.style).width
+  expect(cardWidth).toBe(contentWidth - spacing[8])
+  expect(cardWidth).toBeLessThan(contentWidth)
+  expect(row.props.snapToInterval).toBe(cardWidth + spacing[3])
+  expect(row.props.snapToAlignment).toBe('start')
+  expect(row.props.scrollEnabled).toBe(true)
+  // The item starts at inset + index * stride; each snapped scroll offset
+  // removes only index * stride, preserving the inset at rest.
+  for (const index of [0, multiple.room.seedPlaces!.length, 4]) {
+    const offset = row.props.getItemLayout(undefined, index).offset
+    expect(inset + index * row.props.snapToInterval - offset).toBe(inset)
+  }
 })
 it('disables the header + at the limit, explains why and still lets the host remove', async () => {
   await render(<RoomSeeds {...props(MAX_SEED_PLACES)} />)

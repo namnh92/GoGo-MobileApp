@@ -6,6 +6,6 @@ export const styles = StyleSheet.create(theme => ({
   title: { flex: 1 },
   add: { width: touchTarget.min, height: touchTarget.min },
   row: { marginHorizontal: -theme.spacing[4] },
-  rowContent: { paddingVertical: theme.spacing[1] },
+  rowContent: { paddingVertical: theme.spacing[1], paddingHorizontal: theme.spacing[4] },
   separator: { width: theme.spacing[3] },
 }))
