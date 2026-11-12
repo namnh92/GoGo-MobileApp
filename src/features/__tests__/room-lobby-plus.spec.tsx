@@ -1,3 +1,5 @@
+import { StyleSheet } from 'react-native'
+import { spacing } from '@/shared/ui/tokens'
 import { within } from '@testing-library/react-native'
 
 import { loaded, loaded as mockLoaded, roomFor, renderScreen, type QueryLike } from './harness'
@@ -130,10 +132,26 @@ it('omits the schedule fact when the room has no schedule', async () => {
   const view = await renderScreen(<GoGoRoomScreen />)
   expect(view.queryByTestId('room-fact-schedule')).toBeNull()
 })
-it('orders conditions, members, seeds and host management', async () => {
+it('orders conditions, members, seeds and standalone host cancel', async () => {
   mockRoom.query = loaded(roomFor('group-host'))
   const view = await renderScreen(<GoGoRoomScreen />)
-  expect(view.getAllByTestId(/^room-lobby-(conditions|members|seeds|management)$/).map(node => node.props.testID)).toEqual([
-    'room-lobby-conditions', 'room-lobby-members', 'room-lobby-seeds', 'room-lobby-management',
+  expect(view.getAllByTestId(/^room-lobby-(conditions|members|seeds|cancel)$/).map(node => node.props.testID)).toEqual([
+    'room-lobby-conditions', 'room-lobby-members', 'room-lobby-seeds', 'room-lobby-cancel',
   ])
+})
+
+it('uses one compact lobby rhythm with no accumulated card margins', async () => {
+  mockRoom.query = loaded(roomFor('group-host'))
+  const view = await renderScreen(<GoGoRoomScreen />)
+  const content = StyleSheet.flatten(view.getByTestId('room-lobby-scroll').props.contentContainerStyle)
+  expect(content).toMatchObject({ gap: spacing[3], paddingTop: spacing[3] })
+  for (const name of ['conditions', 'members', 'seeds']) {
+    const card = StyleSheet.flatten(view.getByTestId(`room-lobby-${name}`).props.style)
+    expect(card).toMatchObject({ padding: spacing[4], gap: spacing[3] })
+    expect(card.marginBottom ?? 0).toBe(0)
+  }
+  const cancel = StyleSheet.flatten(view.getByTestId('room-lobby-cancel').props.style)
+  expect(cancel.borderWidth).toBe(1)
+  expect(cancel.marginTop ?? 0).toBe(0)
+  expect(cancel.marginBottom ?? 0).toBe(0)
 })

@@ -6,7 +6,6 @@ import { loaded as mockLoaded, roomFor } from './harness'
 import i18n from '@/shared/i18n'
 import { env } from '@/shared/config/env'
 import { prepareRoomInvite } from '@/features/gogo-room/prepare-room-invite'
-import { isoToLocalSchedule } from '@/features/gogo-room/room-schedule'
 
 const mockList = jest.fn()
 const mockCreate = jest.fn()
@@ -64,7 +63,7 @@ afterEach(async () => {
 })
 async function open() {
   await render(<GoGoRoomScreen />, client)
-  await waitFor(() => expect(screen.getByTestId('room-lobby-invite-status')).toBeTruthy())
+  await waitFor(() => expect(client.isFetching()).toBe(0))
 }
 async function press(label: string) {
   await act(async () => { await fireEvent.press(screen.getByRole('button', { name: label })) })
@@ -75,34 +74,18 @@ async function replaceFromShare() {
   await press('Đổi link')
 }
 
-it('renders one active row with remaining uses and the formatted expiry, without a top divider', async () => {
+it.each([{ invites: [] }, { invites: [row()] }, { invites: [row({ expiresAt: '2000-01-01T00:00:00Z' })] }])('keeps only the standalone host cancel button regardless of invite metadata (%j)', async ({ invites }) => {
+  server = invites
   await open()
-  expect(screen.getByText('Link mời đang dùng')).toBeTruthy()
-  const [date, time] = isoToLocalSchedule(expiry).split(' ')
-  expect(screen.getByText(`còn 17 lượt · hết hạn ${time} ${date}`)).toBeTruthy()
-  expect(screen.getAllByTestId('room-lobby-invite-status')).toHaveLength(1)
-  expect(within(screen.getByTestId('room-lobby-management')).getAllByRole('button').map(button => button.props.accessibilityLabel)).toEqual(['Huỷ phòng'])
-  expect(screen.queryByText('Thu hồi')).toBeNull()
-})
-it('omits unavailable counts and shows a maximum only when useCount is absent', async () => {
-  server = [row({ useCount: undefined })]
-  await open()
-  expect(screen.getByText(/tối đa 20 lượt/)).toBeTruthy()
-  server = [row({ maxUses: undefined })]
-  await act(async () => { await client.invalidateQueries() })
-  expect(screen.queryByText(/lượt/)).toBeNull()
-})
-it('selects the newest usable row in server creation order, omitting expired, revoked and exhausted rows', async () => {
-  server = [row({ expiresAt: '2099-12-01T00:00:00Z' }), row({ inviteId: 'newest', useCount: 5 }),
-    row({ inviteId: 'expired', expiresAt: '2000-01-01T00:00:00Z' }), row({ inviteId: 'revoked', revoked: true }), row({ inviteId: 'used', useCount: 20 })]
-  await open()
-  expect(screen.getAllByText('Link mời đang dùng')).toHaveLength(1)
-  expect(screen.getByText(/còn 15 lượt/)).toBeTruthy()
+  expect(screen.queryByTestId('room-lobby-management')).toBeNull()
+  expect(screen.queryByTestId('room-lobby-invite-status')).toBeNull()
+  expect(screen.queryByText(/Link mời đang dùng|Chưa có link mời|Link mời đã hết hạn/)).toBeNull()
+  expect(screen.getByTestId('room-lobby-cancel')).toBeTruthy()
+  expect(screen.queryByText('Quản lý')).toBeNull()
 })
 it('creates from the empty state and shares the new canonical link', async () => {
   server = []
   await open()
-  expect(screen.getByText('Chưa có link mời')).toBeTruthy()
   await press('Mời người tham gia')
   await waitFor(() => expect(share).toHaveBeenCalledWith({ url: `${env.webBaseUrl}/r/new-secret`, message: expect.stringContaining(`${env.webBaseUrl}/r/new-secret`) }))
   expect(mockRevoke).not.toHaveBeenCalled()
@@ -134,7 +117,7 @@ it('refetches to the empty state if create fails after revocation, and allows re
   mockCreate.mockRejectedValueOnce(new Error('offline'))
   await open()
   await replaceFromShare()
-  await waitFor(() => expect(screen.getByText('Chưa có link mời')).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(i18n.t('gogoRoom.inviteFailed'))).toBeTruthy())
   expect(screen.getByText(i18n.t('gogoRoom.inviteFailed'))).toBeTruthy()
   expect(share).not.toHaveBeenCalled()
   await waitFor(() => expect(screen.getByRole('button', { name: 'Mời người tham gia' }).props.accessibilityState.disabled).toBe(false))
@@ -164,8 +147,7 @@ it('provides English invite copy', async () => {
   await act(async () => { await i18n.changeLanguage('en') })
   try {
     await open()
-    expect(screen.getByText('Current invite link')).toBeTruthy()
-    expect(screen.getByText(/17 uses left · expires/)).toBeTruthy()
+    expect(screen.queryByText('Current invite link')).toBeNull()
     await press('Invite people')
     await waitFor(() => expect(screen.getByTestId('room-lobby-invite-confirm')).toBeTruthy())
     expect(screen.getByText('Change invite link?')).toBeTruthy()
@@ -188,7 +170,8 @@ it('blocks interaction while creating and shares only after creation finishes', 
 it('does not offer creation when the invite list cannot be read', async () => {
   mockList.mockRejectedValue(new Error('offline'))
   await render(<GoGoRoomScreen />, client)
-  await waitFor(() => expect(screen.getByRole('button', { name: i18n.t('common.retry') })).toBeTruthy())
+  await waitFor(() => expect(client.isFetching()).toBe(0))
+  expect(screen.getByTestId('room-lobby-cancel')).toBeTruthy()
   expect(screen.queryByText('Chưa có link mời')).toBeNull()
   expect(screen.getByRole('button', { name: 'Mời người tham gia' })).toBeDisabled()
   expect(mockCreate).not.toHaveBeenCalled()

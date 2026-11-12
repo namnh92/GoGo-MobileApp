@@ -39,7 +39,7 @@ const stored = (): StoredInvite => ({ roomId: 'room-1', inviteId: 'device-invite
   userId: 'user-1', savedAt: NOW - 1, expiresAt: new Date(EXPIRY).toISOString() })
 function Harness() {
   const actions = useRoomHostActions(roomFor('group-host'), 'room-1', mockHold)
-  return <>{actions.headerAction}{actions.group}{actions.dialogs}</>
+  return <>{actions.headerAction}{actions.feedback}{actions.group}{actions.dialogs}</>
 }
 let client: QueryClient
 let network: jest.SpyInstance
@@ -147,11 +147,11 @@ it('F-20: a stalled final refresh cannot keep a successful create behind the ove
 it('F-21: the stored code expires on an offline cold start even without metadata', async () => {
   await openOffline(true)
   await advance(60_001)
-  expect(screen.getByText(i18n.t('guestJoin.expiredTitle'))).toBeTruthy()
+  expect(screen.queryByText(i18n.t('guestJoin.expiredTitle'))).toBeNull()
   expect(mockForget).toHaveBeenCalledWith('device-invite')
   mockStored = null
   await screen.rerender(<Harness />)
-  expect(screen.getByText(i18n.t('guestJoin.expiredTitle'))).toBeTruthy()
+  expect(screen.queryByText(i18n.t('guestJoin.expiredTitle'))).toBeNull()
   await press()
   expect(mockShare).not.toHaveBeenCalled()
   expect(mockCreate).not.toHaveBeenCalled()

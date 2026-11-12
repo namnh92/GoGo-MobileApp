@@ -19,7 +19,7 @@ function MemberRows({ list, inSheet, isHost, myMemberId, testID, onRemove }: {
     testID={`${testID}-${inSheet ? 'sheet-' : ''}member-${index}`}
     accessible={!isHost || member.role === 'host'}
     accessibilityLabel={[member.displayName, t(`roomManage.role.${member.role}`), t(`roomManage.selection.${member.selectionStatus}`)].join(', ')}
-    style={[styles.row, index > 0 && styles.rowSeparator]}>
+    style={[styles.row, !inSheet && styles.lobbyRow, index > 0 && styles.rowSeparator]}>
     <AvatarCircle label={member.displayName.trim().charAt(0).toUpperCase() || '?'} size={44} imageUri={member.avatarUrl} host={member.role === 'host'} />
     <View style={styles.flex}>
       <Text variant="body" numberOfLines={1}>{member.displayName}</Text>
@@ -73,9 +73,10 @@ export function RoomMembers({ room, onRefresh, hold, testID = 'room-lobby' }: {
   return <>
     <Card testID={`${testID}-members`} style={styles.card}>
       <View style={styles.sectionHead}><Icon name="users" size={20} color="accent.primary" /><Text variant="discoveryHeading" accessibilityRole="header">{t('roomManage.membersTitle')}</Text></View>
-      <Text variant="caption" color="text.secondary">{t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })} · {t('groupSetup.people', { n: room.participantCount })}</Text>
+      <View style={styles.rows}><Text variant="caption" color="text.secondary">{t('gogoRoom.membersTitle', { joined: progress.completed, total: progress.total })} · {t('groupSetup.people', { n: room.participantCount })}</Text>
       {members.length ? <MemberRows list={members.slice(0, 5)} inSheet={false} isHost={isHost} myMemberId={room.myMemberId} testID={testID} onRemove={request} /> : <Text variant="bodySmall" color="text.secondary">{t('roomManage.noMembers')}</Text>}
       {room.type !== 'couple' && members.length > 5 ? <GhostBtn testID={`${testID}-members-all`} label={t('roomMembers.showAll', { n: members.length })} onPress={() => setExpanded(true)} /> : null}
+      </View>
     </Card>
     <Sheet visible={expanded} onClose={() => { pendingTarget.current = null; setClosingForRemove(false); setExpanded(false) }}
       onClosed={() => { const next = pendingTarget.current; pendingTarget.current = null; setClosingForRemove(false); if (next) setTarget(next) }}

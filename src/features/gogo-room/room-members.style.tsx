@@ -3,9 +3,10 @@ import { StyleSheet } from 'react-native-unistyles'
 import { chipRowGap, radius, spacing, touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  card: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[3] },
+  card: { padding: spacing[4], gap: spacing[3] },
+  rows: { gap: spacing[2] },
   flex: { flex: 1, gap: chipRowGap },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -14,6 +15,7 @@ export const styles = StyleSheet.create(theme => ({
     paddingTop: spacing[3],
     paddingBottom: spacing[1],
   },
+  lobbyRow: { paddingTop: spacing[1], paddingBottom: spacing[1] },
   rowSeparator: { borderTopWidth: 1, borderTopColor: theme.border.hairline },
   rowAction: {
     minHeight: touchTarget.min,

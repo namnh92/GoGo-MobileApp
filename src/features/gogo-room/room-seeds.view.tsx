@@ -84,7 +84,7 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
   // Before layout, allow for the lobby's outer padding.
   const contentWidth = Math.max(0, (rowWidth ?? width - 2 * spacing[4]) - 2 * spacing[4])
   const cardWidth = Math.max(0, contentWidth - (seeds.length > 1 ? spacing[8] : 0))
-  const stride = cardWidth + spacing[3]
+  const stride = cardWidth + spacing[2]
   const atLimit = (room.seedPlaces?.length ?? 0) >= MAX_SEED_PLACES
   const limitHint = t('roomSeeds.limitHint', { max: MAX_SEED_PLACES })
   const looping = loopEnabled && seeds.length >= 2
@@ -114,7 +114,7 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
             router.push({ pathname: '/places/search', params: { picker: '1', roomId: room.id, pickerScope: scopeId.current } })
           }}><Icon name="plus" size={20} color="accent.primary" /></IconBtn> : null}
       </View>
-      <Text variant="bodySmall" color="text.secondary">{t(seeds.length ? 'createPlaces.body' : 'roomSeeds.empty')}</Text>
+      <View style={styles.rows}><Text variant="bodySmall" color="text.secondary">{t(seeds.length ? 'createPlaces.body' : 'roomSeeds.empty')}</Text>
       {seeds.length ? <FlatList ref={list} testID="room-lobby-seeds-list"
         key={`${room.id}:${seeds.map(seed => seed.placeId).join(',')}:${looping}:${cardWidth}`}
         horizontal data={row} style={styles.row} contentContainerStyle={styles.rowContent}
@@ -144,6 +144,7 @@ export function RoomSeeds({ room, details, onRefresh, hold }: {
         }} /> : null}
       {canSuggest && atLimit ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">{limitHint}</Text> : null}
       {canSuggest && !scope ? <Text variant="bodySmall" color="text.secondary">{t('roomManage.seedScopeUnavailable')}</Text> : null}
+      </View>
     </Card>
     <ResultSheet visible={!!target && isHost} variant="warning" testID="room-lobby-seed-confirm"
       title={t('roomSeeds.removeTitle')} body={t('roomSeeds.removeBody', { name: target?.name ?? '' })}

@@ -74,7 +74,7 @@ it.each([false, true])('insets cards equally and sizes against the measured row 
   const cardWidth = StyleSheet.flatten(screen.getAllByTestId('room-lobby-seed-item')[0].props.style).width
   expect(cardWidth).toBe(contentWidth - spacing[8])
   expect(cardWidth).toBeLessThan(contentWidth)
-  expect(row.props.snapToInterval).toBe(cardWidth + spacing[3])
+  expect(row.props.snapToInterval).toBe(cardWidth + spacing[2])
   expect(row.props.snapToAlignment).toBe('start')
   expect(row.props.scrollEnabled).toBe(true)
   // The item starts at inset + index * stride; each snapped scroll offset

@@ -3,10 +3,11 @@ import { StyleSheet } from 'react-native-unistyles'
 import { touchTarget } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
-  content: { paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[4], paddingBottom: theme.spacing[8], gap: theme.spacing[2] },
+  content: { paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[3], paddingBottom: theme.spacing[8], gap: theme.spacing[3] },
   actions: { gap: theme.spacing[2] },
   waitingNotice: { flexDirection: 'row', gap: theme.spacing[3], padding: theme.spacing[4], borderRadius: theme.radius.compact, backgroundColor: theme.surface.subtle },
-  sectionCard: { marginBottom: theme.spacing[4], gap: theme.spacing[3] },
+  sectionCard: { padding: theme.spacing[4], gap: theme.spacing[3] },
+  rows: { gap: theme.spacing[2] },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
   infoRow: {
     flexDirection: 'row',

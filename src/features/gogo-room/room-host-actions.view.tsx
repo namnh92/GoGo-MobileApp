@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { onlineManager, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Platform, View } from 'react-native'
+import { Platform } from 'react-native'
 import { roomCapabilities, type RoomSummary, useCreateRoomInvite, useRevokeRoomInvite, useRoomInvites, useTransitionRoom } from '@/shared/api'
 import { sessionRoomInvite } from '@/shared/api/queries/use-rooms'
 import { track } from '@/shared/analytics'
@@ -10,17 +10,14 @@ import { useSession } from '@/shared/providers/session-provider'
 import { releaseOnReturn, type RoutingHold } from '@/shared/navigation/routing-hold'
 import { AppHeaderAction } from '@/shared/ui/app-header.view'
 import { BlockingLoadingOverlay, useSubmitOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { ErrorState, OfflineState } from '@/shared/ui/async-state.view'
-import { useOnlineStatus, useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
-import { Card, DangerBtn } from '@/shared/ui/primitives'
+import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
+import { DangerBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
 import { Text } from '@/shared/ui/text'
-import { Skeleton } from '@/shared/ui/skeleton.view'
 import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { activeRoomInvites, resolveInviteDisplay } from './invite-state'
 import { shareRoomInvite } from './invite-share'
 import { pendingRoomInvite } from './prepare-room-invite'
-import { isoToLocalSchedule } from './room-schedule'
 import { useInviteExpiry } from './use-invite-expiry'
 import { styles } from './room-host-actions.style'
 
@@ -49,7 +46,6 @@ export function useRoomHostActions(room: RoomSummary | undefined, roomId: string
   const cancel = useTransitionRoom(roomId ?? '')
   const hydrating = useSession().status === 'hydrating'
   const online = useOnlineStatus()
-  const offline = useWaitingForNetwork(invites)
   const [clock, setClock] = useState(Date.now)
   const resolution = resolveInviteDisplay({ stored: hydrating ? undefined : create.stored, invites: invites.data,
     invitesFailed: invites.isError || (invites.isPaused && invites.data === undefined), listIsCurrent: !invites.isFetching && invites.dataUpdatedAt > (create.stored?.savedAt ?? 0), now: clock })
@@ -58,15 +54,9 @@ export function useRoomHostActions(room: RoomSummary | undefined, roomId: string
   useEffect(() => { if (deadInvite) void forget(deadInvite) }, [deadInvite, forget])
 
   const active = activeRoomInvites(invites.data, clock)
-  const current = active?.[active.length - 1]
-  const displayedExpiry = resolution.display.kind === 'code' ? Date.parse(resolution.display.expiresAt) : undefined
-  // Retain the status after forgetting an expired secret from storage.
-  const [lastDisplayedExpiry, setLastDisplayedExpiry] = useState(displayedExpiry)
-  if (displayedExpiry !== undefined && displayedExpiry !== lastDisplayedExpiry) setLastDisplayedExpiry(displayedExpiry)
   const expiries = [...(active ?? []).map(row => Date.parse(row.expiresAt)), Date.parse(create.stored?.expiresAt ?? '')]
     .filter(expiry => expiry > clock)
   useInviteExpiry(expiries.length ? Math.min(...expiries) : undefined, setClock, clock)
-  const storedExpired = lastDisplayedExpiry !== undefined && lastDisplayedExpiry <= clock
   const [busy, setBusy] = useState(false)
   const submitOverlay = useSubmitOverlay(busy)
   const [outcome, setOutcome] = useState<{ code: string; expiresAt: string } | { confirm: true } | null>(null)
@@ -182,25 +172,15 @@ export function useRoomHostActions(room: RoomSummary | undefined, roomId: string
     sharing.current = true
     void share(outcome.code, outcome.expiresAt).finally(() => { sharing.current = false; setOutcome(null) })
   }, [outcome, busy, submitOverlay.closed, share])
-  const [date, time] = isoToLocalSchedule(current?.expiresAt).split(' ')
   return {
     refresh: () => capabilities.canInvite ? invites.refetch() : Promise.resolve(),
     headerAction: capabilities.canInvite ? <AppHeaderAction testID="room-lobby-invite" accessibilityLabel={t('gogoRoom.invite')}
       accessibilityState={{ busy }} disabled={shareUnavailable} onPress={() => void makeInvite(false)}><Icon name="share" size={22} color="accent.primary" /></AppHeaderAction> : null,
-    group: capabilities.isHost ? <Card testID="room-lobby-management" style={styles.card}>
-      <Text variant="discoveryHeading" accessibilityRole="header">{t('roomLobby.management')}</Text>
-      {!current && storedExpired ? <Text accessibilityLiveRegion="polite">{t('guestJoin.expiredTitle')}</Text> : invites.isPending ? offline ? <OfflineState /> : <Skeleton width="100%" height={44} /> : invites.isError || !active ? <ErrorState error={invites.error} onRetry={() => void invites.refetch()} /> : <View testID="room-lobby-invite-status">
-        <Text variant="bodySmall">{t(current ? 'roomManage.currentInvite' : 'roomManage.noInvite')}</Text>
-        {current ? <Text variant="caption" color="text.secondary">{[
-          current.maxUses != null ? t(current.useCount != null ? 'roomManage.remainingUses' : 'roomManage.maximumUses', { n: current.maxUses - (current.useCount ?? 0) }) : null,
-          t('roomManage.inviteExpiry', { date: `${time} ${date}` }),
-        ].filter(Boolean).join(' · ')}</Text> : null}
-      </View>}
-      {!joinable ? <Text variant="caption" color="text.secondary">{t('roomManage.inviteUnavailable')}</Text> : null}
+    feedback: <>
       {error ? <Text accessibilityLiveRegion="polite" color="status.dangerText">{t(error === 'offline' ? 'common.offlineBody' : error === 'revoke' ? 'gogoRoom.reissueFailed' : 'gogoRoom.inviteFailed')}</Text> : null}
       {copied ? <Text accessibilityLiveRegion="polite">{t('common.copied')}</Text> : null}
-      <DangerBtn style={styles.dangerOutline} testID="room-lobby-cancel" label={t('roomManage.cancelRoom')} disabled={cancelBusy} onPress={() => { setCancelFailed(false); setCancelConfirm(true) }} />
-    </Card> : null,
+    </>,
+    group: capabilities.isHost ? <DangerBtn style={styles.dangerOutline} testID="room-lobby-cancel" label={t('roomManage.cancelRoom')} disabled={cancelBusy} onPress={() => { setCancelFailed(false); setCancelConfirm(true) }} /> : null,
     dialogs: <>
       <BlockingLoadingOverlay visible={busy} onClosed={submitOverlay.onClosed} />
       <ResultSheet visible={replaceConfirm && capabilities.isHost} variant="warning" testID="room-lobby-invite-confirm"

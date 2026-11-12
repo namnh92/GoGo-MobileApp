@@ -371,6 +371,7 @@ export default function GoGoRoomScreen() {
       ) : null}
       <PullToRefresh onRefresh={async () => { await Promise.all([room.refetch(), hostActions.refresh(), seedDetails.refetchAll()]) }}>
       <ScrollView testID="room-lobby-scroll" contentContainerStyle={[styles.content, { paddingBottom: actionInset + spacing[4] }]}>
+        {hostActions.feedback}
         {/* What the room is actually constrained by — facts, composed here. */}
         <Card testID="room-lobby-conditions" style={styles.sectionCard}>
             <View style={styles.sectionHead}>
@@ -378,7 +379,7 @@ export default function GoGoRoomScreen() {
               <Text variant="discoveryHeading" accessibilityRole="header" style={styles.sectionTitle}>{t('gogoRoom.constraints')}</Text>
               {capabilities.isHost ? <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/edit`)} /> : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>}
             </View>
-            <RoomFacts facts={{
+            <View style={styles.rows}><RoomFacts facts={{
               name: summary.title?.trim()
                 ? <InfoRow icon="info" tone="info" label={t('roomTitle.title')}>{summary.title.trim()}</InfoRow> : null,
               area: summary.constraints?.administrativeArea ? <>
@@ -395,7 +396,7 @@ export default function GoGoRoomScreen() {
               schedule: summary.constraints?.startAt || summary.scheduledDate ? (
                 <InfoRow icon="calendar" tone="info" label={t('roomSchedule.title')}>{roomScheduleRangeLabel(summary, i18n.language, t)}</InfoRow>
               ) : null,
-            }} />
+            }} /></View>
           </Card>
 
         <RoomMembers room={summary} onRefresh={() => room.refetch()} hold={routingHold.hold} />
