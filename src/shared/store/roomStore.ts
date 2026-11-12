@@ -51,10 +51,6 @@ export interface RoomDraft {
   endAt: string | null
   /** The local day (`YYYY-MM-DD`) the times are on; null is today. Kept with startAt and endAt. */
   scheduleDay: string | null
-  /** Stable taxonomy keys, carried into the first preference save. */
-  moodKeys: string[]
-  settingKeys: string[]
-  spendingStyleKey: string | null
 }
 
 interface RoomStoreState extends RoomDraft {
@@ -89,8 +85,7 @@ interface RoomStoreState extends RoomDraft {
   removeSeedPlace: (placeId: string) => void
   patchDraft: (patch: Partial<RoomDraft>) => void
   resetDraft: () => void
-  preferenceSeed: { roomId: string; moodKeys: string[] } | null
-  finishDraft: (roomId: string) => void
+  finishDraft: () => void
 }
 
 const emptyFlow = {
@@ -114,9 +109,6 @@ const emptyDraft: RoomDraft = {
   startAt: null,
   endAt: null,
   scheduleDay: null,
-  moodKeys: [],
-  settingKeys: [],
-  spendingStyleKey: null,
 }
 
 export const useRoomStore = create<RoomStoreState>()(set => ({
@@ -134,11 +126,8 @@ export const useRoomStore = create<RoomStoreState>()(set => ({
   durationPreset: null,
   seedPlaces: [],
   patchDraft: patch => set(patch),
-  preferenceSeed: null,
   resetDraft: () => set({ ...emptyDraft, ...emptyFlow }),
-  finishDraft: roomId => set(state => ({
-    ...emptyDraft, ...emptyFlow, preferenceSeed: { roomId, moodKeys: state.moodKeys },
-  })),
+  finishDraft: () => set({ ...emptyDraft, ...emptyFlow }),
   setAudience: audience => set({ audience }),
   setUiState: uiState => set({ uiState }),
   setParticipantCount: participantCount => set({ participantCount }),

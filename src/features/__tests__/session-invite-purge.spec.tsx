@@ -232,7 +232,7 @@ it('logout clears all A account caches, persisted stores, drafts and secure cred
   const roots = ['me', 'rooms', 'plans', 'places', 'location', 'assistant']
   for (const root of roots) client.setQueryData([root, 'A'], { owner: USER })
   client.getMutationCache().build(client, { mutationKey: ['save-A'], gcTime: Infinity })
-  useRoomStore.setState({ title: 'A draft', preferenceSeed: { roomId: ROOMS[0], moodKeys: ['A'] } })
+  useRoomStore.setState({ title: 'A draft' })
   await saveRoomDraft(USER, 'type')
   useRecentRoomsStore.setState({ rooms: [{ roomId: ROOMS[0], title: 'A room', type: 'couple', status: 'draft', participantCount: 2, lastOpenedAt: new Date().toISOString() }] })
   useAssistantDraftStore.getState().setDraft('A', 'A question')
@@ -246,7 +246,7 @@ it('logout clears all A account caches, persisted stores, drafts and secure cred
   expect(session!.status).toBe('anonymous')
   expect(client.getQueryCache().getAll()).toEqual([])
   expect(client.getMutationCache().getAll()).toEqual([])
-  expect(useRoomStore.getState()).toMatchObject({ title: '', preferenceSeed: null })
+  expect(useRoomStore.getState()).toMatchObject({ title: '' })
   expect(useSavedRoomDraft.getState().draft).toBeNull()
   expect(useRecentRoomsStore.getState().rooms).toEqual([])
   expect(useAssistantDraftStore.getState()).toMatchObject({ drafts: {}, outgoing: [] })

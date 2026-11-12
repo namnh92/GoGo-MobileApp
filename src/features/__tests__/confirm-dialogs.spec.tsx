@@ -1,6 +1,6 @@
 import { ThemeScopeProvider } from '@/shared/ui/scoped-theme'
-import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
-import { Alert } from 'react-native'
+import { act, fireEvent, within } from '@testing-library/react-native'
+import { Alert, StyleSheet } from 'react-native'
 import { onlineManager } from '@tanstack/react-query'
 import { OFFLINE_SIGNAL_DELAY_MS } from '@/shared/api/queries/use-online-status'
 
@@ -10,7 +10,7 @@ import { loaded as mockLoaded, roomFor as mockRoomFor, renderScreen, failed, pen
  * GoGo-MobileApp#381 — confirmations with consequences used `Alert.alert`: the
  * platform dialog ignores the button family (`button.style.tsx`), draws its
  * destructive action however the OS likes, and cannot be tested by pressing
- * what a person presses. They render the shared in-app `Dialog` now.
+ * what a person presses. Room confirmations now render the shared ResultSheet.
  */
 
 // Native ScopedTheme is absent in Jest; retain its children and the app theme context.
@@ -25,10 +25,11 @@ const mockRename = jest.fn(async (title: string) => ({ ...mockRoomFor('group-hos
 const mockTransition = jest.fn()
 const mockRemoveMember = jest.fn()
 const mockReplace = jest.fn()
+const mockPush = jest.fn()
 
 jest.mock('expo-router', () => ({
   useFocusEffect: () => undefined,
-  useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
 }))
 jest.mock('@/shared/providers/session-provider', () => ({
@@ -46,7 +47,6 @@ jest.mock('@/shared/api', () => ({
   useRemoveRoomSeedPlace: () => ({ mutate: jest.fn() }),
 }))
 
-import { isoToLocalSchedule } from '@/features/gogo-room/room-schedule'
 import RoomManageScreen from '@/features/gogo-room/room-manage.view'
 
 let alert: jest.SpyInstance
@@ -66,10 +66,11 @@ async function press(element: Parameters<typeof fireEvent.press>[0]) {
 }
 
 describe('room management', () => {
-  it('confirms cancelling the room in an in-app dialog', async () => {
+  it('confirms cancelling the room in the shared bottom sheet', async () => {
     const view = await renderScreen(<RoomManageScreen />)
     await press(view.getByRole('button', { name: 'Huỷ phòng' }))
     expect(alert).not.toHaveBeenCalled()
+    expect(view.getByTestId('room-manage-confirm')).toBeTruthy()
     expect(view.getByText('Huỷ phòng này?')).toBeTruthy()
     expect(mockTransition).not.toHaveBeenCalled()
 
@@ -114,7 +115,7 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
       if (state === 'empty') expect(view.getByText('Chưa ai tham gia.')).toBeTruthy()
       expect(view.queryByLabelText('Tên kèo')).toBeNull()
       await press(view.getByRole('button', { name: 'Sửa' }))
-      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
+      expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
     }
   })
 })
@@ -145,173 +146,46 @@ describe('room management waits for network', () => {
 })
 
 
-it('595 opens a title sheet, preserves the rename contract and closes on cancel', async () => {
+it('595 opens the full-screen title editor route from manage', async () => {
   const view = await renderScreen(<RoomManageScreen />)
   await press(view.getByRole('button', { name: 'Sửa' }))
-  await typeField(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
-  await press(view.getByRole('button', { name: 'Xác nhận' }))
-  expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy')
-  await press(view.getByText('Huỷ'))
+  expect(mockPush).toHaveBeenCalledWith('/room/room-1/edit')
   expect(view.queryByLabelText('Tên kèo')).toBeNull()
 })
 
-it('595 unified sheet uses selected budget chips and retains version and unit', async () => {
-  const room = mockRoomFor('group-host', { constraintVersion: 9 })
-  mockRoomState.query = mockLoaded(room)
-  const view = await renderScreen(<RoomManageScreen />)
-  await press(view.getByRole('button', { name: 'Sửa' }))
-  const options = view.getAllByRole('button').filter(node => /500/.test(node.props.accessibilityLabel ?? ''))
-  expect(options.length).toBeGreaterThan(0)
-  await press(options[0])
-  expect(view.getAllByRole('button').some(node => node.props.accessibilityState?.selected === true)).toBe(true)
-  await press(view.getByRole('button', { name: 'Xác nhận' }))
-  await press(view.getByRole('button', { name: 'Xác nhận' }))
-  expect(mockUpdateConstraints).toHaveBeenCalledWith({ expectedConstraintVersion: 9, budgetMode: room.constraints!.budgetMode, budgetAmount: 500000 })
-})
-
-
-describe('595 F-01 budget sheet pending', () => {
-  it('blocks inside the sheet modal and disables every budget chip until A completes', async () => {
-    let complete!: (value: ReturnType<typeof mockRoomFor>) => void
-    mockUpdateConstraints.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
-    const view = await renderScreen(<RoomManageScreen />)
-    await press(view.getByRole('button', { name: 'Sửa' }))
-    const choices = view.getAllByRole('button').filter(node => /500/.test(node.props.accessibilityLabel ?? ''))
-    await press(choices[0])
-    const choiceA = choices[0].props.accessibilityLabel
-    await press(view.getByRole('button', { name: 'Xác nhận' }))
-    await press(view.getByRole('button', { name: 'Xác nhận' }))
-    expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ budgetAmount: 500_000 }))
-    mockConstraintsPending = true
-    await view.rerender(<RoomManageScreen />)
-    const sheetModal = view.getByTestId('room-edit-sheet-modal')
-    expect(within(sheetModal).getByTestId('blocking-loading-overlay')).toBeTruthy()
-    const chips = within(sheetModal).getAllByRole('button', { includeHiddenElements: true }).filter(node => typeof node.props.accessibilityState?.selected === 'boolean')
-    expect(chips.length).toBeGreaterThan(1)
-    for (const chip of chips) expect(chip.props.accessibilityState.disabled).toBe(true)
-    await press(chips.find(node => node.props.accessibilityState.selected === false)!)
-    expect(chips.find(node => node.props.accessibilityLabel === choiceA)!.props.accessibilityState.selected).toBe(true)
-    await act(async () => complete(mockRoomFor('group-host')))
-    mockConstraintsPending = false
-    await view.rerender(<RoomManageScreen />)
-    expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
-    await press(view.getByText('Huỷ'))
-    expect(view.queryByTestId('room-edit-sheet')).toBeNull()
-  })
-
-  it.each(['header', 'backdrop', 'android-back', 'escape', 'cancel'])('ignores %s close while pending', async path => {
-    const view = await renderScreen(<RoomManageScreen />)
-    await press(view.getByRole('button', { name: 'Sửa' }))
-    mockConstraintsPending = true
-    await view.rerender(<RoomManageScreen />)
-    if (path === 'header') await press(view.getAllByLabelText('Quay lại', { includeHiddenElements: true }).at(-1)!)
-    if (path === 'backdrop') await press(view.getByLabelText('Đóng', { includeHiddenElements: true }))
-    if (path === 'android-back') await emit(view.getByTestId('room-edit-sheet-modal'), 'requestClose')
-    if (path === 'escape') await emit(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
-    if (path === 'cancel') await press(view.getByText('Huỷ', { includeHiddenElements: true }))
-    expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
-  })
-})
-
-
-const scheduledConstraints = {
-  ...mockRoomFor('group-host').constraints!,
-  startAt: '2026-11-14T11:30:00Z', endAt: '2026-11-14T15:00:00Z',
-}
-
-describe.each(['orange', 'orangeDark'] as const)('595 combined manage sheet / %s', theme => {
-  it.each((['couple', 'group-host', 'group-guest'] as const).flatMap(audience =>
-    (['default', 'empty', 'pending-title', 'pending-schedule', 'error-title', 'error-schedule'] as const).map(state => [audience, state] as const),
-  ))('%s × %s', async (audience, state) => {
-    const room = mockRoomFor(audience, {
-      title: state === 'empty' ? undefined : 'Tên cũ', constraintVersion: 9,
-      constraints: state === 'empty' ? mockRoomFor(audience).constraints : scheduledConstraints,
-    })
-    mockRoomState.query = mockLoaded(room)
-    const element = () => <ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>
-    const view = await renderScreen(element())
-    if (audience === 'group-guest') {
-      expect(view.getByText('Chỉ chủ phòng')).toBeTruthy()
-      expect(view.queryByText('Sửa')).toBeNull()
-      expect(mockRename).not.toHaveBeenCalled()
-      expect(mockUpdateConstraints).not.toHaveBeenCalled()
-      return
-    }
-    // The single header action opens all room fields in one sheet.
-    await press(view.getByRole('button', { name: 'Sửa' }))
-    expect(view.getAllByTestId('room-edit-sheet')).toHaveLength(1)
-    expect(view.getByLabelText('Tên kèo').props.value).toBe(state === 'empty' ? '' : 'Tên cũ')
-    expect(view.getByLabelText('Bắt đầu').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule(scheduledConstraints.startAt))
-    expect(view.getByLabelText('Kết thúc (không bắt buộc)').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule(scheduledConstraints.endAt))
-    if (state.startsWith('pending')) {
-      mockRenamePending = state === 'pending-title'
-      mockConstraintsPending = state === 'pending-schedule'
-      await view.rerender(element())
-      expect(view.getByLabelText('Tên kèo', { includeHiddenElements: true }).props.editable).toBe(false)
-      expect(view.getByLabelText('Bắt đầu', { includeHiddenElements: true }).props.editable).toBe(false)
-      const modal = view.getByTestId('room-edit-sheet-modal')
-      expect(within(modal).getByTestId('blocking-loading-overlay')).toBeTruthy()
-      await press(view.getAllByLabelText('Quay lại', { includeHiddenElements: true }).at(-1)!)
-      await press(view.getByLabelText('Đóng', { includeHiddenElements: true }))
-      await emit(modal, 'requestClose')
-      await emit(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
-      await press(view.getByText('Huỷ', { includeHiddenElements: true }))
-      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
-      expect(mockRename).not.toHaveBeenCalled()
-      expect(mockUpdateConstraints).not.toHaveBeenCalled()
-    } else if (state.startsWith('error')) {
-      if (state === 'error-title') {
-        mockRename.mockRejectedValueOnce(new Error('offline'))
-        await typeField(view.getByLabelText('Tên kèo'), 'Tên mới')
-        await press(view.getByRole('button', { name: 'Xác nhận' }))
-        expect(mockUpdateConstraints).not.toHaveBeenCalled()
-      } else {
-        mockUpdateConstraints.mockRejectedValueOnce(new Error('offline'))
-        await typeField(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
-        await press(view.getByRole('button', { name: 'Xác nhận' }))
-        await press(view.getAllByRole('button', { name: 'Xác nhận' }).at(-1)!)
-        expect(mockRename).not.toHaveBeenCalled()
-      }
-      expect(await view.findByText(/Chưa lưu được. Thử lại nhé./)).toBeTruthy()
-      expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
-    }
-  })
-
-  it('saves changed name and schedule sequentially with one action and validates the whole form', async () => {
-    const room = mockRoomFor('group-host', { title: 'Tên cũ', constraintVersion: 9, constraints: scheduledConstraints })
-    mockRoomState.query = mockLoaded(room)
+describe.each(['orange', 'orangeDark'] as const)('room confirmation sheets / %s', theme => {
+  it('keeps equal-width cancel left and danger right; cancel sends nothing', async () => {
     const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
-    await press(view.getByRole('button', { name: 'Sửa' }))
-    await typeField(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
-    await typeField(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
-    await typeField(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
-    await press(view.getByRole('button', { name: 'Xác nhận' }))
-    expect(mockRename).not.toHaveBeenCalled()
-    expect(mockUpdateConstraints).not.toHaveBeenCalled()
-    await press(view.getByRole('button', { name: 'Xác nhận' }))
-    await waitFor(() => expect(mockUpdateConstraints).toHaveBeenCalledWith({
-      budgetMode: scheduledConstraints.budgetMode, budgetAmount: scheduledConstraints.budgetAmount,
-      startAt: '2026-11-14T12:00:00.000Z', endAt: null, expectedConstraintVersion: 9,
-    }))
-    expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy')
-    expect(mockRename.mock.invocationCallOrder[0]).toBeLessThan(mockUpdateConstraints.mock.invocationCallOrder[0])
-    await typeField(view.getByLabelText('Tên kèo'), 'x'.repeat(81))
-    expect(await view.findByText('Tên kèo tối đa 80 ký tự.')).toBeTruthy()
-    expect(view.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
-    await typeField(view.getByLabelText('Bắt đầu'), 'invalid')
-    expect(view.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
-    expect(view.getAllByText(/Kiểm tra ngày giờ hợp lệ/).length).toBeGreaterThan(0)
-    expect(mockRename).toHaveBeenCalledTimes(1)
-    expect(mockUpdateConstraints).toHaveBeenCalledTimes(1)
-    await press(view.getByText('Huỷ'))
-    expect(view.queryByLabelText('Tên kèo')).toBeNull()
-    expect(view.queryByLabelText('Bắt đầu')).toBeNull()
+    await press(view.getByRole('button', { name: 'Huỷ phòng' }))
+    const sheet = view.getByTestId('room-manage-confirm')
+    const actions = within(sheet).getAllByRole('button').filter(button => ['Huỷ', 'Huỷ phòng'].includes(button.props.accessibilityLabel))
+    expect(actions.map(button => button.props.accessibilityLabel)).toEqual(['Huỷ', 'Huỷ phòng'])
+    expect(actions.map(button => StyleSheet.flatten(button.props.style).flex)).toEqual([1, 1])
+    await press(actions[0])
+    expect(view.queryByTestId('room-manage-confirm')).toBeNull()
+    expect(mockTransition).not.toHaveBeenCalled()
+  })
+  it.each(['cancel', 'remove'] as const)('keeps %s busy in the sheet, blocks duplicates and shows existing error copy with retry', async kind => {
+    const mutation = kind === 'cancel' ? mockTransition : mockRemoveMember
+    const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
+    if (kind === 'cancel') await press(view.getByRole('button', { name: 'Huỷ phòng' }))
+    else await press(view.getAllByRole('button', { name: 'Xoá' })[0])
+    const label = kind === 'cancel' ? 'Huỷ phòng' : 'Xoá'
+    const action = () => within(view.getByTestId('room-manage-confirm')).getByRole('button', { name: label })
+    await press(action()); await press(action())
+    expect(mutation).toHaveBeenCalledTimes(1)
+    expect(action().props.accessibilityState).toMatchObject({ busy: true, disabled: true })
+    expect(view.queryByTestId('blocking-loading-overlay')).toBeNull()
+    expect(within(view.getByTestId('room-manage-confirm')).getByRole('button', { name: 'Huỷ' })).toBeDisabled()
+    const callbacks = mutation.mock.calls[0][1]
+    await act(async () => { callbacks.onError(new Error('server')); callbacks.onSettled() })
+    expect(view.getByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
+    expect(action()).toBeEnabled()
+    await press(action())
+    expect(mutation).toHaveBeenCalledTimes(2)
+    if (kind === 'remove') expect(mutation.mock.calls[0][0]).toBe('member-1')
+    await act(async () => { mutation.mock.calls[1][1].onSuccess(); mutation.mock.calls[1][1].onSettled() })
+    expect(view.queryByTestId('room-manage-confirm')).toBeNull()
+    if (kind === 'cancel') expect(mockReplace).toHaveBeenCalledWith('/(tabs)/plans')
   })
 })
-
-async function typeField(element: Parameters<typeof fireEvent.changeText>[0], value: string) {
-  await act(async () => { await fireEvent.changeText(element, value) })
-}
-async function emit(...args: Parameters<typeof fireEvent>) {
-  await act(async () => { await fireEvent(...args) })
-}

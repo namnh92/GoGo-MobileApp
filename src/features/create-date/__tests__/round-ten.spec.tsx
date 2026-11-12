@@ -11,7 +11,7 @@ import CreateType from '../create-type.view'
 import GroupSetup from '../group-setup.view'
 import CreateTime from '../create-time.view'
 import CreateBudget from '../create-budget.view'
-import CreateMood from '../create-mood.view'
+import CreatePlaces from '../create-places.view'
 
 let mockStep = 'type'
 const mockBack = jest.fn()
@@ -31,7 +31,7 @@ jest.mock('expo-router', () => ({
     return React.createElement(View, { testID: 'nested-stack', accessibilityValue: { text: JSON.stringify(screenOptions) } }, React.createElement(mockScreens[mockStep]))
   }, { Screen: () => null }),
 }))
-const mockScreens: Record<string, ComponentType> = { type: CreateType, 'group-setup': GroupSetup, time: CreateTime, budget: CreateBudget, mood: CreateMood }
+const mockScreens: Record<string, ComponentType> = { type: CreateType, 'group-setup': GroupSetup, time: CreateTime, budget: CreateBudget, places: CreatePlaces }
 jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ status: 'user', session: { kind: 'user', userId: 'owner' } }) }))
 jest.mock('@/shared/store/savedRoomDraft', () => ({ saveRoomDraft: (owner: string, step: string) => mockSave(owner, step), clearSavedRoomDraft: () => mockClear() }))
 jest.mock('@/shared/api', () => ({
@@ -63,7 +63,7 @@ it.each(['couple', 'group-host'] as const)('round 10: layout retains the same he
   const actions = within(chrome).getByTestId('app-header-bell')
   expect(within(chrome).queryByRole('button', { name: 'Đóng' })).toBeNull()
   expect(within(chrome).queryByRole('button', { name: 'Lưu nháp' })).toBeNull()
-  const steps = audience === 'couple' ? ['type', 'time', 'budget', 'mood'] : ['type', 'group-setup', 'time', 'budget', 'mood']
+  const steps = audience === 'couple' ? ['type', 'time', 'budget', 'places'] : ['type', 'group-setup', 'time', 'budget', 'places']
   for (const [index, step] of steps.entries()) {
     mockStep = step
     await view.rerender(<Layout />)
@@ -78,7 +78,7 @@ it.each(['couple', 'group-host'] as const)('round 10: layout retains the same he
   }
   expect(within(chrome).getByTestId('app-header-bell')).toBeTruthy()
 })
-it.each(['type', 'group-setup', 'time', 'budget', 'mood'])('round 10: %s renders only content and its footer', async step => {
+it.each(['type', 'group-setup', 'time', 'budget', 'places'])('round 10: %s renders only content and its footer', async step => {
   const Screen = mockScreens[step]
   const view = await renderScreen(<Screen />)
   expect(view.queryByTestId('wizard-chrome')).toBeNull()

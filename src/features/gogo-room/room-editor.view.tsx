@@ -6,17 +6,19 @@ import { ScrollView, View } from 'react-native'
 
 import { isApiError, useRenameRoom, useUpdateRoomConstraints, type RoomSummary } from '@/shared/api'
 import type { OpBody } from '@/shared/api/types'
-import { AdministrativePicker, type AdministrativePickerLevel } from '@/shared/administrative/administrative-picker.view'
-import { BudgetPicker } from '@/features/create-date/budget-picker.view'
-import { useCurrentLocation } from '@/shared/location/use-current-location'
+import { CreateLocationFields } from '@/features/create-date/create-location-fields.view'
+import { GlassBar, useBottomBarInset } from '@/shared/ui/glass-bar.view'
+import { spacing } from '@/shared/ui/tokens'
+import { useRoomEditLocation } from './use-room-edit-location'
+import { RoomEditTime } from './room-edit-time.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { Chip, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Icon } from '@/shared/ui/icons'
-import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { Text } from '@/shared/ui/text'
 import type { ConfirmConditions } from './room-condition-confirmation.view'
-import { RoomScheduleField, RoomTitleField } from './room-edit-fields.view'
+import { RoomTitleField } from './room-edit-fields.view'
+import { RoomBudgetField } from './room-budget-field.view'
 import { localScheduleToIso } from './room-schedule'
 import { roomEditorChanges, roomEditorDefaults, roomEditorSchemaFor, validRoomEditorSchedule, type RoomEditorValues } from './room-editor'
 import { styles } from './room-editor.style'
@@ -25,24 +27,20 @@ const EDITABLE: readonly RoomSummary['status'][] = ['draft', 'collecting', 'matc
 
 /** Query updates never replace an open draft. Conflict recovery explicitly
  * reloads the baseline while preserving fields the user still wants to change. */
-export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendingChange, onChoosingChange }: {
+export function RoomEditor({ room, reloadRoom, confirmConditions, onPendingChange, onDirtyChange }: {
   room: RoomSummary
   reloadRoom: () => Promise<RoomSummary>
-  close: () => void
   confirmConditions: ConfirmConditions
   onPendingChange: (value: boolean) => void
-  onChoosingChange: (value: boolean) => void
+  onDirtyChange: (value: boolean) => void
 }) {
   const { t } = useTranslation()
-  const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag, field: visibilityField } = useFieldVisibility('room-editor')
+  const { viewportRef, scrollRef, schedule, onScroll, onScrollBeginDrag } = useFieldVisibility('room-editor')
   const [initial, setInitial] = useState(room)
   const [base, setBase] = useState(() => roomEditorDefaults(initial))
   const [scheduleWindow, setScheduleWindow] = useState({ start: initial.constraints?.startAt ?? initial.scheduledDate, end: initial.constraints?.endAt })
   const [areaReselected, setAreaReselected] = useState(false)
   const [areaNeedsReselection, setAreaNeedsReselection] = useState(initial.constraints?.administrativeArea?.status === 'needs_reselection')
-  const [areaValid, setAreaValid] = useState(false)
-  const [choosingLevel, setChoosingLevel] = useState<AdministrativePickerLevel>(null)
-  const choosing = choosingLevel !== null
   const [requestPending, setPending] = useState(false)
   const submitting = useRef(false)
   const constraintVersion = useRef(initial.constraintVersion)
@@ -50,17 +48,21 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
   const [conflict, setConflict] = useState(false)
   const rename = useRenameRoom(room.id)
   const update = useUpdateRoomConstraints(room.id)
-  const location = useCurrentLocation()
+  const [footerHeight, setFooterHeight] = useState(0)
+  const footerInset = useBottomBarInset(footerHeight)
   const pending = requestPending || rename.isPending || update.isPending
   useEffect(() => { onPendingChange(pending) }, [pending, onPendingChange])
   const schema = roomEditorSchemaFor(base)
   const form = useForm<RoomEditorValues>({ resolver: zodResolver(schema), defaultValues: base, mode: 'onChange' })
   const values = useWatch({ control: form.control }) as RoomEditorValues
+  const location = useRoomEditLocation(form, values, () => setAreaReselected(true), areaNeedsReselection && !areaReselected)
   const changed = roomEditorChanges(values, base, areaReselected && areaNeedsReselection)
+  const dirty = Object.values(changed).some(Boolean)
+  useEffect(() => { onDirtyChange(dirty) }, [dirty, onDirtyChange])
   const constraintsChanged = Object.entries(changed).some(([key, dirty]) => key !== 'title' && dirty)
   const scheduleValid = validRoomEditorSchedule(values, changed, scheduleWindow)
   const canEdit = room.myRole === 'host' && EDITABLE.includes(room.status) && initial.myRole === 'host' && EDITABLE.includes(initial.status)
-  const valid = schema.safeParse(values).success && scheduleValid && (!changed.area || areaValid)
+  const valid = schema.safeParse(values).success && scheduleValid && (!changed.area || location.valid)
     && (!changed.participantCount || room.type !== 'group' || values.participantCount >= 3) && (!constraintsChanged || !!initial.constraints)
 
   async function reloadAfterConflict() {
@@ -163,87 +165,46 @@ export function RoomEditor({ room, reloadRoom, close, confirmConditions, onPendi
     }
   }
 
-  async function chooseGps() {
-    if (pending || !canEdit || submitting.current) return
-    submitting.current = true
-    setPending(true)
-    if (!conflict) setNotice(null)
-    try {
-      const result = await location.request()
-      if (result?.status === 'granted') {
-        form.setValue('gps', { lat: result.lat, lng: result.lng, label: result.label }, { shouldDirty: true })
-        form.setValue('area', null, { shouldDirty: true })
-        if (values.area) form.setValue('radiusM', 5000, { shouldDirty: true })
-      } else setNotice(t(result?.status === 'denied' ? 'createLocation.permissionDenied' : 'createLocation.locationUnavailable'))
-    } catch {
-      setNotice(t('createLocation.locationUnavailable'))
-    } finally {
-      submitting.current = false
-      setPending(false)
-    }
-  }
-
-  const body = <View style={[styles.body, choosing && styles.flex]}>
+  return <>
     <BlockingLoadingOverlay visible={pending} />
-    <View style={choosing ? styles.hidden : styles.section}>
-      <Controller control={form.control} name="title" render={({ field, fieldState }) => <RoomTitleField {...field} disabled={pending || !canEdit} invalid={!!fieldState.error} />} />
-    </View>
-    <View testID="room-manage-area-editor" style={[styles.section, choosing && styles.flex]} pointerEvents={pending || !canEdit ? 'none' : 'auto'}>
-      {!choosing ? <Text variant="label">{t('roomLobby.area')}</Text> : null}
-      <Controller control={form.control} name="area" render={({ field }) => <AdministrativePicker embedded value={field.value}
-        onChange={area => { setAreaReselected(true); form.setValue('gps', null); field.onChange(area) }} onValidityChange={setAreaValid}
-        choosingLevel={choosingLevel} onChoosingLevelChange={setChoosingLevel} onChoosingChange={onChoosingChange} />} />
-    </View>
-    <View style={choosing ? styles.hidden : styles.section}>
-      <SecondaryBtn label={t('home.useLocation')} disabled={pending || !canEdit} onPress={() => void chooseGps()} />
-      {values.gps?.label ? <Text variant="bodySmall" color="text.secondary">{values.gps.label}</Text> : null}
-      {!values.area ? <>
-        <Text variant="label">{t('createLocation.maxDistance')}</Text>
-        <View style={styles.chips}>{([2000, 5000, 10000, null] as const).map(radius => <Chip key={String(radius)}
-          label={radius === null ? t('createLocation.anywhere') : `${radius / 1000} km`}
-          appearance="soft" variant={values.radiusM === radius ? 'selected' : 'default'} disabled={pending || !canEdit}
-          onPress={() => form.setValue('radiusM', radius, { shouldDirty: true })} />)}</View>
-      </> : null}
-      <Text variant="label">{t('roomManage.budgetTitle')}</Text>
-      {room.type === 'group' ? <View style={styles.chips}>{(['per_person', 'total'] as const).map(mode => <Chip key={mode}
-        label={t(mode === 'per_person' ? 'groupSetup.perPerson' : 'groupSetup.groupTotal')}
-        variant={values.budgetMode === mode ? 'selected' : 'default'} disabled={pending || !canEdit}
-        onPress={() => form.setValue('budgetMode', mode, { shouldDirty: true })} />)}</View> : null}
-      <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-        <BudgetPicker {...field} visibilityField={visibilityField} submitAttempt={form.formState.submitCount} enforceBounds={changed.budgetAmount} roomType={room.type} budgetMode={values.budgetMode} disabled={pending || !canEdit} />
-      } />
-      <View testID="room-schedule-section" style={styles.section}>
-        <Text variant="label">{t('roomSchedule.title')}</Text>
-        <Text variant="bodySmall" color="text.secondary">{t('roomSchedule.format')}</Text>
-        <View style={styles.scheduleFields}>{(['start', 'end'] as const).map(name => <Controller key={name} control={form.control} name={name}
-          render={({ field }) => <RoomScheduleField {...field} name={name} disabled={pending || !canEdit} invalid={!scheduleValid} />} />)}</View>
-      </View>
-      {room.type === 'group' ? <>
-        <Text variant="label">{t('groupSetup.countTitle')}</Text>
-        <View style={styles.stepper}>
-          <IconBtn accessibilityLabel={t('groupSetup.decrease')} disabled={pending || !canEdit || values.participantCount <= 3}
-            onPress={() => form.setValue('participantCount', values.participantCount - 1, { shouldDirty: true })}><Text variant="title1">−</Text></IconBtn>
-          <Text variant="title1" accessibilityLiveRegion="polite">{t('groupSetup.people', { n: values.participantCount })}</Text>
-          <IconBtn accessibilityLabel={t('groupSetup.increase')} disabled={pending || !canEdit || values.participantCount >= 12}
-            onPress={() => form.setValue('participantCount', values.participantCount + 1, { shouldDirty: true })}><Icon name="plus" size={20} /></IconBtn>
+    <View ref={viewportRef} testID="room-editor-viewport" collapsable={false} style={styles.flex} onLayout={schedule}>
+      <ScrollView ref={scrollRef} testID="room-editor-scroll" style={styles.flex}
+        contentContainerStyle={[styles.body, { paddingBottom: footerInset + spacing[4] }]}
+        onLayout={schedule} onContentSizeChange={schedule} onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag}
+        scrollEventThrottle={16} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        <View style={styles.section}>
+          <Controller control={form.control} name="title" render={({ field, fieldState }) => <RoomTitleField {...field} disabled={pending || !canEdit} invalid={!!fieldState.error} />} />
         </View>
-      </> : null}
-      {!canEdit ? <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text> : null}
-      <SheetActions>
-        <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={pending} />
-        <PrimaryBtn label={t('roomEdit.saveSchedule')} disabled={pending || conflict || !canEdit || !valid || (!changed.title && !constraintsChanged)}
-          loading={pending} onPress={() => void form.handleSubmit(submit)()} />
-      </SheetActions>
-      {notice ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">{notice}</Text> : null}
-      {conflict ? <SecondaryBtn label={t('roomEdit.reload')} disabled={pending} onPress={() => void reloadAfterConflict()} /> : null}
+        <View testID="room-manage-area-editor" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
+          <CreateLocationFields embedded disabled={pending || !canEdit} model={location.model} />
+        </View>
+        {room.type === 'group' ? <View style={styles.section}>
+          <Text variant="label">{t('roomEdit.participantCount')}</Text>
+          <View style={styles.stepper}>
+            <IconBtn accessibilityLabel={t('groupSetup.decrease')} disabled={pending || !canEdit || values.participantCount <= 3}
+              onPress={() => form.setValue('participantCount', values.participantCount - 1, { shouldDirty: true })}><Text variant="title1">−</Text></IconBtn>
+            <Text variant="title1" accessibilityLiveRegion="polite">{t('groupSetup.people', { n: values.participantCount })}</Text>
+            <IconBtn accessibilityLabel={t('groupSetup.increase')} disabled={pending || !canEdit || values.participantCount >= 12}
+              onPress={() => form.setValue('participantCount', values.participantCount + 1, { shouldDirty: true })}><Icon name="plus" size={20} /></IconBtn>
+          </View>
+        </View> : null}
+        <RoomBudgetField amount={values.budgetAmount} mode={values.budgetMode} roomType={room.type} disabled={pending || !canEdit}
+          onChange={(amount, mode) => {
+            form.setValue('budgetAmount', amount, { shouldDirty: true, shouldValidate: true })
+            form.setValue('budgetMode', mode, { shouldDirty: true, shouldValidate: true })
+          }} />
+        <View testID="room-schedule-section" pointerEvents={pending || !canEdit ? 'none' : 'auto'} accessibilityState={{ disabled: pending || !canEdit }}>
+          <RoomEditTime key={`${scheduleWindow.start ?? ''}:${scheduleWindow.end ?? ''}`} storedWindow={scheduleWindow} disabled={pending || !canEdit} form={form} values={values} roomType={room.type} />
+          {!scheduleValid ? <Text color="status.warningText">{t('roomSchedule.invalid')}</Text> : null}
+        </View>
+        {!canEdit ? <Text variant="caption" color="status.warningText">{t('roomTitle.locked')}</Text> : null}
+        {notice ? <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite">{notice}</Text> : null}
+        {conflict ? <SecondaryBtn label={t('roomEdit.reload')} disabled={pending} onPress={() => void reloadAfterConflict()} /> : null}
+      </ScrollView>
     </View>
-  </View>
-  return choosing ? body : <View ref={viewportRef} testID="room-editor-viewport" collapsable={false} style={styles.shrink} onLayout={schedule}>
-    <ScrollView ref={scrollRef} testID="room-editor-scroll" style={styles.shrink}
-      onLayout={schedule} onContentSizeChange={schedule}
-      onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag} scrollEventThrottle={16}
-      keyboardShouldPersistTaps="handled" keyboardDismissMode="none" bounces={false}>
-      {body}
-    </ScrollView>
-  </View>
+    <GlassBar placement="floating" testID="room-edit-footer" onHeightChange={setFooterHeight}>
+      <PrimaryBtn label={t('roomEdit.save')} disabled={pending || conflict || !canEdit || !valid || !dirty}
+        loading={pending} onPress={() => void form.handleSubmit(submit)()} />
+    </GlassBar>
+  </>
 }

@@ -4,6 +4,7 @@ import { radius, spacing } from '@/shared/ui/tokens'
 export const styles = StyleSheet.create(theme => ({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing[4] },
+  sectionHeading: { marginBottom: spacing[2] },
   body: { marginTop: spacing[2], marginBottom: spacing[6] },
   options: { gap: spacing[2], marginBottom: spacing[6] },
   option: {

@@ -24,7 +24,6 @@ import {
 import { formatMoney } from '@/shared/pricing/money'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
-import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
 import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, IconBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -36,8 +35,6 @@ import { ResultSheet } from '@/shared/ui/result-sheet.view'
 import { useInviteExpiry } from './use-invite-expiry'
 import { activeRoomInvites } from './invite-state'
 import { shareRoomInvite } from './invite-share'
-import { RoomEditor } from './room-editor.view'
-import { RoomEditSheet } from './room-edit-sheet.view'
 import { isoToLocalSchedule, roomScheduleRangeLabel } from './room-schedule'
 import { RoomFacts } from './room-facts.view'
 import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
@@ -92,9 +89,10 @@ export default function RoomManageScreen() {
   const transitionRoom = useTransitionRoom(roomId)
   const removeSeedPlace = useRemoveRoomSeedPlace(roomId)
 
-  const [editorPending, setEditorPending] = useState(false)
-  const [areaChoosing, setAreaChoosing] = useState(false)
-  const { confirm, dialog } = useDialog()
+  const [confirmAction, setConfirmAction] = useState<{ kind: 'cancel' } | { kind: 'remove'; memberId: string; name: string } | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState(false)
+  const confirmLock = useRef(false)
   const pickerScopeId = useRef<string | null>(null)
   const pickerOpening = useRef(false)
   const [isPickerOpening, setIsPickerOpening] = useState(false)
@@ -155,30 +153,30 @@ export default function RoomManageScreen() {
   const pickerScope = storedArea?.status === 'current'
     ? draftPickerScope({ administrativeArea: storedArea, originLat: null, originLng: null, radiusM: null }) : null
 
-  async function confirmRemove(memberId: string, name: string) {
-    const choice = await confirm({
-      title: t('roomManage.removeTitle', { name }),
-      message: t('roomManage.removeBody'),
-      actions: [
-        { key: 'cancel', label: t('account.deleteCancel'), style: 'cancel' },
-        { key: 'remove', label: t('roomManage.removeConfirm'), style: 'destructive' },
-      ],
-    })
-    if (choice === 'remove') removeMember.mutate(memberId)
+  function confirmRemove(memberId: string, name: string) {
+    if (confirmLock.current) return
+    setConfirmError(false)
+    setConfirmAction({ kind: 'remove', memberId, name })
   }
-
-  async function confirmCancel() {
-    // `cancelled` is terminal in the room state machine — there is no undo.
-    const choice = await confirm({
-      title: t('roomManage.cancelTitle'),
-      message: t('roomManage.cancelBody'),
-      actions: [
-        { key: 'keep', label: t('account.deleteCancel'), style: 'cancel' },
-        { key: 'cancel-room', label: t('roomManage.cancelRoom'), style: 'destructive' },
-      ],
+  function confirmCancel() {
+    if (confirmLock.current) return
+    setConfirmError(false)
+    setConfirmAction({ kind: 'cancel' })
+  }
+  function dismissConfirmation() { if (!confirmLock.current) setConfirmAction(null) }
+  function performConfirmation() {
+    if (!confirmAction || confirmLock.current) return
+    confirmLock.current = true
+    setConfirmBusy(true)
+    setConfirmError(false)
+    const onSettled = () => { confirmLock.current = false; setConfirmBusy(false) }
+    const onError = () => setConfirmError(true)
+    if (confirmAction.kind === 'remove') removeMember.mutate(confirmAction.memberId, {
+      onSuccess: () => setConfirmAction(null), onError, onSettled,
     })
-    if (choice !== 'cancel-room') return
-    transitionRoom.mutate({ status: 'cancelled' }, { onSuccess: () => router.replace('/(tabs)/plans') })
+    else transitionRoom.mutate({ status: 'cancelled' }, {
+      onSuccess: () => { setConfirmAction(null); router.replace('/(tabs)/plans') }, onError, onSettled,
+    })
   }
 
   const members = summary.members ?? []
@@ -225,7 +223,7 @@ export default function RoomManageScreen() {
 
   return (
     <Atmosphere>
-      <BlockingLoadingOverlay visible={transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending || inviteBusy} onClosed={() => {
+      <BlockingLoadingOverlay visible={removeSeedPlace.isPending || revokeInvite.isPending || inviteBusy} onClosed={() => {
         const share = pendingShare.current
         pendingShare.current = null
         if (share) void share()
@@ -239,13 +237,10 @@ export default function RoomManageScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
-        <RoomEditSheet pending={editorPending} title={t('roomEdit.title')}
-          size={areaChoosing ? 'full' : 'content'} onClose={() => setAreaChoosing(false)}
-          renderSummary={open => <>
             <View style={styles.sectionHead}>
               <Icon name="sliders" size={20} color="accent.primary" />
               <Text variant="discoveryHeading" style={styles.flex}>{t('gogoRoom.constraints')}</Text>
-              <GhostBtn size="small" label={t('roomLobby.edit')} onPress={open} />
+              <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/edit`)} />
             </View>
             <Card padded={false} style={styles.card}>
               <RoomFacts facts={{
@@ -255,15 +250,7 @@ export default function RoomManageScreen() {
                 schedule: <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomSchedule.title')}</Text><Text variant="body">{roomScheduleRangeLabel(summary, i18n.language, t)}</Text></View></View>,
               }} />
             </Card>
-          </>}>
-          {(close, confirmConditions) => <RoomEditor room={summary} close={close} confirmConditions={confirmConditions}
-            reloadRoom={async () => {
-              const fresh = await room.refetch({ cancelRefetch: false })
-              if (fresh.isError || !fresh.data) throw fresh.error
-              return fresh.data
-            }}
-            onPendingChange={setEditorPending} onChoosingChange={setAreaChoosing} />}
-        </RoomEditSheet>
+
 
         <View style={styles.sectionHead}>
           <Icon name="mapPin" size={20} color="accent.primary" />
@@ -278,7 +265,7 @@ export default function RoomManageScreen() {
             }}><Icon name="plus" size={20} color="accent.primary" /></IconBtn>
         </View>
         <Card padded={false} style={styles.card}>
-          <Text variant="bodySmall" color="text.secondary">{t('createMood.seedHint')}</Text>
+          <Text variant="bodySmall" color="text.secondary">{t('createPlaces.body')}</Text>
           {(summary.seedPlaces ?? []).map(seed => seed.placeId && seed.name ? (
             <SeedPlaceCard key={seed.placeId} placeId={seed.placeId} name={seed.name}
               detail={seedDetails.byPlaceId.get(seed.placeId)!}
@@ -370,7 +357,14 @@ export default function RoomManageScreen() {
           confirmedReplacement.current = false
           void makeInvite(true)
         }} />
-      {dialog}
+      <ResultSheet visible={!!confirmAction} variant="warning" testID="room-manage-confirm"
+        title={t(confirmAction?.kind === 'remove' ? 'roomManage.removeTitle' : 'roomManage.cancelTitle', { name: confirmAction?.kind === 'remove' ? confirmAction.name : '' })}
+        body={t(confirmAction?.kind === 'remove' ? 'roomManage.removeBody' : 'roomManage.cancelBody')}
+        note={confirmError ? t('roomManage.saveFailed') : undefined}
+        secondaryAction={{ label: t('common.cancel'), onPress: dismissConfirmation, disabled: confirmBusy }}
+        primaryAction={{ label: t(confirmAction?.kind === 'remove' ? 'roomManage.removeConfirm' : 'roomManage.cancelRoom'),
+          destructive: true, loading: confirmBusy, disabled: confirmBusy, onPress: performConfirmation }}
+        onClose={dismissConfirmation} />
     </Atmosphere>
   )
 }

@@ -23,8 +23,8 @@ import { styles } from './wizard-step.style'
  * is on: a group has the head-count step between type/location and time, a
  * couple does not, so "Bước n / total" counts the steps they will really see.
  */
-const COUPLE_STEPS = ['type', 'time', 'budget', 'mood'] as const
-const GROUP_STEPS = ['type', 'group-setup', 'time', 'budget', 'mood'] as const
+const COUPLE_STEPS = ['type', 'time', 'budget', 'places'] as const
+const GROUP_STEPS = ['type', 'group-setup', 'time', 'budget', 'places'] as const
 
 export type WizardStepKey = (typeof GROUP_STEPS)[number]
 export const WizardHeaderOffset = createContext(0)

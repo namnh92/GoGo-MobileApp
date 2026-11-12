@@ -8,9 +8,9 @@ import i18n from '@/shared/i18n'
 import { useRoomStore } from '@/shared/store/roomStore'
 import { BudgetPicker } from '../budget-picker.view'
 import { budgetPickerSchema } from '../budget-picker'
-import { FLEXIBLE_BUDGET } from '../budget-tiers'
+import { BUDGET_TIERS, FLEXIBLE_BUDGET } from '../budget-tiers'
 import CreateBudgetScreen from '../create-budget.view'
-import CreateMoodScreen from '../create-mood.view'
+import CreatePlacesScreen from '../create-places.view'
 
 const mockPush = jest.fn()
 const mockCreate = jest.fn()
@@ -35,18 +35,29 @@ function PickerForm({ amount = 800_000, change = () => undefined }: { amount?: n
   } />
 }
 
+// CreatePlacesScreen mounts a FlatList whose 50 ms cell-batching timer can
+// otherwise fire between async act calls (or during RNTL cleanup) under load.
 beforeEach(async () => {
+  jest.useFakeTimers()
   jest.clearAllMocks()
   useRoomStore.getState().resetDraft()
   mockCreate.mockResolvedValue(roomFor('couple'))
   await act(async () => { await i18n.changeLanguage('vi') })
 })
 
+afterEach(async () => {
+  try {
+    await act(async () => { jest.runOnlyPendingTimers() })
+  } finally {
+    jest.useRealTimers()
+  }
+})
+
 it.each(['vi', 'en'])('keeps focused typing ungrouped and emits whole VND, retaining custom for a tier amount (%s)', async language => {
   await act(async () => { await i18n.changeLanguage(language) })
   const change = jest.fn()
   const view = await renderScreen(<PickerForm change={change} />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   const input = () => view.getByLabelText(inputLabel())
   expect(input().props.keyboardType).toBe('number-pad')
   expect(input().props.placeholder).toBe(i18n.t('budgetPicker.placeholder'))
@@ -58,22 +69,22 @@ it.each(['vi', 'en'])('keeps focused typing ungrouped and emits whole VND, retai
   }
   await fireEvent.changeText(input(), '800000')
   expect(input().props.value).toBe('800000')
-  expect(view.getByRole('button', { name: customLabel() }).props.accessibilityState.selected).toBe(true)
+  expect(view.getByRole('radio', { name: customLabel() }).props.accessibilityState.selected).toBe(true)
 })
 
 it('prefills non-tier amounts and keeps flexible as its existing ceiling', async () => {
   const change = jest.fn()
   const view = await renderScreen(<PickerForm amount={650_000} change={change} />)
-  expect(view.getByRole('button', { name: customLabel() }).props.accessibilityState.selected).toBe(true)
+  expect(view.getByRole('radio', { name: customLabel() }).props.accessibilityState.selected).toBe(true)
   expect(view.getByLabelText(inputLabel()).props.value).toBe('650.000')
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('createBudget.range.flexible') }))
+  await fireEvent.press(view.getByRole('radio', { name: i18n.t('createBudget.range.flexible') }))
   expect(change).toHaveBeenLastCalledWith(FLEXIBLE_BUDGET)
   expect(view.queryByLabelText(inputLabel())).toBeNull()
 })
 
 it('keeps a fresh custom selection pristine while Continue stays disabled', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   expect(view.getByLabelText(inputLabel()).props.value).toBe('')
   expect(view.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
   expect(view.getByLabelText(inputLabel()).props['aria-invalid']).not.toBe(true)
@@ -84,7 +95,7 @@ it.each([
   ['', 'budgetPicker.required'], ['9999', 'budgetPicker.bounds'], ['100000001', 'budgetPicker.bounds'],
 ])('shows an inline error and disables Continue for custom %s', async (typed, key) => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   await fireEvent.changeText(view.getByLabelText(inputLabel()), typed)
   expect(view.getByText(i18n.t(key))).toBeTruthy()
   const next = view.getByRole('button', { name: i18n.t('common.continue') })
@@ -95,7 +106,7 @@ it.each([
 
 it.each([10_000, 100_000_000])('accepts the inclusive custom bound %i', async amount => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   await fireEvent.changeText(view.getByLabelText(inputLabel()), String(amount))
   expect(view.getByRole('button', { name: i18n.t('common.continue') }).props.accessibilityState.disabled).toBe(false)
 })
@@ -111,11 +122,12 @@ it.each(['couple', 'group-host'] as const)('continues with a custom draft and cr
   expect(input.props.value).toBe('650.000')
   await fireEvent.changeText(input, '675000')
   await fireEvent.press(budget.getByRole('button', { name: i18n.t('common.continue') }))
-  expect(mockPush).toHaveBeenCalledWith('/create/mood')
+  expect(mockPush).toHaveBeenCalledWith('/create/places')
   expect(useRoomStore.getState().budgetAmount).toBe(675_000)
   await budget.unmount()
-  const mood = await renderScreen(<CreateMoodScreen />)
-  await fireEvent.press(mood.getByRole('button', { name: i18n.t('createMood.cta') }))
+  const places = await renderScreen(<CreatePlacesScreen />)
+  await fireEvent.press(places.getByRole('button', { name: i18n.t('createPlaces.cta') }))
+  await act(async () => { jest.runOnlyPendingTimers() })
   expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ constraint: expect.objectContaining({
     budgetAmount: 675_000, budgetMode: audience === 'couple' ? 'total' : 'per_person',
   }) }))
@@ -124,7 +136,7 @@ it.each(['couple', 'group-host'] as const)('continues with a custom draft and cr
 it.each(['vi', 'en'])('F-14 retains invalid paste, blocks Continue, and recovers with whole VND (%s)', async language => {
   await act(async () => { await i18n.changeLanguage(language) })
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   const input = () => view.getByLabelText(inputLabel())
   const next = () => view.getByRole('button', { name: i18n.t('common.continue') })
   await fireEvent(input(), 'focus', {})
@@ -144,14 +156,14 @@ it.each(['vi', 'en'])('F-14 retains invalid paste, blocks Continue, and recovers
     expect(useRoomStore.getState().budgetAmount).toBe(650000)
   }
   await fireEvent.press(next())
-  expect(mockPush).toHaveBeenCalledWith('/create/mood')
+  expect(mockPush).toHaveBeenCalledWith('/create/places')
 })
 
 
 it('F-14 rejects select-all decimal paste over a grouped amount and keeps it after blur/focus', async () => {
   useRoomStore.getState().patchDraft({ budgetAmount: 10000 })
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   const input = () => view.getByLabelText(inputLabel())
   await fireEvent.changeText(input(), '10000')
   await fireEvent(input(), 'blur', {})
@@ -202,7 +214,7 @@ it.each(['650.000đ', '650,000', ' 650.000 ₫ ', '650000 VND'])('normalizes val
 
 it.each(['650.00', '650000.50', '650.000,50', '1.2.3', '6 50'])('rejects malformed paste %s', async text => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   const input = () => view.getByLabelText(inputLabel())
   await fireEvent(input(), 'focus', {})
   await fireEvent.changeText(input(), text)
@@ -247,8 +259,9 @@ it('F-16 associates errors and announces once per changed error', async () => {
 
 it.each([NaN, null, Infinity, 650000.5, 9999, 100000001])('refuses final wizard submit for invalid custom budget %s', async budgetAmount => {
   useRoomStore.getState().patchDraft({ budgetAmount })
-  const view = await renderScreen(<CreateMoodScreen />)
-  await fireEvent.press(view.getByRole('button', { name: i18n.t('createMood.cta') }))
+  const view = await renderScreen(<CreatePlacesScreen />)
+  await fireEvent.press(view.getByRole('button', { name: i18n.t('createPlaces.cta') }))
+  await act(async () => { jest.runOnlyPendingTimers() })
   expect(mockCreate).not.toHaveBeenCalled()
   expect(useRoomStore.getState().creationPending).toBe(false)
 })
@@ -256,7 +269,7 @@ it.each([NaN, null, Infinity, 650000.5, 9999, 100000001])('refuses final wizard 
 
 it('shows the required error after blurring an untouched custom amount', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   await fireEvent(view.getByLabelText(inputLabel()), 'blur', {})
   expect(view.getByText(i18n.t('budgetPicker.required'))).toBeTruthy()
   expect(view.getByLabelText(inputLabel()).props['aria-invalid']).toBe(true)
@@ -265,7 +278,7 @@ it('shows the required error after blurring an untouched custom amount', async (
 
 it('uses one filled bordered budget box and recolours only that box on error', async () => {
   const view = await renderScreen(<CreateBudgetScreen />)
-  await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+  await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
   const box = () => view.getByTestId('budget-input-box')
   const initial = StyleSheet.flatten(box().props.style)
   expect(initial.borderWidth).toBe(1)
@@ -280,7 +293,6 @@ it('uses one filled bordered budget box and recolours only that box on error', a
 })
 
 it('focuses and reveals the custom input with its preview, including later focus with the keyboard open', async () => {
-  jest.useFakeTimers()
   const listeners: Partial<Record<KeyboardEventName, (event: KeyboardEvent) => void>> = {}
   jest.spyOn(Keyboard, 'addListener').mockImplementation(((name: KeyboardEventName, callback: (event: KeyboardEvent) => void) => {
     listeners[name] = callback
@@ -295,7 +307,7 @@ it('focuses and reveals the custom input with its preview, including later focus
   })
   try {
     const view = await renderScreen(<CreateBudgetScreen />)
-    await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+    await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
     expect(focus).toHaveBeenCalledTimes(1)
     await act(async () => { listeners.keyboardDidShow?.({ endCoordinates: { screenY: 550 } } as KeyboardEvent); jest.runOnlyPendingTimers() })
     expect(move).toHaveBeenLastCalledWith(expect.objectContaining({ y: 48 }))
@@ -310,7 +322,6 @@ it('focuses and reveals the custom input with its preview, including later focus
     expect(within(view.getByTestId('create-budget-viewport')).queryByTestId('create-footer')).toBeNull()
     await view.unmount()
   } finally {
-    jest.useRealTimers()
     jest.restoreAllMocks()
   }
 })
@@ -328,13 +339,13 @@ it('F-17 keeps a new custom selection pristine after Continue and returning to t
   try {
     const view = await renderScreen(<CreateBudgetScreen />)
     await fireEvent.press(view.getByRole('button', { name: i18n.t('common.continue') }))
-    expect(mockPush).toHaveBeenCalledWith('/create/mood')
+    expect(mockPush).toHaveBeenCalledWith('/create/places')
     // Stack navigation retains this form and its submitCount on Back.
     await view.rerender(<CreateBudgetScreen />)
     for (let selection = 0; selection < 2; selection++) {
-      await fireEvent.press(view.getByRole('button', { name: i18n.t('createBudget.range.flexible') }))
+      await fireEvent.press(view.getByRole('radio', { name: i18n.t('createBudget.range.flexible') }))
       announce.mockClear()
-      await fireEvent.press(view.getByRole('button', { name: customLabel() }))
+      await fireEvent.press(view.getByRole('radio', { name: customLabel() }))
       const input = view.getByLabelText(inputLabel())
       expect(input.props.value).toBe('')
       expect(view.queryByText(i18n.t('budgetPicker.required'))).toBeNull()
@@ -347,4 +358,27 @@ it('F-17 keeps a new custom selection pristine after Continue and returning to t
   } finally {
     announce.mockRestore()
   }
+})
+
+
+it.each(['vi', 'en'])('renders the original full-width cards, descriptions and radio checks, with custom last (%s)', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  const view = await renderScreen(<CreateBudgetScreen />)
+  const cards = within(view.getByTestId('create-budget-scroll')).getAllByRole('radio')
+  expect(cards.map(card => card.props.testID)).toEqual([...BUDGET_TIERS.map(tier => `budget-option-${tier.key}`), 'budget-option-custom'])
+  expect(view.queryByTestId('budget-custom-field')).toBeNull()
+  for (const tier of BUDGET_TIERS) {
+    const card = view.getByTestId(`budget-option-${tier.key}`)
+    expect(StyleSheet.flatten(card.props.style)).toMatchObject({ minHeight: 88, padding: 16, flexDirection: 'row' })
+    expect(within(card).getByText(i18n.t(`createBudget.range.${tier.key}.sub`))).toBeTruthy()
+    expect(card.props.accessibilityState).toMatchObject({ selected: tier.key === 'to800', checked: tier.key === 'to800' })
+    expect(view.getByTestId(`budget-option-${tier.key}-radio`).children.length > 0).toBe(tier.key === 'to800')
+  }
+  expect(within(view.getByTestId('budget-option-to800')).getByText(`${i18n.t('createBudget.range.to800')} ${i18n.t('createBudget.unit.couple')}`)).toBeTruthy()
+  const custom = view.getByTestId('budget-option-custom')
+  expect(within(custom).getByText(i18n.t('budgetPicker.customDescription'))).toBeTruthy()
+  await fireEvent.press(custom)
+  expect(custom.props.accessibilityState).toMatchObject({ selected: true, checked: true })
+  expect(view.getByTestId('budget-option-custom-radio').children).toHaveLength(1)
+  expect(view.getByTestId('budget-custom-field')).toBeTruthy()
 })

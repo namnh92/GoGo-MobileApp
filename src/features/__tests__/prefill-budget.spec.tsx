@@ -70,7 +70,7 @@ describe('usual budget prefill on the budget step', () => {
       await fireEvent.press(view.getByText('Tiếp tục'))
     })
     expect(useRoomStore.getState().budgetAmount).toBe(500_000)
-    expect(mockPush).toHaveBeenCalledWith('/create/mood')
+    expect(mockPush).toHaveBeenCalledWith('/create/places')
   })
 
   it('is not offered when the room budget is a group total', async () => {
@@ -131,7 +131,7 @@ it.each([
   useRoomStore.getState().setAudience(audience)
   useRoomStore.getState().setBudgetMode(mode)
   const view = await renderScreen(<CreateBudgetScreen />)
-  const tier = view.getByRole('button', { name: /^300.000đ – 500.000đ / })
+  const tier = view.getByRole('radio', { name: /^300.000đ – 500.000đ / })
   expect(within(tier).getByText(`300.000đ – 500.000đ ${unit}`)).toBeTruthy()
   await fireEvent.press(tier)
   await fireEvent.press(view.getByText('Tiếp tục'))

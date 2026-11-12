@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router'
-import { useCallback, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
-import { useDialog } from '@/shared/ui/dialog.view'
+import { ResultSheet } from '@/shared/ui/result-sheet.view'
 
 import { GhostBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
@@ -29,24 +29,28 @@ export function GuestReplaceNotice({ guestRoomId }: { guestRoomId: string | null
   )
 }
 
-/**
- * `confirmReplaceGuest()` resolves true only on an explicit "replace and join";
- * a dismissal keeps the session. Render `dialog` in the screen (#381: the
- * in-app Dialog, not `Alert.alert`).
- */
-export function useConfirmReplaceGuest(): { confirmReplaceGuest: () => Promise<boolean>; dialog: ReactElement | null } {
+/** Explicit confirmation; wait for native dismissal before replacing the session. */
+export function useConfirmReplaceGuest(): { confirmReplaceGuest: () => Promise<boolean>; dialog: ReactElement } {
   const { t } = useTranslation()
-  const { confirm, dialog } = useDialog()
-  const confirmReplaceGuest = useCallback(async () => {
-    const choice = await confirm({
-      title: t('guestReplace.confirmTitle'),
-      message: t('guestReplace.confirmBody'),
-      actions: [
-        { key: 'keep', label: t('guestReplace.cancel'), style: 'cancel' },
-        { key: 'replace', label: t('guestReplace.confirm'), style: 'destructive' },
-      ],
-    })
-    return choice === 'replace'
-  }, [confirm, t])
+  const [visible, setVisible] = useState(false)
+  const resolver = useRef<((value: boolean) => void) | null>(null)
+  const choice = useRef(false)
+  useEffect(() => () => { resolver.current?.(false); resolver.current = null }, [])
+  const confirmReplaceGuest = useCallback(() => new Promise<boolean>(resolve => {
+    if (resolver.current) { resolve(false); return }
+    resolver.current = resolve
+    choice.current = false
+    setVisible(true)
+  }), [])
+  function close(confirmed: boolean) { choice.current = confirmed; setVisible(false) }
+  const dialog = <ResultSheet visible={visible} variant="warning" testID="guest-replace-confirm"
+    title={t('guestReplace.confirmTitle')} body={t('guestReplace.confirmBody')}
+    secondaryAction={{ label: t('guestReplace.cancel'), onPress: () => close(false) }}
+    primaryAction={{ label: t('guestReplace.confirm'), destructive: true, onPress: () => close(true) }}
+    onClose={() => close(false)} onClosed={() => {
+      const resolve = resolver.current
+      resolver.current = null
+      resolve?.(choice.current)
+    }} />
   return { confirmReplaceGuest, dialog }
 }

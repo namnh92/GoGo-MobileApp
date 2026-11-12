@@ -11,13 +11,13 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
 beforeEach(async () => { await clearSavedRoomDraft(); useRoomStore.getState().resetDraft() })
 
 it('restores the saved step and fields after a cold load, including retry identity', async () => {
-  useRoomStore.setState({ title: 'Cuối tuần', startTime: '19:00', budgetAmount: 500000, moodKeys: ['chill'], creationAttempt: { key: 'same-request', fingerprint: '{}' } })
+  useRoomStore.setState({ title: 'Cuối tuần', startTime: '19:00', budgetAmount: 500000, creationAttempt: { key: 'same-request', fingerprint: '{}' } })
   await saveRoomDraft('alice', 'mood')
   useRoomStore.getState().resetDraft()
   useSavedRoomDraft.setState({ draft: null })
   await loadRoomDraft('alice')
-  expect(restoreRoomDraft('alice')).toBe('mood')
-  expect(useRoomStore.getState()).toMatchObject({ title: 'Cuối tuần', startTime: '19:00', budgetAmount: 500000, moodKeys: ['chill'], creationAttempt: { key: 'same-request' } })
+  expect(restoreRoomDraft('alice')).toBe('places')
+  expect(useRoomStore.getState()).toMatchObject({ title: 'Cuối tuần', startTime: '19:00', budgetAmount: 500000, creationAttempt: { key: 'same-request' } })
 })
 
 it('never restores another account draft and removes it from disk', async () => {
@@ -44,10 +44,10 @@ it('logout clear wins over an in-flight save', async () => {
   expect(useSavedRoomDraft.getState().draft).toBeNull()
 })
 
-it('finishing resets the whole wizard but keeps preferences scoped to the created room', () => {
-  useRoomStore.setState({ title: 'Old', audience: 'group-host', participantCount: 9, startTime: '19:00', moodKeys: ['chill'] })
-  useRoomStore.getState().finishDraft('room-1')
-  expect(useRoomStore.getState()).toMatchObject({ title: '', audience: 'couple', startTime: null, moodKeys: [], preferenceSeed: { roomId: 'room-1', moodKeys: ['chill'] } })
+it('finishing resets the whole wizard without a personal preference handoff', () => {
+  useRoomStore.setState({ title: 'Old', audience: 'group-host', participantCount: 9, startTime: '19:00' })
+  useRoomStore.getState().finishDraft()
+  expect(useRoomStore.getState()).toMatchObject({ title: '', audience: 'couple', startTime: null })
 })
 
 it('re-enters every step before the resumed one so Back keeps the wizard order', () => {
@@ -167,5 +167,19 @@ it('round 3: saves and resumes a step 1 GPS radius and the new group back stack'
   await loadRoomDraft('alice')
   expect(restoreRoomDraft('alice')).toBe('type')
   expect(useRoomStore.getState()).toMatchObject({ originLat: 21, originLng: 105, radiusM: null })
-  expect(draftStepPath('mood', 'group-host')).toEqual(['type', 'group-setup', 'time', 'budget', 'mood'])
+  expect(draftStepPath('mood', 'group-host')).toEqual(['type', 'group-setup', 'time', 'budget', 'places'])
+})
+
+it('reads a v2 mood snapshot, drops retired fields, and resumes places', async () => {
+  await saveRoomDraft('alice', 'places')
+  const old = JSON.parse(storage.value!)
+  old.step = 'mood'
+  Object.assign(old.fields, { moodKeys: ['chill'], settingKeys: ['inside'], spendingStyleKey: 'value', preferenceSeed: { roomId: 'old', moodKeys: ['chill'] } })
+  storage.value = JSON.stringify(old)
+  await loadRoomDraft('alice')
+  expect(restoreRoomDraft('alice')).toBe('places')
+  for (const key of ['moodKeys', 'settingKeys', 'spendingStyleKey', 'preferenceSeed']) expect(useRoomStore.getState()).not.toHaveProperty(key)
+  await saveRoomDraft('alice', 'mood')
+  expect(JSON.parse(storage.value!).step).toBe('places')
+  expect(JSON.parse(storage.value!).fields).not.toHaveProperty('moodKeys')
 })

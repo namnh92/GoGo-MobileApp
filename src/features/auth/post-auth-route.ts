@@ -12,7 +12,7 @@ const placeId = z.string().uuid()
  * goes home.
  */
 export function postAuthRoute(next: string | undefined): Href {
-  if (next === 'create') return '/create/mood'
+  if (next === 'create') return '/create/places'
   if (next === 'assistant') return '/assistant'
   if (next === 'saved') return '/(tabs)/saved'
   if (next?.startsWith(PLACE_PREFIX)) {

@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 
 import CreateLayout, { unstable_settings } from '@/app/create/_layout'
 import TypeEntry from '@/app/create/type'
-import CreateMood from '../create-mood.view'
+import CreatePlaces from '../create-places.view'
 import { DraftPlanCard } from '../draft-plan-card.view'
 import { saveRoomDraft, useSavedRoomDraft, type DraftStep } from '@/shared/store/savedRoomDraft'
 import { useRoomStore } from '@/shared/store/roomStore'
@@ -61,7 +61,7 @@ async function open(audience: 'couple' | 'group-host', step: DraftStep) {
     'create/group-setup': () => <Text>Group setup</Text>,
     'create/time': () => <Text>Time</Text>,
     'create/budget': () => <Text>Budget</Text>,
-    'create/mood': CreateMood,
+    'create/places': CreatePlaces,
     'room/[roomId]': () => <Text>Created room</Text>,
   }, { initialUrl: '/', wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
   await fireEvent.press(screen.getByTestId('plan-card-draft'))
@@ -70,11 +70,11 @@ async function open(audience: 'couple' | 'group-host', step: DraftStep) {
 it.each([
   ['couple', 'time', ['type', 'time']],
   ['couple', 'budget', ['type', 'time', 'budget']],
-  ['couple', 'mood', ['type', 'time', 'budget', 'mood']],
+  ['couple', 'places', ['type', 'time', 'budget', 'places']],
   ['group-host', 'group-setup', ['type', 'group-setup']],
   ['group-host', 'time', ['type', 'group-setup', 'time']],
   ['group-host', 'budget', ['type', 'group-setup', 'time', 'budget']],
-  ['group-host', 'mood', ['type', 'group-setup', 'time', 'budget', 'mood']],
+  ['group-host', 'places', ['type', 'group-setup', 'time', 'budget', 'places']],
   ['couple', 'type', ['type']],
   ['couple', 'location', ['type']],
 ] as const)('F-13: %s saved at %s opens one root wizard with nested history', async (audience, step, expected) => {
@@ -96,8 +96,8 @@ it.each(['save', 'discard'] as const)('F-13: Back → %s removes the entire resu
 })
 
 it.each(['couple', 'group-host'] as const)('F-13: %s submit replaces the whole resumed wizard; Back returns to Plans', async audience => {
-  await open(audience, 'mood')
-  await fireEvent.press(screen.getByRole('button', { name: i18n.t('createMood.cta') }))
+  await open(audience, 'places')
+  await fireEvent.press(screen.getByRole('button', { name: i18n.t('createPlaces.cta') }))
   await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1))
   await waitFor(() => expect(rootState().routes.map(route => route.name)).toEqual(['(tabs)', 'room/[roomId]']))
   expect(useSavedRoomDraft.getState().draft).toBeNull()

@@ -13,7 +13,7 @@ import { Chip, PrimaryBtn } from '@/shared/ui/primitives'
 import { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { Text } from '@/shared/ui/text'
 import { DEFAULT_BUDGET_TIER, tierForAmount } from './budget-tiers'
-import { BudgetPicker } from './budget-picker.view'
+import { CreateBudgetFields } from './create-budget-fields.view'
 import { budgetPickerSchema } from './budget-picker'
 import { WizardScreen } from './wizard-step.view'
 import { styles } from './create-budget.style'
@@ -25,6 +25,7 @@ export default function CreateBudgetScreen() {
   const { roomType, budgetMode } = useRoom()
   const unit = roomType === 'couple' ? t('createBudget.unit.couple') : budgetUnitLabel(budgetMode, roomType, t)
   const patchDraft = useRoomStore(state => state.patchDraft)
+  const participantCount = useRoomStore(state => state.participantCount)
   const draftBudgetAmount = useRoomStore(state => state.budgetAmount)
   const { status } = useSession()
   const form = useForm({ resolver: zodResolver(budgetPickerSchema), defaultValues: { budgetAmount: draftBudgetAmount ?? DEFAULT_BUDGET_TIER.amount }, mode: 'onChange' })
@@ -49,14 +50,8 @@ export default function CreateBudgetScreen() {
   function next(value: { budgetAmount: number }) {
     // The amount is what the API constrains on; the tier key is presentation.
     patchDraft({ budgetAmount: value.budgetAmount })
-    router.push('/create/mood')
+    router.push('/create/places')
   }
-
-  // Group budget carries its scope explicitly — no couple copy on group flows.
-  const subtitle =
-    roomType === 'group'
-      ? t(budgetMode === 'per_person' ? 'groupSetup.perPerson' : 'groupSetup.groupTotal')
-      : t('createBudget.body')
 
   return (
     <WizardScreen step="budget" avoidKeyboard>
@@ -69,30 +64,29 @@ export default function CreateBudgetScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.content}
         >
-          <Text variant="discoveryTitle">{roomType === 'group' ? t('groupSetup.budgetBy') : t('createBudget.title')}</Text>
-          <Text color="text.secondary" style={styles.body}>{subtitle}</Text>
-
-          {offerUsual && usualTier ? (
-            <View style={styles.prefillRow}>
-              <Chip
-                icon="dollar"
-                label={t('createBudget.useUsualAction')}
-                accessibilityLabel={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
-                variant={selectedAmount === usualTier.amount ? 'selected' : 'info'}
-                onPress={useUsualBudget}
-              />
-              <Text variant="bodySmall" style={styles.prefillAmount}>
-                {t(`createBudget.range.${usualTier.key}`)} {unit}
-              </Text>
-            </View>
-          ) : null}
-
           <Controller control={form.control} name="budgetAmount" render={({ field }) =>
-            <BudgetPicker visibilityField={visibilityField} submitAttempt={form.formState.submitCount} value={field.value} onBlur={field.onBlur} roomType={roomType} budgetMode={budgetMode}
-              onChange={amount => {
-                field.onChange(amount)
-                patchDraft({ budgetAmount: budgetPickerSchema.safeParse({ budgetAmount: amount }).success ? amount : null })
-              }} />
+            <CreateBudgetFields roomType={roomType} participantCount={participantCount} budgetMode={budgetMode}
+              picker={{ visibilityField, submitAttempt: form.formState.submitCount, value: field.value, onBlur: field.onBlur,
+                onChange: amount => {
+                  field.onChange(amount)
+                  patchDraft({ budgetAmount: budgetPickerSchema.safeParse({ budgetAmount: amount }).success ? amount : null })
+                } }}>
+              {offerUsual && usualTier ? (
+                <View style={styles.prefillRow}>
+                  <Chip
+                    icon="dollar"
+                    label={t('createBudget.useUsualAction')}
+                    accessibilityLabel={t('createBudget.useUsual', { tier: `${t(`createBudget.range.${usualTier.key}`)} ${unit}` })}
+                    variant={selectedAmount === usualTier.amount ? 'selected' : 'info'}
+                    onPress={useUsualBudget}
+                  />
+                  <Text variant="bodySmall" style={styles.prefillAmount}>
+                    {t(`createBudget.range.${usualTier.key}`)} {unit}
+                  </Text>
+                </View>
+              ) : null}
+
+            </CreateBudgetFields>
           } />
         </ScrollView>
       </View>

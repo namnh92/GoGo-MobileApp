@@ -98,10 +98,10 @@ describe('saved interests prefill on the preference screen', () => {
     expect(view.queryByText(CHIP)).toBeNull()
   })
 
-  it('is not offered when the wizard already seeded a pick', async () => {
-    useRoomStore.getState().patchDraft({ moodKeys: ['lively'] })
+  it('starts the host empty and offers profile prefill without a wizard handoff', async () => {
     const view = await renderScreen(<PreferenceScreen />)
-    expect(view.queryByText(CHIP)).toBeNull()
+    expect(view.getByText(CHIP)).toBeTruthy()
+    expect(view.getAllByRole('checkbox').every(row => !row.props.accessibilityState.checked)).toBe(true)
   })
 
   it('is never offered to a guest', async () => {
@@ -168,7 +168,7 @@ describe('preference checkbox criteria (#647)', () => {
   ] as const)('uses AppToken row/text/selection colors and localized copy in %s / %s', async (theme, locale, label) => {
     currentTheme = themes[theme]
     await i18n.changeLanguage(locale)
-    useRoomStore.getState().patchDraft({ moodKeys: ['chill', 'cozy'] })
+    mockPreferences.query = loaded({ selections: { mood: ['chill', 'cozy'] }, version: 1 })
     const view = await renderScreen(<PreferenceScreen />)
     const row = view.getByRole('checkbox', { name: label, checked: true })
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({
@@ -191,7 +191,7 @@ describe('preference checkbox criteria (#647)', () => {
 
   it('keeps save errors visible and does not complete failed saves', async () => {
     mockSave.mockRejectedValueOnce(new Error('offline'))
-    useRoomStore.getState().patchDraft({ moodKeys: ['chill', 'cozy'] })
+    mockPreferences.query = loaded({ selections: { mood: ['chill', 'cozy'] }, version: 1 })
     const view = await renderScreen(<PreferenceScreen />)
     await fireEvent.press(view.getByRole('button', { name: 'Tiếp tục (2)' }))
     expect(view.getByText(i18n.t('preference.saveFailed'))).toBeTruthy()

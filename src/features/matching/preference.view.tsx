@@ -17,7 +17,6 @@ import {
 } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
-import { useRoomStore } from '@/shared/store/roomStore'
 import { ErrorState, LoadingState } from '@/shared/ui/async-state.view'
 import { GlassBar } from '@/shared/ui/glass-bar.view'
 import { Atmosphere, PrimaryBtn } from '@/shared/ui/primitives'
@@ -29,19 +28,13 @@ import { styles } from './preference.style'
 
 const MIN_PREFS = 2
 const MAX_PREFS = 3
-/** The kind this screen collects; the wizard already collected mood/setting. */
+/** Preferences are collected here for every room member, including the host. */
 const TAXONOMY_KIND = 'mood'
 
 export default function PreferenceScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
-
-  // Whatever the host picked in the create wizard seeds their own preferences,
-  // so the choice is not silently thrown away between the two screens.
-  const draftMoodKeys = useRoomStore(state =>
-    state.preferenceSeed?.roomId === roomId ? state.preferenceSeed.moodKeys : state.moodKeys,
-  )
 
   const taxonomies = useTaxonomies({ kinds: TAXONOMY_KIND })
   const preferences = useMyPreferences(roomId)
@@ -57,10 +50,7 @@ export default function PreferenceScreen() {
     [preferences.data],
   )
 
-  // Derived, not synced in an effect: the server draft wins, and the wizard's
-  // picks only fill an empty one.
-  const selected =
-    edited ?? (savedSelection && savedSelection.length > 0 ? savedSelection : draftMoodKeys)
+  const selected = edited ?? savedSelection ?? []
 
   const options = useMemo(() => {
     const entries = taxonomies.data?.kinds?.[TAXONOMY_KIND] ?? []

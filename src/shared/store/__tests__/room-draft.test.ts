@@ -158,12 +158,10 @@ describe('resetDraft', () => {
     useRoomStore.getState().patchDraft({
       budgetAmount: 300_000,
       administrativeArea: { datasetVersion: 'ds', provinceCode: '01', provinceName: 'Hà Nội', communeCode: null, communeName: null },
-      moodKeys: ['chill'],
     })
     useRoomStore.getState().resetDraft()
 
     expect(draft().budgetAmount).toBeNull()
     expect(draft().administrativeArea).toBeNull()
-    expect(draft().moodKeys).toEqual([])
   })
 })

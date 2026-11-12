@@ -40,8 +40,8 @@ export function useWizardActions({ step }: { step: DraftStep }) {
     if (creating || leaving) return
     const draft = useRoomStore.getState()
     const dirty = Boolean(draft.title || draft.administrativeArea || draft.originLat != null || draft.startTime || draft.durationPreset
-      || draft.budgetAmount != null || draft.moodKeys.length || draft.settingKeys.length
-      || draft.spendingStyleKey || draft.seedPlaces.length || draft.audience !== 'couple'
+      || draft.budgetAmount != null
+      || draft.seedPlaces.length || draft.audience !== 'couple'
       || draft.participantCount !== 4)
     if (!dirty) { cancelWizardRecovery(); router.dismissTo('/(tabs)'); return }
     const choice = await confirm({

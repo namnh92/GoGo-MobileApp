@@ -82,7 +82,7 @@ it('round 3: step 1 owns current-position radius chips, persists the choice and 
 })
 it.each([['couple', 4], ['group-host', 5]] as const)('round 3: counts all steps for %s without a location page', async (audience, total) => {
   useRoomStore.getState().setAudience(audience)
-  const keys = audience === 'couple' ? ['type', 'time', 'budget', 'mood'] as const : ['type', 'group-setup', 'time', 'budget', 'mood'] as const
+  const keys = audience === 'couple' ? ['type', 'time', 'budget', 'places'] as const : ['type', 'group-setup', 'time', 'budget', 'places'] as const
   const view = await renderScreen(<WizardStep step="type" onBack={mockBack} />)
   for (const [index, step] of keys.entries()) {
     await view.rerender(<WizardStep step={step} onBack={mockBack} />)

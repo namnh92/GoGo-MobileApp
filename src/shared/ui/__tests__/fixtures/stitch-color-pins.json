@@ -1246,16 +1246,50 @@
       "surface.subtle"
     ],
     "src/features/gogo-room/room-editor.view.tsx": [
-      "text.secondary",
-      "text.secondary",
+      "status.warningText",
       "status.warningText",
       "text.secondary"
     ],
     "src/features/gogo-room/room-edit-fields.view.tsx": [
       "text.secondary",
-      "status.warningText",
-      "text.secondary",
       "status.warningText"
+    ],
+    "src/features/create-date/create-time-fields.view.tsx": [
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary",
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary",
+      "text.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.dangerText",
+      "accent.primary",
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "accent.onSoft",
+      "text.primary",
+      "accent.onSoft"
+    ],
+    "src/features/create-date/create-budget-fields.view.tsx": [
+      "text.secondary"
+    ],
+    "src/features/create-date/budget-option-card.view.tsx": [
+      "accent.onSoft",
+      "text.primary",
+      "text.secondary",
+      "accent.onAccent"
+    ],
+    "src/features/create-date/budget-option-card.style.tsx": [
+      "accent.soft",
+      "accent.soft",
+      "surface.subtle",
+      "accent.primary"
     ]
   },
   "workspace": {

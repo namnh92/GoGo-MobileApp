@@ -82,7 +82,7 @@ export default function SearchScreen() {
     if (explicitPicker) return () => clearPickerScope(pickerScope)
   }, [explicitPicker, pickerScope])
   const scope = useMemo<DiscoveryScope>(() => explicitPicker
-    ? wizardScope ?? { status: 'unavailable', offline: false, error: new Error(t('createMood.seedScopeUnavailable')) }
+    ? wizardScope ?? { status: 'unavailable', offline: false, error: new Error(t('createPlaces.seedScopeUnavailable')) }
     : !isPicker && !scopeOverridden && savedScope && area === entryArea ? savedScope : resolvedScope,
   [explicitPicker, wizardScope, t, isPicker, scopeOverridden, savedScope, area, entryArea, resolvedScope])
   const addSeedPlace = useRoomStore(state => state.addSeedPlace)

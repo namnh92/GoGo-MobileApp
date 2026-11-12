@@ -4,7 +4,6 @@ import { View } from 'react-native'
 import type { BudgetMode } from '@/shared/store/roomStore'
 import { formatMoney } from '@/shared/pricing/money'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
-import { Chip } from '@/shared/ui/chip.view'
 import { LabelledInput } from '@/shared/ui/labelled-input.view'
 import { Text } from '@/shared/ui/text'
 import type { TextInputRef } from '@/shared/ui/text-input'
@@ -12,12 +11,16 @@ import type { useFieldVisibility } from '@/shared/ui/use-field-visibility'
 import { BUDGET_TIERS } from './budget-tiers'
 import { budgetAmountSchema, formatBudgetInput, parseBudgetInput } from './budget-picker'
 import { styles } from './budget-picker.style'
+import { BudgetOptionCard } from './budget-option-card.view'
 
 const isTier = (value: number | null) => BUDGET_TIERS.some(tier => tier.amount === value)
 
 /** The caller owns the numeric value; local state preserves invalid text and
  * keeps custom entry open even when its amount matches a tier. */
-export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true, visibilityField, submitAttempt = 0 }: {
+export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, disabled = false, enforceBounds = true, visibilityField, submitAttempt = 0, initialCustom, onCustomSelectionChange }: {
+  /** Presentation identity for an edit sheet reopened after custom matched a tier. */
+  initialCustom?: boolean
+  onCustomSelectionChange?: (custom: boolean) => void
   visibilityField?: ReturnType<typeof useFieldVisibility>['field']
   submitAttempt?: number
   value: number | null
@@ -29,7 +32,7 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   disabled?: boolean
 }) {
   const { t } = useTranslation()
-  const [custom, setCustom] = useState(() => !isTier(value))
+  const [custom, setCustom] = useState(() => initialCustom ?? !isTier(value))
   const [focused, setFocused] = useState(false)
   const [raw, setRaw] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
@@ -38,7 +41,7 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   const [focusRequest, setFocusRequest] = useState(0)
   const inputRef = useRef<TextInputRef>(null)
   const field = visibilityField?.('budget')
-  // A chip can request focus again while custom entry is already mounted.
+  // The custom card can request focus again while entry is already mounted.
   const handledFocusRequest = useRef(0)
   useEffect(() => {
     if (disabled || handledFocusRequest.current === focusRequest) return
@@ -73,14 +76,16 @@ export function BudgetPicker({ value, onChange, onBlur, roomType, budgetMode, di
   const error = touched || submitAttempt > attemptAtSelection ? validationError : undefined
 
   return <View style={styles.body}>
-    <View style={styles.chips}>
-      {BUDGET_TIERS.map(tier => <Chip key={tier.key} multiline
-        label={`${t(`createBudget.range.${tier.key}`)}${tier.key === 'flexible' ? '' : ` ${unit}`}`}
-        variant={!custom && value === tier.amount ? 'selected' : 'default'}
-        disabled={disabled} onPress={() => { setCustom(false); setRaw(null); setTouched(false); setAttemptAtSelection(submitAttempt); change(tier.amount) }} />)}
-      <Chip label={t('budgetPicker.custom')} variant={custom ? 'selected' : 'default'} disabled={disabled}
+    <View style={styles.options}>
+      {BUDGET_TIERS.map(tier => <BudgetOptionCard key={tier.key} testID={`budget-option-${tier.key}`}
+        title={`${t(`createBudget.range.${tier.key}`)}${tier.key === 'flexible' ? '' : ` ${unit}`}`}
+        description={t(`createBudget.range.${tier.key}.sub`)}
+        selected={!custom && value === tier.amount}
+        disabled={disabled} onPress={() => { setCustom(false); setRaw(null); setTouched(false); setAttemptAtSelection(submitAttempt); change(tier.amount); onCustomSelectionChange?.(false) }} />)}
+      <BudgetOptionCard testID="budget-option-custom" title={t('budgetPicker.custom')} description={t('budgetPicker.customDescription')} selected={custom} disabled={disabled}
         onPress={() => {
           if (!custom) { setCustom(true); setRaw(null); setTouched(false); setAttemptAtSelection(submitAttempt); change(null) }
+          onCustomSelectionChange?.(true)
           setFocusRequest(request => request + 1)
         }} />
     </View>

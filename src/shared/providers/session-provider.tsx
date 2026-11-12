@@ -65,7 +65,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     scope.assert()
     if (!preserveAnonymousDraft) {
       useRoomStore.getState().resetDraft()
-      useRoomStore.setState({ preferenceSeed: null })
     }
     await scope.wait(clearSavedRoomDraft(scope))
     scope.assert()

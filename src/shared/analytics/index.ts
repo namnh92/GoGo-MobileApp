@@ -10,7 +10,6 @@ export type AnalyticsEvent =
   // #279: why a sign-out was refused (`{ reason }`), as a reason code only.
   | 'auth_sign_out_failed'
   | 'date_create_started'
-  | 'date_context_completed'
   | 'gogo_room_created'
   | 'gogo_invite_shared'
   | 'gogo_partner_joined'
