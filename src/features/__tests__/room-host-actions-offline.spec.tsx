@@ -1,5 +1,6 @@
 import { onlineManager, QueryClient } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react-native'
+import { AccessibilityInfo } from 'react-native'
 
 import { render } from '@/shared/ui/__tests__/query-render'
 import type { StoredInvite } from '@/shared/storage/invite-codes'
@@ -42,9 +43,15 @@ function Harness() {
 }
 let client: QueryClient
 let network: jest.SpyInstance
+let reducedMotion: jest.SpyInstance
+const actionMocks = [mockRefetch, mockCreate, mockForget, mockShare, mockPending, mockHold]
 beforeEach(() => {
-  jest.useFakeTimers({ now: NOW })
-  jest.clearAllMocks()
+  jest.useFakeTimers({ legacyFakeTimers: false, now: NOW })
+  actionMocks.forEach(mock => mock.mockReset())
+  mockHold.mockImplementation(() => jest.fn())
+  // Keep decorative animation frames out of the 15-second deadline advance.
+  // Under worker contention, advancing thousands of frames can hit Jest's timeout.
+  reducedMotion = jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true)
   // The app's NetInfo equivalent: expo-network feeds this synchronous signal.
   network = jest.spyOn(onlineManager, 'isOnline').mockReturnValue(true)
   onlineManager.setOnline(true)
@@ -56,11 +63,18 @@ beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
 })
 afterEach(async () => {
-  await cleanup()
-  client.clear()
-  onlineManager.setOnline(true)
-  network.mockRestore()
-  jest.useRealTimers()
+  try {
+    await cleanup()
+  } finally {
+    client.clear()
+    onlineManager.setOnline(true)
+    network.mockRestore()
+    reducedMotion.mockRestore()
+    jest.clearAllTimers()
+    jest.useRealTimers()
+    actionMocks.forEach(mock => mock.mockReset())
+    mockStored = null; mockMetadata = undefined; mockPaused = false
+  }
 })
 async function openOffline(withCode = false) {
   network.mockReturnValue(false)
