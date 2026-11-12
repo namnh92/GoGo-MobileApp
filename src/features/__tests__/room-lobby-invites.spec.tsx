@@ -69,6 +69,15 @@ async function open() {
 async function press(label: string) {
   await act(async () => { await fireEvent.press(screen.getByRole('button', { name: label })) })
 }
+// A Share call only opens the native UI. Keep its promise and the outcome /
+// routing-hold effect cleanup inside act before considering the flow settled.
+async function waitForShare() {
+  await waitFor(async () => {
+    expect(share).toHaveBeenCalledTimes(1)
+    await act(async () => { await share.mock.results[0].value })
+  })
+  expect(screen.getByRole('button', { name: 'Mời người tham gia' })).toBeEnabled()
+}
 async function replaceFromShare() {
   await press('Mời người tham gia')
   await waitFor(() => expect(screen.getByTestId('room-lobby-invite-confirm')).toBeTruthy())
@@ -88,7 +97,8 @@ it('creates from the empty state and shares the new canonical link', async () =>
   server = []
   await open()
   await press('Mời người tham gia')
-  await waitFor(() => expect(share).toHaveBeenCalledWith({ url: `${env.webBaseUrl}/r/new-secret`, message: expect.stringContaining(`${env.webBaseUrl}/r/new-secret`) }))
+  await waitForShare()
+  expect(share).toHaveBeenCalledWith({ url: `${env.webBaseUrl}/r/new-secret`, message: expect.stringContaining(`${env.webBaseUrl}/r/new-secret`) })
   expect(mockRevoke).not.toHaveBeenCalled()
   expect(mockCreate).toHaveBeenCalledTimes(1)
 })
@@ -108,7 +118,7 @@ it('refetches and revokes ALL active links before creating, then shares once', a
   await open()
   server = [...server, row({ inviteId: 'other-device' }), row({ inviteId: 'revoked', revoked: true })]
   await replaceFromShare()
-  await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+  await waitForShare()
   expect(mockRevoke.mock.calls).toEqual([['room-1', 'old'], ['room-1', 'other-device']])
   expect(mockRevoke.mock.invocationCallOrder[1]).toBeLessThan(mockCreate.mock.invocationCallOrder[0])
   expect(mockCreate.mock.invocationCallOrder[0]).toBeLessThan(share.mock.invocationCallOrder[0])
@@ -194,7 +204,7 @@ it('blocks interaction while creating and shares only after creation finishes', 
   expect(screen.getByTestId('blocking-loading-overlay')).toBeTruthy()
   expect(share).not.toHaveBeenCalled()
   await act(async () => { finish({ inviteId: 'new', code: 'new-secret', expiresAt: expiry }) })
-  await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+  await waitForShare()
   expect(screen.queryByTestId('blocking-loading-overlay')).toBeNull()
 })
 it('does not offer creation when the invite list cannot be read', async () => {
@@ -222,7 +232,7 @@ it('waits for background preparation on a quick header tap, then shares that inv
     finish({ inviteId: 'prepared', code: 'prepared-secret', expiresAt: expiry })
     await task
   })
-  await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
+  await waitForShare()
   expect(share.mock.calls[0][0].url).toContain('/r/prepared-secret')
   expect(mockCreate).toHaveBeenCalledTimes(1)
 })

@@ -90,10 +90,13 @@ describe('body text per kind', () => {
     await act(async () => {
       await i18n.changeLanguage('en')
     })
+    const view = await renderScreen(<NotificationsScreen />)
     try {
-      const view = await renderScreen(<NotificationsScreen />)
       expect(view.getByText('A member joined the room through an invitation. Tap to see the room.')).toBeTruthy()
     } finally {
+      // Restoring the locale rerenders a mounted FlatList and schedules its
+      // 50 ms cell batch. Unmount before restoring this test's global locale.
+      await view.unmount()
       await act(async () => {
         await i18n.changeLanguage('vi')
       })
