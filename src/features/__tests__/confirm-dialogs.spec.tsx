@@ -113,7 +113,7 @@ describe.each(['orange', 'orangeDark'] as const)('595 manage audience × state m
       expect(view.getByText('Huỷ phòng')).toBeTruthy()
       if (state === 'empty') expect(view.getByText('Chưa ai tham gia.')).toBeTruthy()
       expect(view.queryByLabelText('Tên kèo')).toBeNull()
-      await press(view.getAllByText('Sửa')[0])
+      await press(view.getByRole('button', { name: 'Sửa' }))
       expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
     }
   })
@@ -147,24 +147,24 @@ describe('room management waits for network', () => {
 
 it('595 opens a title sheet, preserves the rename contract and closes on cancel', async () => {
   const view = await renderScreen(<RoomManageScreen />)
-  await press(view.getAllByText('Sửa')[0])
-  await fireEvent.changeText(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
-  await press(view.getByText('Lưu tên'))
+  await press(view.getByRole('button', { name: 'Sửa' }))
+  await typeField(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
   expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy')
   await press(view.getByText('Huỷ'))
   expect(view.queryByLabelText('Tên kèo')).toBeNull()
 })
 
-it('595 budget sheet uses selected chips and retains version, unit and other constraints', async () => {
+it('595 unified sheet uses selected budget chips and retains version and unit', async () => {
   const room = mockRoomFor('group-host', { constraintVersion: 9 })
   mockRoomState.query = mockLoaded(room)
   const view = await renderScreen(<RoomManageScreen />)
-  await press(view.getAllByText('Sửa')[2])
-  const options = view.getAllByRole('button').filter(node => node.props.accessibilityState?.selected === false)
+  await press(view.getByRole('button', { name: 'Sửa' }))
+  const options = view.getAllByRole('button').filter(node => /500/.test(node.props.accessibilityLabel ?? ''))
   expect(options.length).toBeGreaterThan(0)
   await press(options[0])
   expect(view.getAllByRole('button').some(node => node.props.accessibilityState?.selected === true)).toBe(true)
-  await press(view.getByText('Lưu'))
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
   await press(view.getByRole('button', { name: 'Xác nhận' }))
   expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ expectedConstraintVersion: 9, budgetMode: room.constraints!.budgetMode, currency: room.constraints!.currency }))
 })
@@ -175,11 +175,11 @@ describe('595 F-01 budget sheet pending', () => {
     let complete!: (value: ReturnType<typeof mockRoomFor>) => void
     mockUpdateConstraints.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
     const view = await renderScreen(<RoomManageScreen />)
-    await press(view.getAllByText('Sửa')[2])
-    const choices = view.getAllByRole('button').filter(node => node.props.accessibilityState?.selected === false)
+    await press(view.getByRole('button', { name: 'Sửa' }))
+    const choices = view.getAllByRole('button').filter(node => /500/.test(node.props.accessibilityLabel ?? ''))
     await press(choices[0])
     const choiceA = choices[0].props.accessibilityLabel
-    await press(view.getByText('Lưu'))
+    await press(view.getByRole('button', { name: 'Xác nhận' }))
     await press(view.getByRole('button', { name: 'Xác nhận' }))
     expect(mockUpdateConstraints).toHaveBeenCalledWith(expect.objectContaining({ budgetAmount: 500_000 }))
     mockConstraintsPending = true
@@ -201,13 +201,13 @@ describe('595 F-01 budget sheet pending', () => {
 
   it.each(['header', 'backdrop', 'android-back', 'escape', 'cancel'])('ignores %s close while pending', async path => {
     const view = await renderScreen(<RoomManageScreen />)
-    await press(view.getAllByText('Sửa')[2])
+    await press(view.getByRole('button', { name: 'Sửa' }))
     mockConstraintsPending = true
     await view.rerender(<RoomManageScreen />)
     if (path === 'header') await press(view.getAllByLabelText('Quay lại', { includeHiddenElements: true }).at(-1)!)
     if (path === 'backdrop') await press(view.getByLabelText('Đóng', { includeHiddenElements: true }))
-    if (path === 'android-back') await fireEvent(view.getByTestId('room-edit-sheet-modal'), 'requestClose')
-    if (path === 'escape') await fireEvent(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
+    if (path === 'android-back') await emit(view.getByTestId('room-edit-sheet-modal'), 'requestClose')
+    if (path === 'escape') await emit(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
     if (path === 'cancel') await press(view.getByText('Huỷ', { includeHiddenElements: true }))
     expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
   })
@@ -237,8 +237,8 @@ describe.each(['orange', 'orangeDark'] as const)('595 combined manage sheet / %s
       expect(mockUpdateConstraints).not.toHaveBeenCalled()
       return
     }
-    // Both management rows open the same sheet containing both real editors.
-    await press(view.getAllByRole('button', { name: 'Sửa' }).find(node => node.props.accessibilityHint === (state === 'default' ? 'Ngày giờ kèo' : 'Tên kèo'))!)
+    // The single header action opens all room fields in one sheet.
+    await press(view.getByRole('button', { name: 'Sửa' }))
     expect(view.getAllByTestId('room-edit-sheet')).toHaveLength(1)
     expect(view.getByLabelText('Tên kèo').props.value).toBe(state === 'empty' ? '' : 'Tên cũ')
     expect(view.getByLabelText('Bắt đầu').props.value).toBe(state === 'empty' ? '' : isoToLocalSchedule(scheduledConstraints.startAt))
@@ -253,8 +253,8 @@ describe.each(['orange', 'orangeDark'] as const)('595 combined manage sheet / %s
       expect(within(modal).getByTestId('blocking-loading-overlay')).toBeTruthy()
       await press(view.getAllByLabelText('Quay lại', { includeHiddenElements: true }).at(-1)!)
       await press(view.getByLabelText('Đóng', { includeHiddenElements: true }))
-      await fireEvent(modal, 'requestClose')
-      await fireEvent(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
+      await emit(modal, 'requestClose')
+      await emit(view.getByTestId('room-edit-sheet'), 'accessibilityEscape')
       await press(view.getByText('Huỷ', { includeHiddenElements: true }))
       expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
       expect(mockRename).not.toHaveBeenCalled()
@@ -262,49 +262,56 @@ describe.each(['orange', 'orangeDark'] as const)('595 combined manage sheet / %s
     } else if (state.startsWith('error')) {
       if (state === 'error-title') {
         mockRename.mockRejectedValueOnce(new Error('offline'))
-        await fireEvent.changeText(view.getByLabelText('Tên kèo'), 'Tên mới')
-        await press(view.getByText('Lưu tên'))
+        await typeField(view.getByLabelText('Tên kèo'), 'Tên mới')
+        await press(view.getByRole('button', { name: 'Xác nhận' }))
         expect(mockUpdateConstraints).not.toHaveBeenCalled()
       } else {
         mockUpdateConstraints.mockRejectedValueOnce(new Error('offline'))
-        await fireEvent.changeText(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
+        await typeField(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
         await press(view.getByRole('button', { name: 'Xác nhận' }))
         await press(view.getAllByRole('button', { name: 'Xác nhận' }).at(-1)!)
         expect(mockRename).not.toHaveBeenCalled()
       }
-      expect(await view.findByText('Chưa lưu được. Thử lại nhé.')).toBeTruthy()
+      expect(await view.findByText(/Chưa lưu được. Thử lại nhé./)).toBeTruthy()
       expect(view.getByTestId('room-edit-sheet')).toBeTruthy()
     }
   })
 
-  it('saves name and schedule independently through the existing handlers and validates each form', async () => {
+  it('saves changed name and schedule sequentially with one action and validates the whole form', async () => {
     const room = mockRoomFor('group-host', { title: 'Tên cũ', constraintVersion: 9, constraints: scheduledConstraints })
     mockRoomState.query = mockLoaded(room)
     const view = await renderScreen(<ThemeScopeProvider name={theme}><RoomManageScreen /></ThemeScopeProvider>)
-    await press(view.getAllByText('Sửa')[0])
-    await fireEvent.changeText(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
-    await fireEvent.changeText(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
-    await fireEvent.changeText(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
-    await press(view.getByText('Lưu tên'))
-    await waitFor(() => expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy'))
+    await press(view.getByRole('button', { name: 'Sửa' }))
+    await typeField(view.getByLabelText('Tên kèo'), '  Nhóm thứ bảy  ')
+    await typeField(view.getByLabelText('Bắt đầu'), isoToLocalSchedule('2026-11-14T12:00:00Z'))
+    await typeField(view.getByLabelText('Kết thúc (không bắt buộc)'), '')
+    await press(view.getByRole('button', { name: 'Xác nhận' }))
+    expect(mockRename).not.toHaveBeenCalled()
     expect(mockUpdateConstraints).not.toHaveBeenCalled()
-    expect(view.getByLabelText('Bắt đầu').props.value).toBe(isoToLocalSchedule('2026-11-14T12:00:00Z'))
     await press(view.getByRole('button', { name: 'Xác nhận' }))
-    await press(view.getAllByRole('button', { name: 'Xác nhận' }).at(-1)!)
     await waitFor(() => expect(mockUpdateConstraints).toHaveBeenCalledWith({
-      ...scheduledConstraints, startAt: '2026-11-14T12:00:00.000Z', endAt: null, expectedConstraintVersion: 9,
+      budgetMode: scheduledConstraints.budgetMode, budgetAmount: scheduledConstraints.budgetAmount,
+      startAt: '2026-11-14T12:00:00.000Z', endAt: null, expectedConstraintVersion: 9,
     }))
-    expect(mockRename).toHaveBeenCalledTimes(1)
-    await fireEvent.changeText(view.getByLabelText('Tên kèo'), 'x'.repeat(81))
-    await press(view.getByText('Lưu tên'))
+    expect(mockRename).toHaveBeenCalledWith('Nhóm thứ bảy')
+    expect(mockRename.mock.invocationCallOrder[0]).toBeLessThan(mockUpdateConstraints.mock.invocationCallOrder[0])
+    await typeField(view.getByLabelText('Tên kèo'), 'x'.repeat(81))
     expect(await view.findByText('Tên kèo tối đa 80 ký tự.')).toBeTruthy()
+    expect(view.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+    await typeField(view.getByLabelText('Bắt đầu'), 'invalid')
+    expect(view.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+    expect(view.getAllByText(/Kiểm tra ngày giờ hợp lệ/).length).toBeGreaterThan(0)
     expect(mockRename).toHaveBeenCalledTimes(1)
-    await fireEvent.changeText(view.getByLabelText('Bắt đầu'), 'invalid')
-    await press(view.getByRole('button', { name: 'Xác nhận' }))
-    expect(await view.findByText(/Kiểm tra ngày giờ hợp lệ/)).toBeTruthy()
     expect(mockUpdateConstraints).toHaveBeenCalledTimes(1)
     await press(view.getByText('Huỷ'))
     expect(view.queryByLabelText('Tên kèo')).toBeNull()
     expect(view.queryByLabelText('Bắt đầu')).toBeNull()
   })
 })
+
+async function typeField(element: Parameters<typeof fireEvent.changeText>[0], value: string) {
+  await act(async () => { await fireEvent.changeText(element, value) })
+}
+async function emit(...args: Parameters<typeof fireEvent>) {
+  await act(async () => { await fireEvent(...args) })
+}

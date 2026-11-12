@@ -1,13 +1,11 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { chipRowGap, radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
   loading: { padding: spacing[4] },
   conditionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], minHeight: touchTarget.min },
   addSeed: { width: touchTarget.min, height: touchTarget.min },
-  scheduleFields: { flexDirection: 'row', gap: spacing[3] },
-  editorBody: { gap: spacing[3] },
   scheduleInput: { ...type.body, color: theme.text.primary, backgroundColor: theme.surface.subtle, borderRadius: radius.compact, padding: spacing[3], minHeight: touchTarget.min },
   card: { padding: spacing[4], marginBottom: spacing[4], gap: spacing[3] },
   flex: { flex: 1 },
@@ -23,7 +21,6 @@ export const styles = StyleSheet.create(theme => ({
   },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dangerCard: { padding: spacing[4], marginTop: spacing[2], gap: spacing[3], backgroundColor: theme.status.dangerSoft },
-  tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -45,5 +42,4 @@ export const styles = StyleSheet.create(theme => ({
     borderRadius: radius.pill,
     backgroundColor: theme.surface.subtle,
   },
-  notice: { textAlign: 'center', marginTop: spacing[4] },
 }))

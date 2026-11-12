@@ -1,7 +1,5 @@
-import type { ConfirmConditions } from './room-condition-confirmation.view'
 import type { usePlaceDetail } from '@/shared/api'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
-import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -10,7 +8,6 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import {
-  isApiError,
   detailToPlaceCard,
   discoveryLabels,
   useSeedPlaceDetails,
@@ -22,30 +19,25 @@ import {
   useRoom,
   useRoomInvites,
   useTransitionRoom,
-  useUpdateRoomConstraints,
 } from '@/shared/api'
 import { formatMoney } from '@/shared/pricing/money'
 import { useWaitingForNetwork } from '@/shared/api/queries/use-online-status'
 import { EmptyState, ErrorState, OfflineState } from '@/shared/ui/async-state.view'
 import { useDialog } from '@/shared/ui/dialog.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, IconBtn, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, AvatarCircle, Card, DangerBtn, GhostBtn, IconBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { PullToRefresh } from '@/shared/ui/refresh-control.view'
 import { RoomMemberSkeleton, Skeleton } from '@/shared/ui/skeleton.view'
 import { spacing } from '@/shared/ui/tokens'
 
-import { BUDGET_TIERS } from '@/features/create-date/budget-tiers'
-import { RoomScheduleEditor } from './room-schedule-editor.view'
-import { RoomTitleEditor } from './room-title-editor.view'
+import { RoomEditor } from './room-editor.view'
 import { RoomEditSheet } from './room-edit-sheet.view'
 import { roomScheduleRangeLabel } from './room-schedule'
 import { RoomFacts } from './room-facts.view'
-import { administrativeAreaLabel, type AdministrativeSelection } from '@/shared/administrative/snapshot'
-import { AdministrativePicker } from '@/shared/administrative/administrative-picker.view'
+import { administrativeAreaLabel } from '@/shared/administrative/snapshot'
 import { clearPickerScope, draftPickerScope, savePickerScope } from '@/shared/location/picker-scope'
 import { budgetUnitLabel } from '@/shared/pricing/budget-unit'
-import { SheetActions } from '@/shared/ui/sheet-actions.view'
 import { PlaceCardSmall } from '@/shared/ui/place-card-small.view'
 import { styles } from './room-manage.style'
 
@@ -77,20 +69,13 @@ export default function RoomManageScreen() {
   const seedDetails = useSeedPlaceDetails(room.data?.seedPlaces ?? [])
   const waitingForNetwork = useWaitingForNetwork(room)
   const invites = useRoomInvites(roomId)
-  const updateConstraints = useUpdateRoomConstraints(roomId)
   const revokeInvite = useRevokeRoomInvite(roomId)
   const removeMember = useRemoveRoomMember(roomId)
   const transitionRoom = useTransitionRoom(roomId)
   const removeSeedPlace = useRemoveRoomSeedPlace(roomId)
 
-  const [titlePending, setTitlePending] = useState(false)
-  const [schedulePending, setSchedulePending] = useState(false)
-  const editorPending = titlePending || schedulePending
-  const [budgetAmount, setBudgetAmount] = useState<number | null>(null)
-  const [areaDraft, setAreaDraft] = useState<AdministrativeSelection | null | undefined>(undefined)
-  const [areaValid, setAreaValid] = useState(false)
+  const [editorPending, setEditorPending] = useState(false)
   const [areaChoosing, setAreaChoosing] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
   const { confirm, dialog } = useDialog()
   const pickerScopeId = useRef<string | null>(null)
   const pickerOpening = useRef(false)
@@ -147,52 +132,9 @@ export default function RoomManageScreen() {
 
   const constraints = summary.constraints
   const currency = constraints?.currency ?? 'VND'
-  const selectedBudget = budgetAmount ?? constraints?.budgetAmount ?? 0
-  const budgetDirty = selectedBudget !== (constraints?.budgetAmount ?? 0)
   const storedArea = constraints?.administrativeArea
-  const selectedArea = areaDraft === undefined ? storedArea ?? null : areaDraft
-  const areaDirty = !!selectedArea && (storedArea?.status === 'needs_reselection'
-    || selectedArea.datasetVersion !== storedArea?.datasetVersion
-    || selectedArea.provinceCode !== storedArea?.provinceCode
-    || selectedArea.communeCode !== storedArea?.communeCode)
   const pickerScope = storedArea?.status === 'current'
     ? draftPickerScope({ administrativeArea: storedArea, originLat: null, originLng: null, radiusM: null }) : null
-
-  async function saveConstraints(confirmConditions: ConfirmConditions, area?: AdministrativeSelection) {
-    if (!constraints || !summary || updateConstraints.isPending) return
-    if (!await confirmConditions()) return
-    setNotice(null)
-    try {
-      await updateConstraints.mutateAsync(area ? {
-        administrativeArea: { datasetVersion: area.datasetVersion, provinceCode: area.provinceCode, communeCode: area.communeCode },
-        // Manual area replaces the GPS filter; PATCH omission preserves it.
-        originLat: null,
-        originLng: null,
-        radiusM: null,
-        budgetMode: constraints.budgetMode,
-        budgetAmount: constraints.budgetAmount,
-        currency,
-        expectedConstraintVersion: summary.constraintVersion,
-      } : {
-        ...constraints,
-        budgetAmount: selectedBudget,
-        currency,
-        // Optimistic concurrency: a 409 means someone edited first.
-        expectedConstraintVersion: summary.constraintVersion,
-      })
-      if (area) setAreaDraft(undefined)
-      else setBudgetAmount(null)
-      // Changing a constraint marks scores and plans stale (RULE-CORE-006);
-      // the hook already invalidated them, so say what that means.
-      setNotice(t('roomManage.savedStale'))
-    } catch (caught) {
-      setNotice(
-        isApiError(caught) && caught.status === 409
-          ? t('roomManage.conflict')
-          : t('roomManage.saveFailed'),
-      )
-    }
-  }
 
   async function confirmRemove(memberId: string, name: string) {
     const choice = await confirm({
@@ -234,79 +176,26 @@ export default function RoomManageScreen() {
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.sectionHead}>
-          <Icon name="sliders" size={20} color="accent.primary" />
-          <Text variant="discoveryHeading">{t('gogoRoom.constraints')}</Text>
-        </View>
-        <Card padded={false} style={styles.card}>
-        <RoomEditSheet pending={editorPending} title={t('roomEdit.title')} label={t('roomTitle.title')} value={summary.title?.trim() || t('plans.untitled')}
-          renderRows={(nameRow, open) => <RoomFacts facts={{
-            name: nameRow,
-            area: (
-              <RoomEditSheet pending={updateConstraints.isPending} scroll={false} size={areaChoosing ? 'full' : 'content'} label={t('roomLobby.area')}
-              value={storedArea ? administrativeAreaLabel(storedArea) : ''}
-              onClose={() => { setAreaDraft(undefined); setAreaValid(false); setAreaChoosing(false) }}>
-              {(close, confirmConditions) => <View testID="room-manage-area-editor" style={[styles.editorBody, areaChoosing && styles.flex]}>
-                <BlockingLoadingOverlay visible={updateConstraints.isPending} />
-                <AdministrativePicker embedded value={selectedArea} onChange={setAreaDraft}
-                  onValidityChange={setAreaValid} onChoosingChange={setAreaChoosing} />
-                {!areaChoosing ? <>
-                  <SheetActions>
-                    <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
-                    <PrimaryBtn label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
-                      onPress={() => { if (selectedArea && areaValid && areaDirty) void saveConstraints(confirmConditions, selectedArea) }}
-                      disabled={!areaValid || !areaDirty} loading={updateConstraints.isPending} />
-                  </SheetActions>
-                  {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
-                </> : null}
-              </View>}
-              </RoomEditSheet>
-            ),
-            budget: (
-              <RoomEditSheet pending={updateConstraints.isPending} onClose={() => setBudgetAmount(null)} label={t('roomManage.budgetTitle')} value={constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}>
-              {(close, confirmConditions) => <View style={styles.editorBody}>
-                <BlockingLoadingOverlay visible={updateConstraints.isPending} />
-                <Text variant="caption" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
-                <Text variant="bodySmall" color="text.secondary">
-                  {t(
-                    constraints?.budgetMode === 'per_person'
-                      ? 'groupSetup.perPerson'
-                      : 'groupSetup.groupTotal',
-                  )}
-                </Text>
-                <View style={styles.tierRow}>
-                  {BUDGET_TIERS.map(tier => {
-                    const active = selectedBudget === tier.amount
-                    return (
-                      <Chip key={tier.key} label={`${formatMoney(tier.amount, currency)} ${budgetUnitLabel(constraints?.budgetMode, summary.type, t)}`}
-                        variant={active ? 'selected' : 'default'} disabled={updateConstraints.isPending} onPress={() => setBudgetAmount(tier.amount)} />
-                    )
-                  })}
-                </View>
-                <SheetActions>
-                <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
-                <PrimaryBtn
-                  label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
-                  onPress={() => void saveConstraints(confirmConditions)}
-                  disabled={!budgetDirty}
-                  loading={updateConstraints.isPending}
-                />
-                </SheetActions>
-                {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
-              </View>}
-              </RoomEditSheet>
-            ),
-            schedule: <View style={styles.conditionRow}>
-              <View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomSchedule.title')}</Text><Text variant="body">{roomScheduleRangeLabel(summary, i18n.language, t)}</Text></View>
-              <GhostBtn size="small" label={t('roomLobby.edit')} accessibilityHint={t('roomSchedule.title')} onPress={open} />
-            </View>,
-          }} />}>
-          {close => <>
-            <RoomTitleEditor room={summary} blocked={editorPending} onPendingChange={setTitlePending} secondaryAction saveLabel={t('roomEdit.saveTitle')} />
-            <RoomScheduleEditor room={summary} onCancel={close} blocked={editorPending} onPendingChange={setSchedulePending} saveLabel={t('roomEdit.saveSchedule')} />
-          </>}
+        <RoomEditSheet pending={editorPending} title={t('roomEdit.title')}
+          size={areaChoosing ? 'full' : 'content'} onClose={() => setAreaChoosing(false)}
+          renderSummary={open => <>
+            <View style={styles.sectionHead}>
+              <Icon name="sliders" size={20} color="accent.primary" />
+              <Text variant="discoveryHeading" style={styles.flex}>{t('gogoRoom.constraints')}</Text>
+              <GhostBtn size="small" label={t('roomLobby.edit')} onPress={open} />
+            </View>
+            <Card padded={false} style={styles.card}>
+              <RoomFacts facts={{
+                name: <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomTitle.title')}</Text><Text variant="body">{summary.title?.trim() || t('plans.untitled')}</Text></View></View>,
+                area: <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomLobby.area')}</Text><Text variant="body">{storedArea ? administrativeAreaLabel(storedArea) : ''}</Text></View></View>,
+                budget: <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomManage.budgetTitle')}</Text><Text variant="body">{constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}</Text></View></View>,
+                schedule: <View style={styles.conditionRow}><View style={styles.flex}><Text variant="caption" color="text.secondary">{t('roomSchedule.title')}</Text><Text variant="body">{roomScheduleRangeLabel(summary, i18n.language, t)}</Text></View></View>,
+              }} />
+            </Card>
+          </>}>
+          {(close, confirmConditions) => <RoomEditor room={summary} close={close} confirmConditions={confirmConditions}
+            onPendingChange={setEditorPending} onChoosingChange={setAreaChoosing} />}
         </RoomEditSheet>
-        </Card>
 
         <View style={styles.sectionHead}>
           <Icon name="mapPin" size={20} color="accent.primary" />
@@ -409,11 +298,7 @@ export default function RoomManageScreen() {
           />
         </Card>
 
-        {notice ? (
-          <Text variant="bodySmall" color="text.secondary" accessibilityLiveRegion="polite" style={styles.notice}>
-            {notice}
-          </Text>
-        ) : null}
+
       </ScrollView>
       </PullToRefresh>
       {dialog}

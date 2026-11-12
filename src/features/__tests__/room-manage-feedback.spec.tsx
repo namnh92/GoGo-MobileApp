@@ -19,8 +19,13 @@ const mockPlaceDetail = jest.fn()
 const mockPush = jest.fn()
 const mockRemoveSeed = jest.fn()
 const mockPatch = jest.fn()
+const mockRename = jest.fn()
+const mockLocationRequest = jest.fn()
 let mockFocus: (() => void) | undefined
 let mockDatasetVersion = 'ds-2026'
+jest.mock('@/shared/location/use-current-location', () => ({
+  useCurrentLocation: () => ({ request: mockLocationRequest }),
+}))
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn() }),
   useLocalSearchParams: () => ({ roomId: 'room-1' }),
@@ -29,6 +34,7 @@ jest.mock('expo-router', () => ({
 jest.mock('@/shared/api/endpoints/rooms', () => ({
   ...jest.requireActual('@/shared/api/endpoints/rooms'),
   updateRoomConstraints: (...args: unknown[]) => mockPatch(...args),
+  renameRoom: (...args: unknown[]) => mockRename(...args),
 }))
 jest.mock('@/shared/api', () => ({
   ...jest.requireActual('@/shared/api'),
@@ -59,12 +65,13 @@ beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } })
   mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: { budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: mockArea }, seedPlaces: [{ placeId: 'seed-1', name: 'Quán thật' }] }))
   mockPatch.mockResolvedValue(roomFor('group-host', { constraintVersion: 8 }))
+  mockRename.mockResolvedValue(roomFor('group-host', { title: 'Tên mới', constraintVersion: 7 }))
 })
 afterEach(() => client.clear())
 async function press(node: Parameters<typeof fireEvent.press>[0]) { await act(async () => { await fireEvent.press(node) }) }
 async function openArea() {
   await render(<RoomManageScreen />, client)
-  const edit = screen.getAllByRole('button', { name: 'Sửa' }).find(node => node.props.accessibilityHint === 'Khu vực')!
+  const edit = screen.getByRole('button', { name: 'Sửa' })
   expect(edit).toBeTruthy()
   await press(edit)
 }
@@ -125,14 +132,14 @@ it('saves area codes through the real mutation and marks suggestions/plan stale'
   client.setQueryData(queryKeys.roomSuggestions('room-1'), { run: 'old' })
   client.setQueryData(queryKeys.roomCurrentPlan('room-1'), { plan: 'old' })
   await openArea()
-  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
   await chooseArea()
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
     administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
     originLat: null, originLng: null, radiusM: null,
-    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', expectedConstraintVersion: 7,
+    budgetMode: 'per_person', budgetAmount: 300000, expectedConstraintVersion: 7,
   }))
   expect(client.getQueryState(queryKeys.roomSuggestions('room-1'))?.isInvalidated).toBe(true)
   expect(client.getQueryState(queryKeys.roomCurrentPlan('room-1'))?.isInvalidated).toBe(true)
@@ -148,12 +155,12 @@ it('clears the GPS origin and radius when switching a Hanoi GPS room to a manual
   mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: gpsConstraints }))
   await openArea()
   await chooseArea()
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
     administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
     originLat: null, originLng: null, radiusM: null,
-    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', expectedConstraintVersion: 7,
+    budgetMode: 'per_person', budgetAmount: 300000, expectedConstraintVersion: 7,
   }))
   expect(mockPatch).toHaveBeenCalledTimes(1)
 })
@@ -175,8 +182,8 @@ it('blocks saving a selection from a replaced administrative dataset', async () 
   await chooseArea()
   mockDatasetVersion = 'ds-next'
   await screen.rerender(<RoomManageScreen />)
-  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(true)
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   expect(mockPatch).not.toHaveBeenCalled()
 })
 it('blocks repeated submits and sheet dismissal until the area API resolves', async () => {
@@ -184,7 +191,7 @@ it('blocks repeated submits and sheet dismissal until the area API resolves', as
   mockPatch.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
   await openArea()
   await chooseArea()
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
   const modal = screen.getByTestId('room-edit-sheet-modal')
@@ -202,11 +209,11 @@ it.each([409, 400])('keeps the draft and reports API %s without claiming success
   mockPatch.mockRejectedValue(new ApiError(status, { code: 'TEST', message: 'rejected' }))
   await openArea()
   await chooseArea()
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalled())
   expect(screen.getByText('Thành phố Hồ Chí Minh')).toBeTruthy()
-  expect(screen.getAllByText(status === 409 ? 'Người khác vừa sửa điều kiện. Tải lại rồi thử lại nhé.' : 'Chưa lưu được. Thử lại nhé.').length).toBeGreaterThan(0)
+  await waitFor(() => expect(screen.getByText(status === 409 ? 'Khu vực: Người khác vừa sửa điều kiện. Tải lại rồi thử lại nhé.' : 'Khu vực: Chưa lưu được. Thử lại nhé.')).toBeTruthy())
 })
 
 it('omits the danger heading, host permission card and inline warnings', async () => {
@@ -216,7 +223,7 @@ it('omits the danger heading, host permission card and inline warnings', async (
   }
   expect(screen.getByRole('button', { name: 'Huỷ phòng' })).toBeTruthy()
   expect(screen.getByText(i18n.t('roomManage.cancelBody'))).toBeTruthy()
-  await press(screen.getAllByRole('button', { name: 'Sửa' })[1])
+  await press(screen.getByRole('button', { name: 'Sửa' }))
   expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
 })
 it.each(['budget', 'area'])('confirms %s saves and preserves the sheet and draft on cancel', async editor => {
@@ -225,12 +232,12 @@ it.each(['budget', 'area'])('confirms %s saves and preserves the sheet and draft
     await chooseArea()
   } else {
     await render(<RoomManageScreen />, client)
-    const edit = screen.getAllByRole('button', { name: 'Sửa' }).find(node => node.props.accessibilityHint === i18n.t('roomManage.budgetTitle'))!
+    const edit = screen.getByRole('button', { name: 'Sửa' })
     await press(edit)
     await press(screen.getAllByRole('button').find(node => String(node.props.accessibilityLabel).includes('500'))!)
   }
   expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   expect(within(screen.getByTestId('room-edit-sheet-modal')).getByText('Đổi điều kiện phòng?')).toBeTruthy()
   expect(screen.getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
   expect(mockPatch).not.toHaveBeenCalled()
@@ -238,10 +245,10 @@ it.each(['budget', 'area'])('confirms %s saves and preserves the sheet and draft
   expect(mockPatch).not.toHaveBeenCalled()
   expect(screen.getByTestId('room-edit-sheet')).toBeTruthy()
   expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
-  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(false)
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(false)
   if (editor === 'area') expect(screen.getByText('Thành phố Hồ Chí Minh')).toBeTruthy()
   else expect(screen.getAllByRole('button').find(node => String(node.props.accessibilityLabel).includes('500'))!.props.accessibilityState.selected).toBe(true)
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
   expect(mockPatch.mock.calls[0][1]).toMatchObject(editor === 'area'
@@ -293,11 +300,11 @@ it.each(['vi', 'en'])('orders manage facts and renders the overnight end date in
     const start = new Date(startAt).toLocaleString(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     const end = new Date(endAt).toLocaleString(language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     expect(within(screen.getByTestId('room-fact-schedule')).getByText(`${start} – ${end}`)).toBeTruthy()
-    await press(within(screen.getByTestId('room-fact-schedule')).getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomLobby.edit') }))
     expect(screen.getByLabelText(i18n.t('roomSchedule.start'))).toBeTruthy()
     expect(screen.getByTestId('room-title-field')).toBeTruthy()
     await press(screen.getByRole('button', { name: i18n.t('common.cancel') }))
-    await press(within(screen.getByTestId('room-fact-name')).getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomLobby.edit') }))
     expect(screen.getByTestId('room-title-field')).toBeTruthy()
     expect(screen.getByTestId('room-schedule-section')).toBeTruthy()
   } finally {
@@ -364,19 +371,19 @@ it('pull-to-refresh refetches each current seed detail along with the room', asy
 it('uses a warning ResultSheet for area confirmation; cancel and dismiss keep the draft', async () => {
   await openArea()
   await chooseArea()
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   expect(screen.getByTestId('room-conditions-confirmation')).toBeTruthy()
   expect(mockDialog).not.toHaveBeenCalled()
   // Embedded ResultSheet reuses the editor Modal; it creates no second Modal.
   expect(screen.queryByTestId('room-conditions-confirmation-modal', { includeHiddenElements: true })).toBeNull()
   await press(screen.getByRole('button', { name: 'Huỷ' }))
   expect(mockPatch).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(false)
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(false)
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await act(async () => { await fireEvent(screen.getByTestId('room-edit-sheet-modal'), 'requestClose') })
   expect(mockPatch).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(false)
-  await press(screen.getByRole('button', { name: 'Lưu' }))
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(false)
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await press(screen.getByRole('button', { name: 'Xác nhận' }))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
 })
@@ -385,11 +392,11 @@ it.each(['vi', 'en'])('uses the shared ResultSheet for budget changes in %s, sav
   await act(async () => { await i18n.changeLanguage(language) })
   try {
     await render(<RoomManageScreen />, client)
-    await press(within(screen.getByTestId('room-fact-budget')).getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomLobby.edit') }))
     const tier = screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!
     expect(tier).toBeTruthy()
     await press(tier)
-    await press(screen.getByRole('button', { name: i18n.t('account.save') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') }))
     const confirmation = screen.getByTestId('room-conditions-confirmation')
     expect(within(confirmation).getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
     expect(mockDialog).not.toHaveBeenCalled()
@@ -399,9 +406,273 @@ it.each(['vi', 'en'])('uses the shared ResultSheet for budget changes in %s, sav
     expect(cancel.parent!.children.indexOf(cancel)).toBeLessThan(cancel.parent!.children.indexOf(confirm))
     await press(cancel)
     expect(mockPatch).not.toHaveBeenCalled()
-    await press(screen.getByRole('button', { name: i18n.t('account.save') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') }))
     await press(screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') }))
     await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
     expect(mockPatch).toHaveBeenCalledWith('room-1', expect.objectContaining({ budgetAmount: 500000 }))
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
+
+
+async function typeField(label: string, value: string) {
+  await act(async () => { await fireEvent.changeText(screen.getByLabelText(label), value) })
+}
+async function confirmEditor() {
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
+}
+async function chooseBudget() {
+  await press(screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!)
+}
+
+it('has one header edit, no row edits, all fields prefilled and one disabled confirmation row', async () => {
+  const startAt = new Date(2026, 10, 14, 19).toISOString()
+  const endAt = new Date(2026, 10, 14, 22).toISOString()
+  mockRoom.query = mockLoaded(roomFor('group-host', { title: 'Tên cũ', constraintVersion: 7, constraints: {
+    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: mockArea, startAt, endAt,
+  } }))
+  await render(<RoomManageScreen />, client)
+  expect(screen.getAllByRole('button', { name: 'Sửa' })).toHaveLength(1)
+  for (const row of screen.getAllByTestId(/^room-fact-/)) expect(within(row).queryByRole('button')).toBeNull()
+  await press(screen.getByRole('button', { name: 'Sửa' }))
+  expect(screen.getByText('Chỉnh sửa kèo')).toBeTruthy()
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('Tên cũ')
+  expect(screen.getByText('6/80')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Thành phố Hà Nội' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Phường Ba Đình' })).toBeTruthy()
+  expect(screen.getByLabelText('Bắt đầu').props.value).toBe('14/11/2026 19:00')
+  expect(screen.getByLabelText('Kết thúc (không bắt buộc)').props.value).toBe('14/11/2026 22:00')
+  expect(screen.getAllByRole('button').find(node => /300/.test(node.props.accessibilityLabel ?? ''))!.props.accessibilityState.selected).toBe(true)
+  const confirm = screen.getByRole('button', { name: 'Xác nhận' })
+  const cancel = screen.getByRole('button', { name: 'Huỷ' })
+  expect(confirm.props.accessibilityState.disabled).toBe(true)
+  expect(cancel.parent).toBe(confirm.parent)
+  expect(cancel.parent!.children.indexOf(cancel)).toBeLessThan(cancel.parent!.children.indexOf(confirm))
+  expect(screen.queryByText('Lưu tên')).toBeNull()
+  await confirmEditor()
+  expect(mockRename).not.toHaveBeenCalled()
+  expect(mockPatch).not.toHaveBeenCalled()
+})
+
+it.each(['  Tên mới  ', '   '])('title-only saves trimmed/null title without a constraint request or stale confirmation (%s)', async title => {
+  await openArea()
+  await typeField('Tên kèo', title)
+  // Empty is a change only when the original room had a title.
+  if (!title.trim()) {
+    await press(screen.getByRole('button', { name: 'Huỷ' }))
+    mockRoom.query = mockLoaded(roomFor('group-host', { title: 'Tên cũ' }))
+    await screen.rerender(<RoomManageScreen />)
+    await press(screen.getByRole('button', { name: 'Sửa' }))
+    await typeField('Tên kèo', title)
+  }
+  await confirmEditor()
+  await waitFor(() => expect(mockRename).toHaveBeenCalledWith('room-1', { title: title.trim() || null }))
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.queryByTestId('room-conditions-confirmation')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+})
+
+it('sends only budget keys and the concurrency version for a budget-only change', async () => {
+  await openArea()
+  await chooseBudget()
+  await confirmEditor()
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.getByTestId('room-conditions-confirmation')).toBeTruthy()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    budgetAmount: 500000, budgetMode: 'per_person', currency: 'VND', expectedConstraintVersion: 7,
+  }))
+  expect(mockRename).not.toHaveBeenCalled()
+})
+
+it('combines only changed area and schedule fields in one constraints request', async () => {
+  await openArea()
+  await chooseArea()
+  await typeField('Bắt đầu', '14/11/2026 19:00')
+  await typeField('Kết thúc (không bắt buộc)', '14/11/2026 22:00')
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
+    originLat: null, originLng: null, radiusM: null,
+    startAt: new Date(2026, 10, 14, 19).toISOString(), endAt: new Date(2026, 10, 14, 22).toISOString(),
+    budgetMode: 'per_person', budgetAmount: 300000, expectedConstraintVersion: 7,
+  }))
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+  expect(mockRename).not.toHaveBeenCalled()
+})
+
+it('keeps the failed constraints draft and does not resend the successful title on retry', async () => {
+  mockPatch.mockRejectedValueOnce(new Error('offline'))
+  await openArea()
+  await typeField('Tên kèo', 'Tên mới')
+  await chooseBudget()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByText('Ngân sách: Chưa lưu được. Thử lại nhé.')).toBeTruthy())
+  expect(screen.getByTestId('room-edit-sheet')).toBeTruthy()
+  expect(mockRename).toHaveBeenCalledTimes(1)
+  expect(mockPatch).toHaveBeenCalledTimes(1)
+  expect(mockRename.mock.invocationCallOrder[0]).toBeLessThan(mockPatch.mock.invocationCallOrder[0])
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('Tên mới')
+  expect(screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!.props.accessibilityState.selected).toBe(true)
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
+  expect(mockRename).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+})
+
+it('stops the sequence on title failure and retries the still-dirty parts', async () => {
+  mockRename.mockRejectedValueOnce(new Error('offline'))
+  await openArea()
+  await typeField('Tên kèo', 'Tên mới')
+  await chooseBudget()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByText('Tên kèo: Chưa lưu được. Thử lại nhé.')).toBeTruthy())
+  expect(mockPatch).not.toHaveBeenCalled()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
+  expect(mockRename).toHaveBeenCalledTimes(2)
+})
+
+it('disables confirmation for invalid schedule/title and for reverted changes', async () => {
+  await openArea()
+  await typeField('Tên kèo', 'a'.repeat(81))
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+  await typeField('Tên kèo', '')
+  await typeField('Bắt đầu', '31/02/2026 19:00')
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+  await typeField('Bắt đầu', '')
+  await chooseBudget()
+  await press(screen.getAllByRole('button').find(node => /300/.test(node.props.accessibilityLabel ?? ''))!)
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+  expect(mockPatch).not.toHaveBeenCalled()
+})
+
+it('clears only an edited end and preserves the start and GPS fields by omission', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: {
+    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: null,
+    startAt: new Date(2026, 10, 14, 19, 0, 30).toISOString(), endAt: new Date(2026, 10, 14, 22).toISOString(),
+  } }))
+  await openArea()
+  await typeField('Kết thúc (không bắt buộc)', '')
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    endAt: null, budgetMode: 'per_person', budgetAmount: 300000, expectedConstraintVersion: 7,
+  }))
+})
+
+
+it('preserves all typed fields across the full-height area chooser', async () => {
+  await openArea()
+  await typeField('Tên kèo', 'Tên mới')
+  await chooseBudget()
+  await typeField('Bắt đầu', '14/11/2026 19:00')
+  await chooseArea()
+  expect(screen.getByLabelText('Tên kèo').props.value).toBe('Tên mới')
+  expect(screen.getByLabelText('Bắt đầu').props.value).toBe('14/11/2026 19:00')
+  expect(screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!.props.accessibilityState.selected).toBe(true)
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
+  expect(mockRename).toHaveBeenCalledTimes(1)
+  expect(mockPatch.mock.calls[0][1]).toEqual({
+    budgetMode: 'per_person', budgetAmount: 500000, currency: 'VND', expectedConstraintVersion: 7,
+    administrativeArea: { datasetVersion: 'ds-2026', provinceCode: '79', communeCode: null },
+    originLat: null, originLng: null, radiusM: null, startAt: new Date(2026, 10, 14, 19).toISOString(),
+  })
+})
+
+it('edits the group size and budget mode through the existing constraints endpoint', async () => {
+  await openArea()
+  await press(screen.getByRole('button', { name: i18n.t('groupSetup.increase') }))
+  await press(screen.getByRole('button', { name: i18n.t('groupSetup.groupTotal') }))
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    budgetMode: 'total', budgetAmount: 300000, currency: 'VND', participantCount: 5, expectedConstraintVersion: 7,
+  }))
+})
+
+it('changes only the existing GPS distance and leaves the undisclosed origin untouched', async () => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { constraintVersion: 7, constraints: {
+    budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', administrativeArea: null, radiusM: 5000,
+  } }))
+  await openArea()
+  await press(screen.getByRole('button', { name: '10 km' }))
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    budgetMode: 'per_person', budgetAmount: 300000, radiusM: 10000, expectedConstraintVersion: 7,
+  }))
+})
+
+it('stages a GPS replacement until confirmation, then atomically replaces the manual area', async () => {
+  mockLocationRequest.mockResolvedValueOnce({ status: 'granted', lat: 10.77, lng: 106.7, label: 'Vị trí hiện tại' })
+  await openArea()
+  await press(screen.getByRole('button', { name: i18n.t('home.useLocation') }))
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.getByText('Vị trí hiện tại')).toBeTruthy()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('room-1', {
+    budgetMode: 'per_person', budgetAmount: 300000, expectedConstraintVersion: 7,
+    administrativeArea: null, originLat: 10.77, originLng: 106.7, radiusM: 5000,
+  }))
+})
+
+it('keeps the manual area and permits title-only saving when location is denied', async () => {
+  mockLocationRequest.mockResolvedValueOnce({ status: 'denied' })
+  await openArea()
+  await press(screen.getByRole('button', { name: i18n.t('home.useLocation') }))
+  expect(screen.getByText(i18n.t('createLocation.permissionDenied'))).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Thành phố Hà Nội' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+  await typeField('Tên kèo', 'Tên mới')
+  await confirmEditor()
+  await waitFor(() => expect(mockRename).toHaveBeenCalledTimes(1))
+  expect(mockPatch).not.toHaveBeenCalled()
+})
+
+it('uses the returned constraint version for a second edit in the same open sheet', async () => {
+  await openArea()
+  await chooseBudget()
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true))
+  await press(screen.getAllByRole('button').find(node => /300/.test(node.props.accessibilityLabel ?? ''))!)
+  await confirmEditor()
+  await confirmEditor()
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
+  expect(mockPatch.mock.calls[1][1]).toEqual({ budgetMode: 'per_person', budgetAmount: 300000, currency: 'VND', expectedConstraintVersion: 8 })
+})
+
+it.each(['active', 'completed', 'cancelled'] as const)('keeps the unified editor locked in %s', async status => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { status }))
+  await openArea()
+  expect(screen.getByLabelText('Tên kèo').props.editable).toBe(false)
+  expect(screen.getByLabelText('Bắt đầu').props.editable).toBe(false)
+  expect(screen.getByRole('button', { name: 'Xác nhận' }).props.accessibilityState.disabled).toBe(true)
+  expect(screen.getByText(i18n.t('roomTitle.locked'))).toBeTruthy()
+  expect(mockRename).not.toHaveBeenCalled()
+  expect(mockPatch).not.toHaveBeenCalled()
+})
+
+it.each(['vi', 'en'])('keeps compact aligned schedule fields in %s', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  try {
+    await render(<RoomManageScreen />, client)
+    await press(screen.getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    for (const name of ['start', 'end']) {
+      const column = screen.getByTestId(`room-schedule-${name}`)
+      const label = within(column).getByText(i18n.t(name === 'end' ? 'roomSchedule.endShort' : 'roomSchedule.start'))
+      expect(label.props.numberOfLines).toBe(1)
+      expect(StyleSheet.flatten(label.props.style).height).toBe(type.label.lineHeight)
+      expect(StyleSheet.flatten(column.props.style)).toMatchObject({ flex: 1, minWidth: 0 })
+      expect(column.children[0]).toBe(label)
+    }
   } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })

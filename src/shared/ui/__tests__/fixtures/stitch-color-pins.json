@@ -1219,6 +1219,7 @@
       "text.secondary",
       "text.secondary",
       "text.secondary",
+      "text.secondary",
       "accent.primary",
       "accent.primary",
       "text.secondary",
@@ -1233,7 +1234,6 @@
       "text.secondary",
       "text.secondary",
       "status.dangerText",
-      "text.secondary",
       "text.secondary"
     ],
     "src/features/gogo-room/room-manage.style.tsx": [
@@ -1243,6 +1243,19 @@
       "status.dangerSoft",
       "border.hairline",
       "surface.subtle"
+    ],
+    "src/features/gogo-room/room-editor.view.tsx": [
+      "text.secondary",
+      "text.secondary",
+      "text.secondary",
+      "status.warningText",
+      "text.secondary"
+    ],
+    "src/features/gogo-room/room-edit-fields.view.tsx": [
+      "text.secondary",
+      "status.warningText",
+      "text.secondary",
+      "status.warningText"
     ]
   },
   "workspace": {

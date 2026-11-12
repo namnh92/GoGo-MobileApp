@@ -13,9 +13,14 @@ import { useAdministrativeUnits, useAdministrativeVersion } from './queries'
 import { foldName, type AdministrativeSelection, type AdministrativeUnit } from './snapshot'
 import { styles } from './administrative-picker.style'
 
-export function AdministrativePicker({ value, onChange, embedded = false, onChoosingChange, onValidityChange }: {
+export type AdministrativePickerLevel = 'province' | 'commune' | null
+
+export function AdministrativePicker({ value, onChange, embedded = false, onChoosingChange, onValidityChange, choosingLevel, onChoosingLevelChange }: {
   /** Reuse the enclosing area sheet instead of stacking native modals. */
   embedded?: boolean
+  /** Controlled mode lets a containing form swap scroll containers without losing the chosen list. */
+  choosingLevel?: AdministrativePickerLevel
+  onChoosingLevelChange?: (level: AdministrativePickerLevel) => void
   onChoosingChange?: (choosing: boolean) => void
   onValidityChange?: (valid: boolean) => void
   value: AdministrativeSelection | null
@@ -24,7 +29,12 @@ export function AdministrativePicker({ value, onChange, embedded = false, onChoo
   const { t } = useTranslation()
   const version = useAdministrativeVersion()
   const datasetVersion = version.data?.datasetVersion
-  const [level, setLevel] = useState<'province' | 'commune' | null>(null)
+  const [localLevel, setLocalLevel] = useState<AdministrativePickerLevel>(null)
+  const level = choosingLevel === undefined ? localLevel : choosingLevel
+  const setLevel = (value: AdministrativePickerLevel) => {
+    setLocalLevel(value)
+    onChoosingLevelChange?.(value)
+  }
   const [search, setSearch] = useState('')
   const provinces = useAdministrativeUnits(datasetVersion)
   const communes = useAdministrativeUnits(value?.provinceCode ? datasetVersion : undefined, value?.provinceCode)
