@@ -1,3 +1,5 @@
+import * as DialogModule from '@/shared/ui/dialog.view'
+const mockDialog = jest.spyOn(DialogModule, 'Dialog')
 import { StyleSheet } from 'react-native'
 import i18n from '@/shared/i18n'
 import { spacing, type } from '@/shared/ui/tokens'
@@ -176,6 +178,28 @@ it('confirms schedule changes before mutating and preserves the draft on cancel'
   await press(view.getByRole('button', { name: 'Huỷ' }))
   expect(mockMutate).not.toHaveBeenCalled()
   expect(view.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
+  expect(view.getByLabelText('Bắt đầu').props.value).toBe('12/09/2026 19:00')
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  await confirmSave(view)
+  await waitFor(() => expect(mockMutate).toHaveBeenCalledTimes(1))
+})
+
+it('shows ResultSheet inside the existing editor Modal and retains the schedule on dismiss', async () => {
+  const view = await renderScreen(<RoomEditSheet label="edit" value="">
+    {close => <RoomScheduleEditor room={roomFor('group-host')} onCancel={close} />}
+  </RoomEditSheet>)
+  await press(view.getByRole('button', { name: 'Sửa' }))
+  await fireEvent.changeText(view.getByLabelText('Bắt đầu'), '12/09/2026 19:00')
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  expect(view.getByTestId('room-conditions-confirmation')).toBeTruthy()
+  expect(view.queryByTestId('room-conditions-confirmation-modal', { includeHiddenElements: true })).toBeNull()
+  expect(mockDialog).not.toHaveBeenCalled()
+  await fireEvent(view.getByTestId('room-edit-sheet-modal'), 'requestClose')
+  expect(mockMutate).not.toHaveBeenCalled()
+  expect(view.getByLabelText('Bắt đầu').props.value).toBe('12/09/2026 19:00')
+  await press(view.getByRole('button', { name: 'Xác nhận' }))
+  await press(within(view.getByTestId('room-conditions-confirmation')).getByRole('button', { name: 'Huỷ' }))
+  expect(mockMutate).not.toHaveBeenCalled()
   expect(view.getByLabelText('Bắt đầu').props.value).toBe('12/09/2026 19:00')
   await press(view.getByRole('button', { name: 'Xác nhận' }))
   await confirmSave(view)

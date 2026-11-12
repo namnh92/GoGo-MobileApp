@@ -1,3 +1,5 @@
+import * as DialogModule from '@/shared/ui/dialog.view'
+const mockDialog = jest.spyOn(DialogModule, 'Dialog')
 import i18n from '@/shared/i18n'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native'
 import { QueryClient } from '@tanstack/react-query'
@@ -321,4 +323,77 @@ it('marks the host avatar and announces the role while showing only selection st
   expect(screen.queryByText('Chủ phòng')).toBeNull()
   expect(within(member).getByRole('button', { name: 'Xoá' })).toBeTruthy()
   expect(within(host).queryByRole('button', { name: 'Xoá' })).toBeNull()
+})
+
+it('offers a seed-detail retry without inventing facts or losing remove', async () => {
+  const refetch = jest.fn()
+  mockPlaceDetail.mockReturnValue({ isError: true, isFetching: false, isPending: false, refetch })
+  await render(<RoomManageScreen />, client)
+  expect(screen.queryByTestId('place-card-meta')).toBeNull()
+  await press(screen.getByRole('button', { name: 'Thử lại' }))
+  expect(refetch).toHaveBeenCalledTimes(1)
+  await press(screen.getByTestId('place-card-remove'))
+  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1')
+})
+it('shows compact skeleton facts while seed details fetch', async () => {
+  mockPlaceDetail.mockReturnValue({ isPending: false, isFetching: true, isError: true })
+  await render(<RoomManageScreen />, client)
+  expect(screen.getByTestId('place-card-small-loading')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
+  expect(screen.getByTestId('place-card-remove')).toBeTruthy()
+})
+it('pull-to-refresh refetches each current seed detail along with the room', async () => {
+  const refetchQueries = jest.spyOn(client, 'refetchQueries')
+  mockRoom.query = mockLoaded(roomFor('group-host', { seedPlaces: [
+    { placeId: 'seed-1', name: 'One' }, { placeId: 'seed-2', name: 'Two' },
+  ] }))
+  await render(<RoomManageScreen />, client)
+  await act(async () => { screen.getByTestId('room-manage-scroll').props.refreshControl.props.onRefresh() })
+  expect(refetchQueries).toHaveBeenCalledWith({ queryKey: queryKeys.place('seed-1'), exact: true })
+  expect(refetchQueries).toHaveBeenCalledWith({ queryKey: queryKeys.place('seed-2'), exact: true })
+  expect(mockRoom.query.refetch).toHaveBeenCalledTimes(1)
+})
+it('uses a warning ResultSheet for area confirmation; cancel and dismiss keep the draft', async () => {
+  await openArea()
+  await chooseArea()
+  await press(screen.getByRole('button', { name: 'Lưu' }))
+  expect(screen.getByTestId('room-conditions-confirmation')).toBeTruthy()
+  expect(mockDialog).not.toHaveBeenCalled()
+  // Embedded ResultSheet reuses the editor Modal; it creates no second Modal.
+  expect(screen.queryByTestId('room-conditions-confirmation-modal', { includeHiddenElements: true })).toBeNull()
+  await press(screen.getByRole('button', { name: 'Huỷ' }))
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(false)
+  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await act(async () => { await fireEvent(screen.getByTestId('room-edit-sheet-modal'), 'requestClose') })
+  expect(mockPatch).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Lưu' }).props.accessibilityState.disabled).toBe(false)
+  await press(screen.getByRole('button', { name: 'Lưu' }))
+  await press(screen.getByRole('button', { name: 'Xác nhận' }))
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
+})
+
+it.each(['vi', 'en'])('uses the shared ResultSheet for budget changes in %s, saving only on confirm', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  try {
+    await render(<RoomManageScreen />, client)
+    await press(within(screen.getByTestId('room-fact-budget')).getByRole('button', { name: i18n.t('roomLobby.edit') }))
+    const tier = screen.getAllByRole('button').find(node => /500/.test(node.props.accessibilityLabel ?? ''))!
+    expect(tier).toBeTruthy()
+    await press(tier)
+    await press(screen.getByRole('button', { name: i18n.t('account.save') }))
+    const confirmation = screen.getByTestId('room-conditions-confirmation')
+    expect(within(confirmation).getByText(i18n.t('roomManage.staleWarning'))).toBeTruthy()
+    expect(mockDialog).not.toHaveBeenCalled()
+    const cancel = within(confirmation).getByRole('button', { name: i18n.t('common.cancel') })
+    const confirm = within(confirmation).getByRole('button', { name: i18n.t('roomEdit.saveSchedule') })
+    expect(cancel.parent).toBe(confirm.parent)
+    expect(cancel.parent!.children.indexOf(cancel)).toBeLessThan(cancel.parent!.children.indexOf(confirm))
+    await press(cancel)
+    expect(mockPatch).not.toHaveBeenCalled()
+    await press(screen.getByRole('button', { name: i18n.t('account.save') }))
+    await press(screen.getByRole('button', { name: i18n.t('roomEdit.saveSchedule') }))
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
+    expect(mockPatch).toHaveBeenCalledWith('room-1', expect.objectContaining({ budgetAmount: 500000 }))
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })

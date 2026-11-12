@@ -97,3 +97,19 @@ it.each(['couple', 'group-host'] as const)('marks only the host avatar for %s ho
     await view.unmount()
   }
 })
+
+it.each(['Friday crew', '', '   ', undefined])('shows a group host name first only when set (%s)', async title => {
+  mockRoom.query = mockLoaded(roomFor('group-host', { title }))
+  const view = await renderScreen(<GoGoRoomScreen />)
+  if (title?.trim()) {
+    expect(view.getAllByTestId(/^room-fact-/)[0].props.testID).toBe('room-fact-name')
+    expect(within(view.getByTestId('room-fact-name')).getByText(title)).toBeTruthy()
+    expect(view.getAllByText(title)).toHaveLength(1)
+  } else expect(view.queryByTestId('room-fact-name')).toBeNull()
+})
+it.each(['couple', 'group-guest'] as const)('keeps the name only in the visible %s hero', async audience => {
+  mockRoom.query = mockLoaded(roomFor(audience, { title: 'Friday crew' }))
+  const view = await renderScreen(<GoGoRoomScreen />)
+  expect(view.getAllByText('Friday crew')).toHaveLength(1)
+  expect(view.queryByTestId('room-fact-name')).toBeNull()
+})

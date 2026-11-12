@@ -657,7 +657,7 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
         ) : null}
 
         {/* What the room is actually constrained by — facts, composed here. */}
-        {summary.constraints ? (
+        {summary.constraints || (roomType !== 'couple' && capabilities.isHost && summary.title?.trim()) ? (
           <Card style={styles.sectionCard}>
             <View style={styles.sectionHead}>
               <Icon name="sliders" size={20} color="accent.primary" />
@@ -665,18 +665,20 @@ export default function GoGoRoomScreen({ roomCode }: GoGoRoomScreenProps = {}) {
               {capabilities.isHost ? <GhostBtn size="small" label={t('roomLobby.edit')} onPress={() => router.push(`/room/${roomId}/manage`)} /> : <Text variant="caption" color="text.secondary">{t('roomLobby.setByHost')}</Text>}
             </View>
             <RoomFacts facts={{
-              area: summary.constraints.administrativeArea ? <>
+              name: roomType !== 'couple' && capabilities.isHost && summary.title?.trim()
+                ? <InfoRow icon="info" tone="info" label={t('roomTitle.title')}>{summary.title.trim()}</InfoRow> : null,
+              area: summary.constraints?.administrativeArea ? <>
                 <InfoRow icon="mapPin" tone="accent" label={t('roomLobby.area')}>{administrativeAreaLabel(summary.constraints.administrativeArea)}</InfoRow>
                 {summary.constraints.administrativeArea.status === 'needs_reselection' ? (
                   <InfoRow icon="alert" tone="warning" label={t('roomLobby.area')}>{t('gogoRoom.areaNeedsReselection')}</InfoRow>
                 ) : null}
               </> : null,
-              budget: summary.constraints.budgetAmount ? (
+              budget: summary.constraints?.budgetAmount ? (
                 <InfoRow icon="dollar" tone="success" label={t('roomManage.budgetTitle')}>
                   {`${formatMoney(summary.constraints.budgetAmount, summary.constraints.currency ?? 'VND')} ${budgetUnitLabel(summary.constraints.budgetMode, roomType, t)}`}
                 </InfoRow>
               ) : null,
-              schedule: summary.constraints.startAt || summary.scheduledDate ? (
+              schedule: summary.constraints?.startAt || summary.scheduledDate ? (
                 <InfoRow icon="calendar" tone="info" label={t('roomSchedule.title')}>{roomScheduleRangeLabel(summary, i18n.language, t)}</InfoRow>
               ) : null,
             }} />

@@ -11,6 +11,8 @@ import { styles } from './result-sheet.style'
 
 type Action = { label: string; onPress: () => void; disabled?: boolean; loading?: boolean }
 export interface ResultSheetProps {
+  /** Reuse an already presented Sheet without opening a second native Modal. */
+  embedded?: boolean
   visible: boolean
   variant: 'success' | 'error' | 'warning' | 'info'
   icon?: IconName
@@ -33,7 +35,7 @@ const icons: Record<ResultSheetProps['variant'], IconName> = {
 }
 
 /** App-wide result feedback. Sheet owns modal lifecycle, animation and reduced motion. */
-export function ResultSheet({ visible, variant, icon, title, body, media, note, primaryAction, secondaryAction, testID = 'result-sheet', onClose, onClosed }: ResultSheetProps) {
+export function ResultSheet({ embedded = false, visible, variant, icon, title, body, media, note, primaryAction, secondaryAction, testID = 'result-sheet', onClose, onClosed }: ResultSheetProps) {
   const titleRef = useRef<ComponentRef<typeof Text>>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const reduced = useReducedMotionPreference()
@@ -41,12 +43,11 @@ export function ResultSheet({ visible, variant, icon, title, body, media, note, 
   useEffect(() => { if (!visible) clearTimeout(timer.current) }, [visible])
   const PrimaryAction = primaryAction.destructive ? DangerBtn : PrimaryBtn
   const secondary = secondaryAction ? <SecondaryBtn {...secondaryAction} variant="neutral" style={styles.action} /> : null
-  return (
-    <Sheet visible={visible} onClose={onClose} onClosed={onClosed} testID={testID}
-      footer={<SheetActions>
+  const footer = <SheetActions>
         {secondary}
         <PrimaryAction {...primaryAction} style={styles.action} />
-      </SheetActions>}>
+      </SheetActions>
+  const content = (
       <View style={styles.content}>
         <Icon name={icon ?? icons[variant]} color={tones[variant]} size={spacing[8]} />
         <Text ref={titleRef} accessibilityRole="header" variant="title1" style={styles.copy}
@@ -63,6 +64,7 @@ export function ResultSheet({ visible, variant, icon, title, body, media, note, 
         <Text style={styles.copy}>{body}</Text>
         {note ? <Text variant="caption" color="text.secondary" style={styles.copy}>{note}</Text> : null}
       </View>
-    </Sheet>
   )
+  if (embedded) return visible ? <View testID={testID} style={styles.embedded}>{content}{footer}</View> : null
+  return <Sheet visible={visible} onClose={onClose} onClosed={onClosed} testID={testID} footer={footer}>{content}</Sheet>
 }

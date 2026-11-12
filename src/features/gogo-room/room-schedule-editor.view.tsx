@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { isApiError, useUpdateRoomConstraints, type RoomSummary } from '@/shared/api'
 import { Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
-import { useDialog } from '@/shared/ui/dialog.view'
+import { useRoomConditionConfirmation } from './room-condition-confirmation.view'
 import { SheetActions } from '@/shared/ui/sheet-actions.view'
 
 import { isoToLocalSchedule, localScheduleToIso } from './room-schedule'
@@ -39,7 +39,7 @@ function defaultsFor(room: RoomSummary) {
 export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingChange, saveLabel }: { room: RoomSummary; onCancel?: () => void; blocked?: boolean; onPendingChange?: (pending: boolean) => void; saveLabel?: string }) {
   const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
-  const { confirm, dialog } = useDialog()
+  const confirmation = useRoomConditionConfirmation()
   const update = useUpdateRoomConstraints(room.id)
   const values = useMemo(() => defaultsFor(room), [room])
   const form = useForm({
@@ -62,16 +62,7 @@ export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingC
   async function submit(formValues: z.infer<typeof scheduleSchema>) {
     const base = editing.current ?? room
     if (!base.constraints || !canEdit || update.isPending || blocked) return
-    const choice = await confirm({
-      title: t('roomManage.changeConditionsTitle'),
-      message: t('roomManage.staleWarning'),
-      actionLayout: 'row',
-      actions: [
-        { key: 'cancel', label: t('common.cancel'), style: 'cancel' },
-        { key: 'confirm', label: t('roomEdit.saveSchedule') },
-      ],
-    })
-    if (choice !== 'confirm') return
+    if (!await confirmation.confirm()) return
     setNotice(null)
     // RoomConstraintPatch keeps any field that is omitted (GoGo-BE#576), so an
     // emptied end field must send `endAt: null` to clear the end; a prefilled
@@ -152,7 +143,7 @@ export function RoomScheduleEditor({ room, onCancel, blocked = false, onPendingC
           {notice}
         </Text>
       ) : null}
-      {dialog}
+      {confirmation.sheet}
     </Card>
   )
 }

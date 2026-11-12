@@ -1,3 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/shared/api/query-keys'
+import type { ConfirmConditions } from './room-condition-confirmation.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
@@ -57,12 +60,15 @@ function SeedPlaceCard({ placeId, name, onRemove }: { placeId: string; name: str
     detail.isError ? fallback : detail.data ?? fallback,
     discoveryLabels(taxonomy.data, i18n.language),
   )
-  return <PlaceCardSmall place={place} onRemove={onRemove} removeAccessibilityLabel={t('roomManage.removeConfirm')} />
+  return <PlaceCardSmall place={place} onRemove={onRemove} removeAccessibilityLabel={t('roomManage.removeConfirm')}
+    loading={detail.isFetching || detail.isPending}
+    caption={detail.isError && !detail.isFetching ? <GhostBtn size="small" label={t('common.retry')} onPress={() => void detail.refetch()} /> : undefined} />
 }
 
 export default function RoomManageScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const insets = useSafeAreaInsets()
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
 
@@ -84,8 +90,6 @@ export default function RoomManageScreen() {
   const [areaChoosing, setAreaChoosing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const { confirm, dialog } = useDialog()
-  // Render this dialog inside the active editor's native Modal.
-  const { confirm: confirmConditions, dialog: conditionsDialog } = useDialog()
   const pickerScopeId = useRef<string | null>(null)
   const pickerOpening = useRef(false)
   const [isPickerOpening, setIsPickerOpening] = useState(false)
@@ -152,18 +156,9 @@ export default function RoomManageScreen() {
   const pickerScope = storedArea?.status === 'current'
     ? draftPickerScope({ administrativeArea: storedArea, originLat: null, originLng: null, radiusM: null }) : null
 
-  async function saveConstraints(area?: AdministrativeSelection) {
+  async function saveConstraints(confirmConditions: ConfirmConditions, area?: AdministrativeSelection) {
     if (!constraints || !summary || updateConstraints.isPending) return
-    const choice = await confirmConditions({
-      title: t('roomManage.changeConditionsTitle'),
-      message: t('roomManage.staleWarning'),
-      actionLayout: 'row',
-      actions: [
-        { key: 'cancel', label: t('common.cancel'), style: 'cancel' },
-        { key: 'confirm', label: t('roomEdit.saveSchedule') },
-      ],
-    })
-    if (choice !== 'confirm') return
+    if (!await confirmConditions()) return
     setNotice(null)
     try {
       await updateConstraints.mutateAsync(area ? {
@@ -229,8 +224,12 @@ export default function RoomManageScreen() {
     <Atmosphere>
       <BlockingLoadingOverlay visible={transitionRoom.isPending || removeMember.isPending || removeSeedPlace.isPending || revokeInvite.isPending} />
       {header}
-      <PullToRefresh onRefresh={async () => { await room.refetch(); await invites.refetch() }}>
-      <ScrollView
+      <PullToRefresh onRefresh={async () => { await Promise.all([
+        room.refetch(), invites.refetch(),
+        ...(summary.seedPlaces ?? []).flatMap(seed => seed.placeId
+          ? [queryClient.refetchQueries({ queryKey: queryKeys.place(seed.placeId), exact: true })] : []),
+      ]) }}>
+      <ScrollView testID="room-manage-scroll"
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: insets.bottom + spacing[6] }}
         keyboardShouldPersistTaps="handled"
       >
@@ -246,7 +245,7 @@ export default function RoomManageScreen() {
               <RoomEditSheet pending={updateConstraints.isPending} scroll={false} size={areaChoosing ? 'full' : 'content'} label={t('roomLobby.area')}
               value={storedArea ? administrativeAreaLabel(storedArea) : ''}
               onClose={() => { setAreaDraft(undefined); setAreaValid(false); setAreaChoosing(false) }}>
-              {close => <View testID="room-manage-area-editor" style={[styles.editorBody, areaChoosing && styles.flex]}>
+              {(close, confirmConditions) => <View testID="room-manage-area-editor" style={[styles.editorBody, areaChoosing && styles.flex]}>
                 <BlockingLoadingOverlay visible={updateConstraints.isPending} />
                 <AdministrativePicker embedded value={selectedArea} onChange={setAreaDraft}
                   onValidityChange={setAreaValid} onChoosingChange={setAreaChoosing} />
@@ -254,18 +253,17 @@ export default function RoomManageScreen() {
                   <SheetActions>
                     <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
                     <PrimaryBtn label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
-                      onPress={() => { if (selectedArea && areaValid && areaDirty) void saveConstraints(selectedArea) }}
+                      onPress={() => { if (selectedArea && areaValid && areaDirty) void saveConstraints(confirmConditions, selectedArea) }}
                       disabled={!areaValid || !areaDirty} loading={updateConstraints.isPending} />
                   </SheetActions>
                   {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
                 </> : null}
-                {conditionsDialog}
               </View>}
               </RoomEditSheet>
             ),
             budget: (
               <RoomEditSheet pending={updateConstraints.isPending} onClose={() => setBudgetAmount(null)} label={t('roomManage.budgetTitle')} value={constraints?.budgetAmount ? `${formatMoney(constraints.budgetAmount, currency)} ${budgetUnitLabel(constraints.budgetMode, summary.type, t)}` : ''}>
-              {close => <View style={styles.editorBody}>
+              {(close, confirmConditions) => <View style={styles.editorBody}>
                 <BlockingLoadingOverlay visible={updateConstraints.isPending} />
                 <Text variant="caption" color="text.secondary">{t('roomManage.budgetTitle')}</Text>
                 <Text variant="bodySmall" color="text.secondary">
@@ -288,13 +286,12 @@ export default function RoomManageScreen() {
                 <SecondaryBtn label={t('common.cancel')} onPress={close} disabled={updateConstraints.isPending} />
                 <PrimaryBtn
                   label={updateConstraints.isPending ? t('account.saving') : t('account.save')}
-                  onPress={() => void saveConstraints()}
+                  onPress={() => void saveConstraints(confirmConditions)}
                   disabled={!budgetDirty}
                   loading={updateConstraints.isPending}
                 />
                 </SheetActions>
                 {notice ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{notice}</Text> : null}
-                {conditionsDialog}
               </View>}
               </RoomEditSheet>
             ),
