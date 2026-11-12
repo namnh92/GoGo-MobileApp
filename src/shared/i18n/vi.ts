@@ -414,6 +414,8 @@ export const viMessages = {
   "discovery.googleRating": "★ {{score}} {{count}} Google",
   "discovery.gogoRating": "★ {{score}} ({{count}}) GoGo",
   "discovery.gogoFewReviews": "GoGo · Chưa đủ đánh giá",
+  "discovery.gogoFewReviewsStatus": "Chưa đủ đánh giá",
+  "discovery.gogoFewReviewsCompact": "đánh giá",
 
   'splash.brand': "GoGo",
   'splash.wordmark': 'go go',

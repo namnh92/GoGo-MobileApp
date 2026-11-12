@@ -54,8 +54,8 @@ describe('one shared PlaceCard', () => {
     await render(<PlaceCard place={fixture({ gogoRating: 4.8, gogoRatingCount: 20, discovery: { categoryLabel: 'Cà phê' } })} tags={['Wi-Fi', 'Làm việc', 'Siphon']} />)
     expect(screen.getByTestId('place-card-address-row')).toBeTruthy()
     expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Nguyễn Huệ')
-    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(screen.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,8 (20) GoGo')).toBeTruthy()
     expect(screen.getByTestId('place-card-price')).toHaveTextContent('45k–90k/người')
     expect(screen.getByText('Mở đến 20:00')).toBeTruthy()
     expect(screen.getByText('Cà phê')).toBeTruthy()
@@ -64,8 +64,8 @@ describe('one shared PlaceCard', () => {
   })
   it.each(['list', 'hero', 'compact'] as const)('%s preserves separate sources, sample sizes and address', async () => {
     await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 4 })} />)
-    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(screen.getByText('GoGo · Chưa đủ đánh giá (4)')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByLabelText('GoGo · Chưa đủ đánh giá (4)')).toBeTruthy()
     expect(screen.queryByText(/4,9/)).toBeNull()
     expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(2)
   })
@@ -75,15 +75,15 @@ describe('one shared PlaceCard', () => {
   })
   it('shows a source without empty parentheses when sample size is unknown', async () => {
     await render(<PlaceCard place={fixture({ ratingCount: undefined, priceUnit: 'free' })} />)
-    expect(screen.getByText('★ 4,6 Google')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,6 Google')).toBeTruthy()
     expect(screen.getByTestId('place-card-price')).toHaveTextContent('Miễn phí')
   })
   it('formats English independently for each source', async () => {
     await act(async () => { await i18n.changeLanguage('en') })
     try {
       await render(<PlaceCard place={fixture({ ratingCount: 1234, gogoRating: 4.9, gogoRatingCount: 50 })} />)
-      expect(screen.getByText('★ 4.6 (1,234) Google')).toBeTruthy()
-      expect(screen.getByText('★ 4.9 (50) GoGo')).toBeTruthy()
+      expect(screen.getByLabelText('★ 4.6 (1,234) Google')).toBeTruthy()
+      expect(screen.getByLabelText('★ 4.9 (50) GoGo')).toBeTruthy()
     } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
   })
   it('save remains an independent accessible 44pt action', async () => {
@@ -145,8 +145,8 @@ describe('shared address and rating behavior', () => {
   it('renders separate rating sources and isolates save from open', async () => {
     const open = jest.fn(); const save = jest.fn()
     await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: 20 })} saved onPress={open} onToggleSave={save} />)
-    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(screen.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,9 (20) GoGo')).toBeTruthy()
     await fireEvent.press(screen.getByTestId('place-card-save'))
     expect(save).toHaveBeenCalledTimes(1)
     expect(open).not.toHaveBeenCalled()
@@ -154,7 +154,7 @@ describe('shared address and rating behavior', () => {
   it.each([0, 4])('hides a community score below five reviews (%i)', async count => {
     await render(<PlaceCard place={fixture({ gogoRating: 4.9, gogoRatingCount: count })} />)
     expect(screen.queryByText(/4,9/)).toBeNull()
-    expect(screen.getByText(`GoGo · Chưa đủ đánh giá (${count})`)).toBeTruthy()
+    expect(screen.getByLabelText(`GoGo · Chưa đủ đánh giá (${count})`)).toBeTruthy()
     expect(screen.queryByTestId('place-card-save')).toBeNull()
   })
   it('keeps the default Saved card layout and remove toggle when new facts exist', async () => {
@@ -269,8 +269,8 @@ describe('g04 Saved reference card', () => {
     create.mockRestore()
     await render(<PlaceCard place={fixture({ photoSource: 'google', photoUrl: 'https://img.example/real.jpg', gogoRating: 4.8, gogoRatingCount: 8, discovery: { categoryLabel: 'Cà phê', tagLabels: ['Wi-Fi', 'Làm việc', 'Siphon'] } })} />)
     expect(screen.getByTestId('place-card-large')).toBeTruthy()
-    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(screen.getByText('★ 4,8 (8) GoGo')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,8 (8) GoGo')).toBeTruthy()
     expect(screen.getByText('45k–90k/người')).toBeTruthy()
     expect(screen.getByText('Siphon')).toBeTruthy()
     expect(screen.getByTestId('saved-photo-attribution')).toHaveTextContent(/Google/)
@@ -290,7 +290,7 @@ describe('g04 Saved reference card', () => {
 
   it('keeps the real sample count below the community threshold and hides unknown price', async () => {
     await render(<PlaceCard place={fixture({ priceMin: null, priceMax: null, gogoRatingCount: 3 })} />)
-    expect(screen.getByText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()
+    expect(screen.getByLabelText('GoGo · Chưa đủ đánh giá (3)')).toBeTruthy()
     expect(screen.queryByText(/\/người/)).toBeNull()
   })
 })
@@ -299,24 +299,24 @@ describe('g04 Saved reference card', () => {
 describe('owner decision 2026-11-07 rating source marks', () => {
   it.each(['default', 'discovery', 'saved'] as const)('%s keeps both marked scores and independent sample sizes', async () => {
     await render(<PlaceCard place={fixture({ gogoRating: 4.8, gogoRatingCount: 20 })} />)
-    expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(screen.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(screen.getByLabelText('★ 4,8 (20) GoGo')).toBeTruthy()
   })
   it.each(['default', 'discovery', 'saved'] as const)('%s marks Google even when the sample size is unknown', async () => {
     await render(<PlaceCard place={fixture({ ratingCount: undefined })} />)
-    expect(screen.getByText(/★ 4,6\s+Google/)).toBeTruthy()
+    expect(screen.getByLabelText(/★ 4,6\s+Google/)).toBeTruthy()
   })
 })
 
 it.each([false, true])('provider preview keeps every rendered Google score marked (compact=%s)', async compact => {
   const Component = compact ? PlaceCardSmall : PlaceCard
   await render(<Component preview={{ name: 'Provider cafe', googleRating: 4.6, googleRatingCount: 980 }} />)
-  expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+  expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
 })
 
 it('hero keeps its Google rating visibly marked', async () => {
   await render(<PlaceCard place={fixture()} />)
-  expect(screen.getByText('★ 4,6 (980) Google')).toBeTruthy()
+  expect(screen.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
 })
 
 describe('#561 shared small marker card', () => {
@@ -341,13 +341,14 @@ describe('#561 shared small marker card', () => {
       expect(screen.getByTestId('place-card-meta').props.numberOfLines).toBe(1)
       expect(screen.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
       expect(flat('place-card-ratings')).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
-      for (const label of ['GoGo · Chưa đủ đánh giá (3)', '★ 4,6 (980) Google']) {
-        const text = screen.getByText(label)
-        expect(text.props.numberOfLines).toBe(1)
-        expect(text.props.ellipsizeMode).toBe('tail')
-        expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(1)
+      expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent('GoGo · 3 đánh giá', { exact: true })
+      expect(screen.getByLabelText('★ 4,6 (980) Google')).toBe(screen.getByTestId('place-google-rating'))
+      for (const id of ['place-gogo-rating-source', 'place-gogo-rating-count', 'place-google-rating-score', 'place-google-rating-count', 'place-google-rating-source']) {
+        const fact = screen.getByTestId(id)
+        expect(fact.props.numberOfLines).toBeUndefined()
+        expect(fact.props.ellipsizeMode).toBeUndefined()
+        expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
       }
-      expect(screen.getByLabelText('★ 4,6 (980) Google')).toBe(screen.getByText('★ 4,6 (980) Google'))
       for (const id of ['place-gogo-rating', 'place-google-rating']) {
         expect(StyleSheet.flatten(screen.getByTestId(id).props.style)).toMatchObject({ maxWidth: '100%', flexShrink: 1 })
       }
@@ -373,7 +374,7 @@ describe('#561 shared small marker card', () => {
 
   it.each([0, 3, 4])('F-09: keeps known below-threshold GoGo review wording (%i)', async gogoRatingCount => {
     await render(<PlaceCardSmall place={fixture({ rating: undefined, ratingCount: undefined, gogoRating: 4.9, gogoRatingCount })} />)
-    expect(screen.getByText(`GoGo · Chưa đủ đánh giá (${gogoRatingCount})`)).toBeTruthy()
+    expect(screen.getByLabelText(`GoGo · ${gogoRatingCount} đánh giá`)).toBeTruthy()
     expect(screen.queryByText(/4,9/)).toBeNull()
     expect(screen.queryByTestId('place-google-rating')).toBeNull()
   })

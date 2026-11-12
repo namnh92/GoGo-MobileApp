@@ -148,25 +148,35 @@ it('omits the danger heading, host permission card and inline warnings', async (
   await press(screen.getByRole('button', { name: 'Sửa' }))
   expect(screen.queryByText(i18n.t('roomManage.staleWarning'))).toBeNull()
 })
-it('hydrates the common small seed card with detail photo, address and Google rating', async () => {
-  mockPlaceDetail.mockReturnValue(mockLoaded({
-    id: 'seed-1', name: 'Quán chi tiết', addressText: '12 Đường Hoa',
-    photos: [{ url: 'https://example.com/seed.jpg', source: 'manual' }],
-    rating: 4.7, ratingCount: 123,
-    taxonomies: [{ kind: 'category', key: 'cafe' }],
-    prices: [{ priceMin: 50000, priceMax: 80000, currency: 'VND', unit: 'per_person', confidence: 1 }],
-  }))
-  await render(<GoGoRoomScreen />, client)
-  expect(mockPlaceDetail).toHaveBeenCalledWith('seed-1')
-  expect(screen.getByTestId('place-card-name')).toHaveTextContent('Quán chi tiết')
-  expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Đường Hoa')
-  expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,7 (123) Google')
-  expect(screen.getByTestId('place-photo-image').props).toMatchObject({
-    source: [{ uri: 'https://example.com/seed.jpg', cacheKey: 'https://example.com/seed.jpg' }], cachePolicy: 'memory-disk',
-  })
-  await press(screen.getByTestId('place-card-remove'))
-  await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: 'Xoá' }))
-  expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
+it.each(['vi', 'en'])('hydrates the lobby seed with protected rating facts in %s', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  try {
+    mockPlaceDetail.mockReturnValue(mockLoaded({
+      id: 'seed-1', name: 'Quán chi tiết', addressText: '12 Đường Hoa',
+      photos: [{ url: 'https://example.com/seed.jpg', source: 'manual' }],
+      rating: 4.7, ratingCount: 123, gogoRatingCount: 0,
+      taxonomies: [{ kind: 'category', key: 'cafe' }],
+      prices: [{ priceMin: 50000, priceMax: 80000, currency: 'VND', unit: 'per_person', confidence: 1 }],
+    }))
+    await render(<GoGoRoomScreen />, client)
+    expect(mockPlaceDetail).toHaveBeenCalledWith('seed-1')
+    expect(screen.getByTestId('place-card-name')).toHaveTextContent('Quán chi tiết')
+    expect(screen.getByTestId('place-card-meta')).toHaveTextContent('12 Đường Hoa')
+    expect(screen.getByTestId('place-google-rating')).toHaveTextContent(language === 'vi' ? '★ 4,7 (123) Google' : '★ 4.7 (123) Google')
+    expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(language === 'vi' ? 'GoGo · 0 đánh giá' : 'GoGo · 0 reviews')
+    for (const id of ['place-gogo-rating-count', 'place-gogo-rating-source', 'place-google-rating-count', 'place-google-rating-source']) {
+      const fact = screen.getByTestId(id)
+      expect(fact.props.numberOfLines).toBeUndefined()
+      expect(fact.props.ellipsizeMode).toBeUndefined()
+      expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
+    }
+    expect(screen.getByTestId('place-photo-image').props).toMatchObject({
+      source: [{ uri: 'https://example.com/seed.jpg', cacheKey: 'https://example.com/seed.jpg' }], cachePolicy: 'memory-disk',
+    })
+    await press(screen.getByTestId('place-card-remove'))
+    await press(within(screen.getByTestId('room-lobby-seed-confirm')).getByRole('button', { name: i18n.t('roomManage.removeConfirm') }))
+    expect(mockRemoveSeed).toHaveBeenCalledWith('seed-1', expect.any(Object))
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
 })
 it.each(['loading', 'error'])('keeps a name-only removable seed on detail %s', async state => {
   mockPlaceDetail.mockReturnValue({ data: state === 'error' ? { id: 'seed-1', name: 'Stale detail', rating: 5, ratingCount: 10 } : undefined, isPending: state === 'loading', isError: state === 'error' })

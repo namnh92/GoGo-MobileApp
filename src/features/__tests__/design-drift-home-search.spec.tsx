@@ -398,8 +398,8 @@ describe('#515 Stitch search row and empty recovery', () => {
     const [known, unknown] = view.getAllByTestId('search-nearby-place').map(row => within(row))
     expect(within(known.getByTestId('place-card-photo')).getByText('Xác minh')).toBeTruthy()
     expect(within(known.getByTestId('place-card-body')).queryByText('Xác minh')).toBeNull()
-    expect(known.getByText(/4,6 \(980\) Google/)).toBeTruthy()
-    expect(known.getByText('★ 4,8 (20) GoGo')).toBeTruthy()
+    expect(known.getByLabelText(/4,6 \(980\) Google/)).toBeTruthy()
+    expect(known.getByLabelText('★ 4,8 (20) GoGo')).toBeTruthy()
     expect(known.queryByText(/65k/)).toBeNull()
     expect(unknown.queryByTestId('place-gogo-rating')).toBeNull()
     expect(unknown.queryByText(/Xác minh|Google|65k|người/)).toBeNull()
@@ -652,7 +652,8 @@ function mapPages() {
 }
 
 describe('#561 marker selection and compact map card', () => {
-  it.each(['orange', 'orangeDark'] as const)('shows real fields, saves, dismisses and navigates in %s', async themeName => {
+  it.each([['orange', 'vi'], ['orange', 'en'], ['orangeDark', 'vi'], ['orangeDark', 'en']] as const)('shows real fields and protected rating facts in %s / %s', async (themeName, language) => {
+    await act(async () => { await i18n.changeLanguage(language) })
     UnistylesStyleSheet.configure({ themes: { orange: themes[themeName] } as typeof themes })
     try {
       mockSearch.value = { ...emptyPage(), data: { pages: [{ results: [{
@@ -678,13 +679,14 @@ describe('#561 marker selection and compact map card', () => {
       expect(card.getByTestId('place-card-body').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-card-name', 'place-card-address-row', 'place-card-ratings'])
       expect(card.getByTestId('place-card-ratings').children.filter(child => typeof child !== 'string').map(child => child.props.testID)).toEqual(['place-gogo-rating', 'place-google-rating'])
       expect(StyleSheet.flatten(card.getByTestId('place-card-ratings').props.style)).toMatchObject({ flexDirection: 'column', flexWrap: 'nowrap' })
-      for (const label of ['GoGo · Chưa đủ đánh giá (3)', '★ 4,6 (980) Google']) {
-        const text = card.getByText(label)
-        expect(text.props.numberOfLines).toBe(1)
-        expect(text.props.ellipsizeMode).toBe('tail')
-        expect(StyleSheet.flatten(text.props.style).flexShrink).toBe(1)
+      expect(card.getByTestId('place-gogo-rating')).toHaveTextContent(language === 'vi' ? 'GoGo · 3 đánh giá' : 'GoGo · 3 reviews', { exact: true })
+      expect(card.getByLabelText(language === 'vi' ? '★ 4,6 (980) Google' : '★ 4.6 (980) Google')).toBe(card.getByTestId('place-google-rating'))
+      for (const id of ['place-gogo-rating-source', 'place-gogo-rating-count', 'place-google-rating-score', 'place-google-rating-count', 'place-google-rating-source']) {
+        const fact = card.getByTestId(id)
+        expect(fact.props.numberOfLines).toBeUndefined()
+        expect(fact.props.ellipsizeMode).toBeUndefined()
+        expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
       }
-      expect(card.getByLabelText('★ 4,6 (980) Google')).toBe(card.getByText('★ 4,6 (980) Google'))
       for (const id of ['place-gogo-rating', 'place-google-rating']) {
         expect(StyleSheet.flatten(card.getByTestId(id).props.style)).toMatchObject({ maxWidth: '100%', flexShrink: 1 })
       }
@@ -717,7 +719,10 @@ describe('#561 marker selection and compact map card', () => {
       await fireEvent.press(view.getByTestId('place-card-open-target'))
       expect(mockPush).toHaveBeenCalledWith('/places/top')
       expect(view.queryByRole('tab', { name: i18n.t('tabs.plans') })).toBeNull()
-    } finally { UnistylesStyleSheet.configure({ themes }) }
+    } finally {
+      UnistylesStyleSheet.configure({ themes })
+      await act(async () => { await i18n.changeLanguage('vi') })
+    }
   })
 })
 
@@ -964,8 +969,8 @@ describe('#515 refreshed Stitch Home', () => {
     expect(full.getByText('45k–90k/người')).toBeTruthy()
     expect(full.getByText('12 Nguyễn Huệ').props.numberOfLines).toBe(2)
     expect(full.getByText('Địa điểm từ API').props.numberOfLines).toBe(1)
-    expect(full.getByText('★ 4,6 (980) Google')).toBeTruthy()
-    expect(full.getByText('★ 4,9 (20) GoGo')).toBeTruthy()
+    expect(full.getByLabelText('★ 4,6 (980) Google')).toBeTruthy()
+    expect(full.getByLabelText('★ 4,9 (20) GoGo')).toBeTruthy()
     expect(full.getByText('Ấm cúng')).toBeTruthy()
     expect(sparse.queryByText('Chưa có thông tin giá')).toBeNull()
     expect(sparse.queryByTestId('place-card-photo-badges')).toBeNull()

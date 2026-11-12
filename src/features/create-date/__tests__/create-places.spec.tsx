@@ -18,6 +18,7 @@ import CreatePlaces from '../create-places.view'
 let mockUuid = 0
 jest.mock('expo-crypto', () => ({ randomUUID: () => `00000000-0000-4000-8000-${String(++mockUuid).padStart(12, '0')}` }))
 const mockSearch = jest.fn()
+const mockDetail = jest.fn()
 const mockCreate = jest.fn()
 const mockPrepareInvite = jest.fn()
 jest.mock('@/features/gogo-room/prepare-room-invite', () => ({ prepareRoomInvite: (...args: unknown[]) => mockPrepareInvite(...args) }))
@@ -30,7 +31,7 @@ jest.mock('@/shared/providers/session-provider', () => ({ useSession: () => ({ s
 jest.mock('@/shared/api/endpoints/places', () => ({
   ...jest.requireActual('@/shared/api/endpoints/places'),
   searchPlaces: (...args: unknown[]) => mockSearch(...args),
-  getPlaceDetail: (id: string) => Promise.resolve({ id, name: `Place ${id}` }),
+  getPlaceDetail: (id: string) => mockDetail(id),
 }))
 jest.mock('@/shared/api/endpoints/rooms', () => ({
   ...jest.requireActual('@/shared/api/endpoints/rooms'),
@@ -57,6 +58,7 @@ beforeEach(async () => {
   useRecentRoomsStore.setState({ rooms: [] })
   await clearSavedRoomDraft()
   await i18n.changeLanguage('vi')
+  mockDetail.mockImplementation((id: string) => Promise.resolve({ id, name: `Place ${id}` }))
   mockSearch.mockResolvedValue({ results: [], nextCursor: null })
   mockCreate.mockResolvedValue(created)
 })
@@ -71,6 +73,25 @@ afterEach(async () => {
 })
 const open = () => render(<CreatePlaces />, client)
 const create = () => fireEvent.press(screen.getByRole('button', { name: i18n.t('createPlaces.cta') }))
+
+it.each(['vi', 'en'])('F-22 keeps wizard step 4 seed rating facts in %s', async language => {
+  await act(async () => { await i18n.changeLanguage(language) })
+  try {
+    mockDetail.mockResolvedValue({ id: 'seed', name: 'Seed café', rating: 4.5, ratingCount: 1395, gogoRatingCount: 0 })
+    useRoomStore.getState().addSeedPlace({ placeId: 'seed', name: 'Seed café' })
+    await open()
+    await screen.findByTestId('place-gogo-rating')
+    const card = within(screen.getByTestId('create-places-seed-list'))
+    expect(card.getByTestId('place-gogo-rating')).toHaveTextContent(language === 'vi' ? 'GoGo · 0 đánh giá' : 'GoGo · 0 reviews')
+    expect(card.getByTestId('place-google-rating')).toHaveTextContent(language === 'vi' ? '★ 4,5 (1.395) Google' : '★ 4.5 (1,395) Google')
+    for (const id of ['place-gogo-rating-count', 'place-gogo-rating-source', 'place-google-rating-count', 'place-google-rating-source']) {
+      const fact = card.getByTestId(id)
+      expect(fact.props.numberOfLines).toBeUndefined()
+      expect(fact.props.ellipsizeMode).toBeUndefined()
+      expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
+    }
+  } finally { await act(async () => { await i18n.changeLanguage('vi') }) }
+})
 
 it.each([
   ['couple', 'per_person', 600001, 4, 300000, 'couple'],

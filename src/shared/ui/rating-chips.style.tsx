@@ -9,6 +9,8 @@ export const styles = StyleSheet.create(theme => ({
   stackedRow: { flexDirection: 'column', alignItems: 'flex-start' },
   compactRow: { gap: chipRowGap, flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'flex-start' },
   compactBadge: { paddingHorizontal: 4, paddingVertical: 2, flexShrink: 1 },
-  label: { flexShrink: 1 },
+  badgeRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center' },
+  fact: { flexShrink: 0 },
+  status: { flexShrink: 1, minWidth: 0 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: chipRowGap },
 }))

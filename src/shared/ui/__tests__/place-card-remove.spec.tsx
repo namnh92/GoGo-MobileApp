@@ -23,12 +23,13 @@ const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.sty
 it.each([0, 4, 20])('keeps small-card rating badges on one line with their source and count (%i GoGo reviews)', async count => {
   await render(<PlaceCardSmall place={{ ...fixture(), rating: 4.7, ratingCount: 1280, gogoRating: count >= 5 ? 4.9 : undefined, gogoRatingCount: count }}
     onRemove={() => {}} removeAccessibilityLabel="Remove cafe" />)
-  const gogo = screen.getByText(count >= 5 ? '★ 4,9 (20) GoGo' : `GoGo · Chưa đủ đánh giá (${count})`)
-  const google = screen.getByText('★ 4,7 (1.280) Google')
-  for (const label of [gogo, google]) {
-    expect(label.props.numberOfLines).toBe(1)
-    expect(label.props.ellipsizeMode).toBe('tail')
-    expect(StyleSheet.flatten(label.props.style).flexShrink).toBe(1)
+  expect(screen.getByTestId('place-gogo-rating')).toHaveTextContent(count >= 5 ? '★ 4,9 (20) GoGo' : `GoGo · ${count} đánh giá`, { exact: true })
+  expect(screen.getByTestId('place-google-rating')).toHaveTextContent('★ 4,7 (1.280) Google', { exact: true })
+  for (const id of ['place-gogo-rating-source', 'place-gogo-rating-count', 'place-google-rating-score', 'place-google-rating-count', 'place-google-rating-source']) {
+    const fact = screen.getByTestId(id)
+    expect(fact.props.numberOfLines).toBeUndefined()
+    expect(fact.props.ellipsizeMode).toBeUndefined()
+    expect(StyleSheet.flatten(fact.props.style).flexShrink).toBe(0)
   }
   for (const id of ['place-gogo-rating', 'place-google-rating']) {
     expect(flat(id).maxWidth).toBe('100%')

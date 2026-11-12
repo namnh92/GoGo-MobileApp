@@ -436,6 +436,9 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   "discovery.googleRating": "★ {{score}} {{count}} Google",
   "discovery.gogoRating": "★ {{score}} ({{count}}) GoGo",
   "discovery.gogoFewReviews": "GoGo · Not enough reviews",
+  "discovery.gogoFewReviewsStatus": "Not enough reviews",
+  "discovery.gogoFewReviewsCompact_one": "review",
+  "discovery.gogoFewReviewsCompact": "reviews",
 
   'splash.brand': "GoGo",
   'splash.wordmark': 'go go',

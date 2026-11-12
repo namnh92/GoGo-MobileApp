@@ -252,8 +252,16 @@
     ],
     "src/shared/ui/rating-chips.view.tsx": [
       "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
+      "status.infoText",
       "text.primary",
-      "status.warningText"
+      "status.warningText",
+      "text.primary",
+      "text.primary"
     ],
     "src/shared/ui/badge.style.tsx": [
       "accent.primary",
