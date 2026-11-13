@@ -1,5 +1,6 @@
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
-import { DeviceEventEmitter } from 'react-native'
+import { useFocusEffect } from 'expo-router'
+import { AppState, DeviceEventEmitter, Keyboard, type AppStateStatus } from 'react-native'
 
 // Exercise RN's real IME overlap calculation, rather than its default Jest stub.
 jest.unmock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView')
@@ -27,11 +28,64 @@ jest.mock('@/shared/api', () => ({
 }))
 
 import AssistantRoute from '@/app/assistant'
+import { useKeyboardVisible } from '@/shared/ui/keyboard'
 
 import { callsTo, installBackend, renderAssistant, resetAssistantSpecState, settle, syncTanstackNotifications } from './assistant-harness'
 
 syncTanstackNotifications()
 beforeEach(resetAssistantSpecState)
+afterEach(() => jest.restoreAllMocks())
+
+it.each(['resume', 'layout', 'focus'] as const)('clears missed-hide avoidance and restores the inset on %s', async trigger => {
+  const keyboardVisible = jest.spyOn(Keyboard, 'isVisible').mockReturnValue(false)
+  const appStateListeners: ((state: AppStateStatus) => void)[] = []
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+    appStateListeners.push(listener)
+    return { remove: jest.fn() }
+  })
+  installBackend({ seed: false })
+  let peerVisible = false
+  function KeyboardPeer() {
+    peerVisible = useKeyboardVisible()
+    return null
+  }
+  const screen = await renderAssistant(<><AssistantRoute /><KeyboardPeer /></>)
+  const host = () => screen.getByTestId('assistant-footer').parent!
+  const layout = () => fireEvent(host(), 'layout', {
+    persist: () => {},
+    nativeEvent: { layout: { x: 0, y: 100, width: 390, height: 744 } },
+  })
+  await act(async () => { await layout() })
+  await act(async () => {
+    keyboardVisible.mockReturnValue(true)
+    DeviceEventEmitter.emit('keyboardDidShow', {
+      duration: 0,
+      easing: 'keyboard',
+      endCoordinates: { screenX: 0, screenY: 500, width: 390, height: 344 },
+    })
+  })
+  expect(host()).toHaveStyle({ paddingBottom: 344 })
+  expect(screen.getByTestId('assistant-footer')).toHaveStyle({ paddingBottom: 0 })
+  expect(peerVisible).toBe(true)
+  // Re-layout with the keyboard still visible must preserve avoidance.
+  await act(async () => { await layout() })
+  expect(host()).toHaveStyle({ paddingBottom: 344 })
+  await act(async () => {
+    // The RN visibility snapshot catches up, but the hook/KAV never get hide.
+    appStateListeners.forEach(listener => listener('background'))
+    keyboardVisible.mockReturnValue(false)
+    if (trigger === 'resume') appStateListeners.forEach(listener => listener('active'))
+    if (trigger === 'layout') await layout()
+    if (trigger === 'focus') jest.mocked(useFocusEffect).mock.calls.forEach(([effect]) => effect())
+  })
+  expect(host()).toHaveStyle({ flex: 1, paddingBottom: 0 })
+  expect(screen.getByTestId('assistant-footer')).toHaveStyle({ paddingBottom: 34 })
+  expect(peerVisible).toBe(false)
+  // KAV still retains its old show payload: a later layout must stay unpadded.
+  await act(async () => { await layout() })
+  expect(host()).toHaveStyle({ paddingBottom: 0 })
+  await settle()
+})
 
 it('shrinks the full-screen chat above the Android IME, keeps both footer controls inside, and sends without manually hiding it', async () => {
   const backend = installBackend({ seed: false })

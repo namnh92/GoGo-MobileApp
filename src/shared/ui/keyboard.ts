@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { Keyboard, Platform, type KeyboardEventName } from 'react-native'
+import { AppState, Keyboard, Platform, type KeyboardEventName } from 'react-native'
 
 /**
  * Whether the software keyboard is on screen (GoGo-MobileApp#381). Built on
@@ -14,13 +14,22 @@ const SHOW: KeyboardEventName = Platform.OS === 'ios' ? 'keyboardWillShow' : 'ke
 const HIDE: KeyboardEventName = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
 
 let visible = Keyboard.isVisible()
-let listeners = 0
+const listeners = new Set<() => void>()
+
+/** Recover missed Android events without overriding iOS's pre-animation state. */
+export function syncAndroidKeyboardVisibility(): void {
+  if (Platform.OS !== 'android') return
+  const current = Keyboard.isVisible()
+  if (current === visible) return
+  visible = current
+  listeners.forEach(onChange => onChange())
+}
 
 function subscribe(onChange: () => void): () => void {
   // Whatever happened while nobody listened, `isVisible` has caught up with
   // it. Only then: mid-animation on iOS it still says the previous state.
-  if (listeners === 0) visible = Keyboard.isVisible()
-  listeners += 1
+  if (listeners.size === 0) visible = Keyboard.isVisible()
+  listeners.add(onChange)
   const shown = Keyboard.addListener(SHOW, () => {
     visible = true
     onChange()
@@ -29,10 +38,16 @@ function subscribe(onChange: () => void): () => void {
     visible = false
     onChange()
   })
+  const resumed = Platform.OS === 'android'
+    ? AppState.addEventListener('change', state => {
+      if (state === 'active') syncAndroidKeyboardVisibility()
+    })
+    : undefined
   return () => {
-    listeners -= 1
+    listeners.delete(onChange)
     shown.remove()
     hidden.remove()
+    resumed?.remove()
   }
 }
 

@@ -22,7 +22,7 @@ import { isAssistantEntryOn } from '@/shared/config/features'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
 import { markAssistantOpened, takeChatSavedToast } from '@/shared/store/assistantIntroStore'
 import { NEW_CHAT, useAssistantDraftStore } from '@/shared/store/assistantDraftStore'
-import { useKeyboardVisible } from '@/shared/ui/keyboard'
+import { syncAndroidKeyboardVisibility, useKeyboardVisible } from '@/shared/ui/keyboard'
 import { useToast } from '@/shared/ui/toast.view'
 
 import { useAssistantAccount } from './assistant-entry'
@@ -115,6 +115,7 @@ function AssistantChat({ account }: { account: string }) {
   const conversation = useAssistantConversation(conversationId)
   const { refetch: refetchConversation } = conversation
   useFocusEffect(useCallback(() => { if (conversationId) void refetchConversation() }, [conversationId, refetchConversation]))
+  useFocusEffect(syncAndroidKeyboardVisibility)
   const messages = useAssistantMessages(conversationId)
   const outgoing = useOutgoingAssistantMessages(conversationId)
   const { send, retry } = useSendAssistantMessage(conversationId, setConversationId)
@@ -284,6 +285,7 @@ function AssistantChat({ account }: { account: string }) {
       />
       {!online ? <OfflineBanner /> : null}
       <KeyboardAvoidingView
+        onLayout={syncAndroidKeyboardVisibility}
         style={styles.flex}
         behavior="padding"
         // Android hide coordinates describe the visible display frame, not an

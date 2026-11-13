@@ -5,6 +5,79 @@ Worktree: `dev/worktrees/mobile-400`. Branch/base do người giao việc cung c
 `bugfix/GOGO-400-ai-android-keyboard`, `origin/re-design` tại `0ec27a61`.
 Không chạy lệnh git; không tự xác minh branch/SHA, commit hoặc push.
 
+## Vòng 3 — F-03 P1: bỏ lỡ keyboardDidHide (2026-11-13)
+
+Review request: `dev/handoffs/codex-review-request-mobile-400-r3.dev.out`.
+Head được giao: `a5611bd0` (theo owner/review request; không chạy git để xác minh).
+Chỉ sửa UI trong worktree này; giữ view/style split, không thay style hoặc iOS.
+
+### Finding và bản sửa
+
+F-03: KAV và `useKeyboardVisible()` cùng chờ `keyboardDidHide`. Nếu hook
+bỏ lỡ sự kiện, `keyboard` vẫn true: KAV còn padding và footer thiếu safe-area
+inset, dù snapshot `Keyboard.isVisible()` đã trở về false.
+
+- Shared hook bổ sung `syncAndroidKeyboardVisibility()`: đọc lại
+  `Keyboard.isVisible()`, chỉ cập nhật khi snapshot khác trạng thái đang giữ,
+  và thông báo tất cả consumer đang subscribe. Không chỉ cập nhật consumer
+  của màn hình đang layout/focus.
+- Android đồng bộ khi AppState chuyển `active`; tháo listener khi unmount.
+  GoGo AI cũng gọi đồng bộ khi route nhận focus và khi KAV layout lại, kể cả
+  layout do đổi view hoặc hệ thống đóng IME mà không phát hide tới consumer.
+- Khi snapshot hidden, props hiện có tắt avoidance và trả inset footer;
+  không phát hide giả, không đổi Send/dismiss, API hoặc business logic.
+- iOS: hàm đồng bộ là no-op, không đăng ký AppState listener mới; vẫn dùng
+  will-events trước animation, KAV padding/offset 0/always enabled như cũ.
+  Các consumer khác giữ nguyên API và show/hide semantics; Android chỉ nhận
+  hiệu chỉnh trạng thái bàn phím khi snapshot đã thay đổi.
+
+Giới hạn: `Keyboard.isVisible()` là snapshot RN, không phải truy vấn IME native
+độc lập. Bản sửa xử lý trường hợp snapshot đã false nhưng hook bỏ lỡ hide;
+không khẳng định tự phát hiện được nếu chính snapshot RN cũng còn stale.
+
+### Regression FAIL trước / PASS sau
+
+Thêm ba case `resume`, `layout`, `focus` vào
+`src/features/__tests__/assistant-android-keyboard.spec.tsx`, dùng KAV RN thật:
+
+1. Layout y=100/h=744, show IME y=500 → padding 344, inset footer 0.
+2. **Không phát `keyboardDidHide`**. Cho `Keyboard.isVisible()` trả false;
+   lần lượt mô phỏng background → active, layout lại, hoặc nhận lại focus.
+3. Yêu cầu padding 0, flex 1, inset footer 34; layout muộn cũng không áp lại
+   show payload còn lưu trong KAV.
+
+Chạy test mới trước khi sửa production code trên worktree được giao:
+
+```text
+FAIL assistant-android-keyboard.spec.tsx
+resume / layout / focus:
+Expected: paddingBottom: 0
+Received: paddingBottom: 344
+Test Suites: 1 failed, 1 total
+Tests: 3 failed, 2 passed, 5 total
+```
+
+Sau sửa, cả ba case PASS. Bổ sung kiểm tra consumer hook thứ hai cũng được
+đồng bộ, layout khi snapshot vẫn visible không làm mất avoidance, và snapshot
+false không ghi đè iOS will-show. Hai test Send/hide native trước đó giữ nguyên.
+Focused cuối cùng: 5 suites / 46 tests PASS (Android, offset iOS, shared
+keyboard, sheet, assistant usage-footer). Giữ nguyên thứ tự hai callback focus
+refetch hiện có; callback đồng bộ mới đăng ký sau chúng để bảo toàn các test
+focus refresh credit hiện tại.
+
+### Quality gates vòng 3
+
+| Lệnh | Kết quả vòng 3 |
+| --- | --- |
+| `pnpm typecheck` | PASS, exit 0 |
+| `pnpm lint` | PASS, exit 0; 0 errors, 4 warnings `no-require-imports` có sẵn ở keyboard-offset/usage-footer |
+| `pnpm test:ui --runInBand` | PASS, exit 0; 259 suites, 3.987 tests, 11 snapshots; 235,752 giây |
+| `pnpm exec vitest run src/features/assistant/__tests__/credit-footer.test.ts` | PASS; 1 file, 2 tests |
+
+Log: `/tmp/issue-400-r3-{before,focused,typecheck,lint,footer,jest}.log`.
+Chưa chạy lại emulator/device AC vòng 3; bằng chứng device vòng 2 phía dưới
+chỉ xác nhận flow show/hide thông thường, không thay thế regression missed-hide.
+
 ## Vòng 2 — Regression sau khi đóng keyboard (2026-11-13)
 
 Owner giao sửa trên branch `bugfix/GOGO-400-ai-android-keyboard`, head
