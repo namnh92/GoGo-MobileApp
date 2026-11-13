@@ -15,6 +15,7 @@ export const styles = StyleSheet.create(theme => ({
   details: { borderRadius: radius.compact, padding: spacing[4], gap: spacing[3], marginBottom: spacing[4] },
   detailsTitle: {},
   noAccountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2] },
+  previewError: { marginBottom: spacing[4] },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

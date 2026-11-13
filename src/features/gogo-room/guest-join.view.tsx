@@ -196,9 +196,8 @@ function GuestJoinInvite({ inviteCode, pending, setPending }: {
   const previewFailure = preview.error
   const unavailable = isApiError(previewFailure) && [404, 410].includes(previewFailure.status)
   const previewExpired = isApiError(previewFailure) && previewFailure.status === 410 && !['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code)
-  // Anonymous preview cannot decide whether an account is already a member.
-  // Only join's response may reject signed-in re-entry (#596 F-01).
-  if (expired || unusable || (unavailable && !asUser)) {
+  // A terminal preview is a dead link for every session (G5-01).
+  if (expired || unusable || unavailable) {
     return (
       <Atmosphere>
         {header}
@@ -220,11 +219,11 @@ function GuestJoinInvite({ inviteCode, pending, setPending }: {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Chip style={styles.badge} appearance="discovery" icon={preview.data?.roomType === 'group' ? 'users' : 'heart'} label={t('guestJoin.badge', { context: preview.data?.roomType, count: preview.data?.participantCount })} />
+        {preview.data?.roomType ? <Chip style={styles.badge} appearance="discovery" icon={preview.data?.roomType === 'group' ? 'users' : 'heart'} label={t('guestJoin.badge', { context: preview.data?.roomType, count: preview.data?.participantCount })} /> : null}
         <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title', { context: preview.data?.roomType, count: preview.data?.participantCount })}</Text>
 
         {preview.isPending ? <InvitePreviewSkeleton /> : preview.data ? <InvitePreview data={preview.data} /> : null}
-        {previewFailure ? <View style={styles.errorBox}><Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>{toMessage(previewFailure)}</Text><SecondaryBtn label={t('common.retry')} onPress={() => { void preview.refetch() }} /></View> : null}
+        {previewFailure ? <View testID="invite-preview-error" style={[styles.errorBox, styles.previewError]}><Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>{toMessage(previewFailure)}</Text><SecondaryBtn label={t('common.retry')} onPress={() => { void preview.refetch() }} /></View> : null}
 
         {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 

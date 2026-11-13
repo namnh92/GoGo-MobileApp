@@ -9,7 +9,7 @@ import i18n from '@/shared/i18n'
 import { track } from '@/shared/analytics'
 import type { OpResponse } from '@/shared/api'
 import { StyleSheet } from 'react-native'
-import { type } from '@/shared/ui/tokens'
+import { spacing, type } from '@/shared/ui/tokens'
 import { roomScheduleLabel } from '@/features/gogo-room/room-schedule'
 import { styles as wizardStyles } from '@/features/create-date/create-type.style'
 
@@ -232,7 +232,7 @@ describe.each(audiences)('integrated preview: $audience', audience => {
         : new NetworkError())
       await mount()
       expect(await screen.findByText(failure.message)).toBeTruthy()
-      if (failure.terminal && status !== 'user') {
+      if (failure.terminal) {
         expect(screen.getByTestId(failure.terminal)).toBeTruthy()
         expect(screen.getByRole('header', { name: failure.terminal === 'invite-expired' ? 'Lời mời đã hết hạn' : 'Liên kết không còn dùng được' })).toBeTruthy()
         expect(screen.getByRole('button', { name: 'Về trang chủ' })).toBeTruthy()
@@ -247,19 +247,6 @@ describe.each(audiences)('integrated preview: $audience', audience => {
       expect(mockJoin).not.toHaveBeenCalled()
       expect(mockGuest).not.toHaveBeenCalled()
     })
-  })
-
-  it.each(['INVITE_NOT_USABLE', 'ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'])('F-01: real preview 410 %s still permits server-confirmed re-entry', async code => {
-    jest.mocked(api.post).mockRejectedValue(new ApiError(410, { code, message: 'generic' }))
-    mockJoin.mockResolvedValue({ roomId: 'member-room', memberId: 'me', role: audience.role, alreadyMember: true })
-    await mount()
-    expect(await screen.findByText(previewFailures.find(failure => failure.code === code)!.message)).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Tham gia' }))
-    expect(api.post).toHaveBeenCalledWith('/rooms/invites/preview', { inviteCode: mockCode }, expect.objectContaining({ anonymous: true }))
-    expect(mockJoin).toHaveBeenCalledWith({ inviteCode: mockCode })
-    expect(mockReplace).toHaveBeenCalledWith('/room/member-room')
-    expect(mockGuest).not.toHaveBeenCalled()
-    expect(track).not.toHaveBeenCalled()
   })
 })
 
@@ -471,5 +458,44 @@ describe('F-05: guest join A in flight across a warm link to B', () => {
     expect(screen.queryByTestId('invite-unusable')).toBeNull()
     await fireEvent.changeText(screen.getByLabelText('Tên hiển thị'), 'Mai')
     expect(screen.getByRole('button', { name: 'Tham gia' })).not.toBeDisabled()
+  })
+})
+
+describe('G5 sim fixes 2026-11-13', () => {
+  it.each([
+    [404, 'INVITE_NOT_FOUND', 'invite-unusable', true],
+    [410, 'INVITE_NOT_USABLE', 'invite-expired', true],
+    [410, 'ROOM_NOT_JOINABLE', 'invite-unusable', false],
+    [410, 'ROOM_EXPIRED', 'invite-unusable', false],
+    [410, 'UNKNOWN_GONE', 'invite-expired', true],
+  ] as const)('G5-01: signed-in preview %s %s renders recovery', async (status, code, state, canRequestLink) => {
+    jest.mocked(api.post).mockRejectedValue(new ApiError(status, { code, message: 'generic' }))
+    await mount()
+    expect(await screen.findByTestId(state)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Tham gia' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull()
+    expect(screen.queryByText(i18n.t('inviteState.askLink')) !== null).toBe(state === 'invite-unusable' && canRequestLink)
+    expect(mockJoin).not.toHaveBeenCalled()
+    expect(mockGuest).not.toHaveBeenCalled()
+  })
+
+  it.each(['loading', 'network', 'couple', 'group'] as const)('G5-02: invitation header appears once (%s)', async state => {
+    if (state === 'loading') jest.mocked(api.post).mockReturnValue(new Promise(() => {}))
+    else if (state === 'network') jest.mocked(api.post).mockRejectedValue(new NetworkError())
+    else jest.mocked(api.post).mockResolvedValue({ ...facts, roomType: state })
+    await mount()
+    if (state === 'network') await screen.findByRole('button', { name: 'Thử lại' })
+    else if (state !== 'loading') await screen.findByText('Mai')
+    expect(screen.getAllByText('Lời mời tham gia')).toHaveLength(1)
+    if (state === 'couple' || state === 'group') expect(screen.getByText(i18n.t(`guestJoin.badge_${state}`))).toBeTruthy()
+  })
+
+  it('G5-02: transient preview banner has the standard gap before the join card', async () => {
+    jest.mocked(api.post).mockRejectedValue(new NetworkError())
+    await mount()
+    const retry = await screen.findByRole('button', { name: 'Thử lại' })
+    expect(retry).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Tham gia' })).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('invite-preview-error').props.style).marginBottom).toBe(spacing[4])
   })
 })
