@@ -1,9 +1,10 @@
+import { FormKeyboardAvoider } from '@/shared/ui/form-keyboard-avoider.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { TextInput } from '@/shared/ui/text-input'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -95,7 +96,7 @@ export default function JoinByCodeScreen() {
       <View>
         <AppHeader onBack={() => router.back()} title={t('joinByCode.title')} />
       </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <FormKeyboardAvoider style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
@@ -166,7 +167,7 @@ export default function JoinByCodeScreen() {
             {!asUser ? <Text variant="caption" color="text.secondary" style={styles.footnote}>{t('guestJoin.noAccount')}</Text> : null}
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </FormKeyboardAvoider>
       {dialog}
     </Atmosphere>
   )

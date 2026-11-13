@@ -1,10 +1,11 @@
+import { FormKeyboardAvoider } from '@/shared/ui/form-keyboard-avoider.view'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { NavigationProp } from '@react-navigation/native'
 import { Redirect, useNavigation } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { completePasswordRecovery } from '@/shared/api/endpoints/password-recovery'
 import { AppHeader } from '@/shared/ui/app-header.view'
@@ -79,7 +80,7 @@ export default function ResetPasswordScreen() {
     <BlockingLoadingOverlay visible={complete.isPending} onClosed={overlay.onClosed} />
     <AppHeader title={t('auth.recovery.resetTitle')} centerTitle titleColor="accent.primary" showNotifications={false}
       onBack={() => returnToCode()} backDisabled={pending} />
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <FormKeyboardAvoider style={styles.fill}>
       <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>
         <ScrollView ref={scrollRef} onLayout={schedule} onContentSizeChange={schedule} onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag}
           scrollEventThrottle={16} keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing[4] }]} keyboardShouldPersistTaps="handled">
@@ -116,7 +117,7 @@ export default function ResetPasswordScreen() {
           <View style={styles.actions}><PrimaryBtn label={t('auth.recovery.resetTitle')} onPress={submit} loading={complete.isPending} disabled={pending || !validation.success || blocked > 0 || remaining === 0} /></View>
         </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+    </FormKeyboardAvoider>
     <ResultSheet visible={completed && overlay.closed} variant="success" title={t('auth.recovery.successTitle')} body={t('auth.recovery.successBody')}
       primaryAction={{ label: t('auth.signInCta'), onPress: signIn }} onClose={signIn} />
   </Atmosphere>
