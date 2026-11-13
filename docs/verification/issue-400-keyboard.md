@@ -95,12 +95,35 @@ Full Jest phía trên cũng chạy lại cả hai suite với phiên bản test 
 Không chạy full Vitest trong vòng 2; kết quả full Vitest vòng 1 bên dưới chỉ là lịch sử.
 Log: `/tmp/issue-400-round2-{before,focused,typecheck,lint,footer,jest}.log`.
 
-### Device AC vòng 2 — PENDING
+### Device AC vòng 2 — PASS
 
-DEV cần chạy lại emulator chứa bản sửa vòng 2: đo input/Send/credit trước show,
-khi IME mở, sau Send/hide và sau chờ; lặp mở/đóng IME. Khi hidden, tọa độ phải
-trở về đúng baseline trong cùng trạng thái nội dung. **Chưa đo lại emulator;
-chưa công nhận AC thiết bị PASS.**
+Số đo lại sau bản sửa được chép từ
+`/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-400/emu/r2/MEASUREMENT.md`.
+Evidence nằm trong thư mục
+`/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-400/emu/r2/`:
+node dump `nodes.txt` và screenshots A-before / B-open / C-after-send / D-after-dismiss.
+
+- Code head: `4ac25b2e` theo evidence, không chạy git để xác minh. KAV dùng
+  `behavior="padding"`, chỉ enabled khi keyboard Android hiện. Metro :8087,
+  `EXPO_PUBLIC_ASSISTANT_MOCK=off`, API DEV (BE `2c7bfdc`). App đã force-stop
+  và mở lại bằng dev-client deep link sau sửa; Metro đã build lại bundle.
+- Thiết bị: AVD gogo218 (`sdk_gphone64_arm64`), Android 14 / API 34,
+  1080×2400, density 420, gesture navigation, Gboard;
+  nav bar frame `[0,2337][1080,2400]`. Tài khoản owner, do owner đăng nhập.
+
+| Bước | Keyboard | Input | Send | Hàng "Credit GoGo" | Kết quả |
+| --- | --- | --- | --- | --- | --- |
+| A. Mở GoGo AI (welcome) | ẩn | [213,1941][795,2055] | [934,1942][1050,2058] | [42,2233][255,2281] | baseline |
+| B. Chạm input, nhập "CGV Dong Khoi gia bao nhieu" | hiện | [213,1065][795,1235] | [934,1123][1050,1239] | [42,1414][255,1462] | nằm trên keyboard, thấy nội dung nhập — PASS |
+| C. Chạm Send khi keyboard hiện | → ẩn | [213,2002][795,2116] | [934,2003][1050,2119] | [42,2233][255,2281] | gửi thành công (free 5/5 → 4/5); footer về baseline — PASS |
+| D. Mở lại keyboard, đóng bằng Back (không gửi) | ẩn | [213,2002][795,2116] | — | [42,2233][255,2281] | layout khôi phục — PASS |
+
+Input chuyển y=1941 → 2002 giữa A và C vì dòng disclaimer chỉ có ở welcome
+bên dưới composer biến mất khi đã có hội thoại; footer (bottom anchor) trở về
+đúng y=2281. Sau lần mở/đóng bằng Back, input và credit giữ đúng tọa độ của
+trạng thái đã có hội thoại. **AC emulator vòng 2 PASS.**
+Trước bản sửa vòng 2 (head `145c3742`), cùng flow để footer kẹt tại y=2090,
+lệch khoảng 191px; bằng chứng đối chiếu: `../30-now-nodes.txt` từ thư mục r2.
 
 Rollback vòng 2: khôi phục props KAV và assertion tương ứng về bản vòng 1;
 không có thay đổi schema/contract/data.
