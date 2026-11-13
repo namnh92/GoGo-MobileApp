@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native'
-import { DeviceEventEmitter } from 'react-native'
+import { DeviceEventEmitter, Keyboard } from 'react-native'
 
-import { useKeyboardVisible } from '@/shared/ui/keyboard'
+import { syncAndroidKeyboardVisibility, useKeyboardVisible } from '@/shared/ui/keyboard'
 
 /** GoGo-MobileApp#381 — #379 hides the float button while the keyboard is up. */
 
@@ -14,6 +14,11 @@ it('follows the keyboard (iOS will-events, before the animation)', async () => {
     DeviceEventEmitter.emit('keyboardWillShow', { endCoordinates: metrics, duration: 250, easing: 'keyboard' })
   })
   expect(result.current).toBe(true)
+  // iOS will-show leads the RN snapshot; Android recovery must not override it.
+  const snapshot = jest.spyOn(Keyboard, 'isVisible').mockReturnValue(false)
+  await act(async () => { syncAndroidKeyboardVisibility() })
+  expect(result.current).toBe(true)
+  snapshot.mockRestore()
   await act(async () => {
     DeviceEventEmitter.emit('keyboardWillHide', { endCoordinates: { ...metrics, screenY: 844 }, duration: 250, easing: 'keyboard' })
   })
