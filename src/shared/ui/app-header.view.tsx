@@ -11,8 +11,9 @@ import { styles } from './app-header.style'
 
 export type AppHeaderProps = {
   /** Sheets/modals retain local actions and omit notification navigation. */
-  variant?: 'tab-root' | 'sub-screen' | 'sheet'
+  variant?: 'tab-root' | 'sub-screen' | 'sheet' | 'hero'
   /** Profile sub-screens omit inbox navigation while keeping local actions. */
+  statusTone?: 'warning' | 'danger'
   showNotifications?: boolean
   title: string
   centerTitle?: boolean
@@ -37,10 +38,16 @@ export type AppHeaderProps = {
 }
 
 /** The only application navigation bar. Screen titles are localized by callers. */
-export function AppHeader({ variant = 'sub-screen', showNotifications = true, title, centerTitle = false, titleColor = 'text.primary', subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
+export function AppHeader({ statusTone = 'warning', variant = 'sub-screen', showNotifications = true, title, centerTitle = false, titleColor = 'text.primary', subtitle, subtitleTone = 'default', onBack, backDisabled = false, backLabel, backTestID, safeArea = true, rightAction, titleAccessory, titleAccessoryInteractive = false, leading, testID = 'app-header', bellTestID = `${testID}-bell`, unreadDotTestID = `${testID}-unread-dot` }: AppHeaderProps) {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
   const back = onBack ? <AppHeaderAction accessibilityLabel={backLabel ?? t('common.back')} testID={backTestID} onPress={onBack} disabled={backDisabled}><MaterialIcon name="arrowBack" color={titleColor} size={24} /></AppHeaderAction> : null
+  if (variant === 'hero') return <View testID={testID} style={[styles.heroRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <View style={styles.heroRow}><View style={styles.heroBack}>{back}</View>
+      <View style={styles.heroPill}><View style={[styles.statusDot, statusTone === 'danger' && styles.dangerDot]} /><Text variant="caption" accessibilityRole="header">{title}</Text></View>
+      <View style={styles.balancedActions} />
+    </View>
+  </View>
   const actions = <>{rightAction}{variant !== 'sheet' && showNotifications ? <HeaderNotificationButton testID={bellTestID} unreadDotTestID={unreadDotTestID} /> : null}</>
   return <View testID={testID} style={[styles.root, variant === 'tab-root' && styles.tabRoot, variant === 'sheet' && styles.sheetRoot, { paddingTop: safeArea ? insets.top : 0, paddingLeft: insets.left, paddingRight: insets.right }]}>
     <View style={[styles.row, variant !== 'tab-root' && styles.subScreenRow]}>

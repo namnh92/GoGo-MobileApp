@@ -10,7 +10,7 @@ function featureFiles(dir: string): string[] {
 }
 
 // Detail media and review thumbnails belong to detail/review entities, not place cards.
-const mediaOwners = new Set(['date-plan/place-detail.view.tsx', 'contributions/my-contributions.view.tsx'])
+const mediaOwners = new Set(['date-plan/place-detail.view.tsx', 'contributions/my-contributions.view.tsx', 'contributions/submission-detail.view.tsx'])
 function violations(source: string, path: string) {
   const found: string[] = []
   if (!mediaOwners.has(path) && /import\s*\{[^}]*\bPlacePhoto\b[^}]*\}\s*from/.test(source)) found.push('custom place image')
