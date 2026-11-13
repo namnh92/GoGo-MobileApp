@@ -23,7 +23,7 @@ describe('assistant credit footer ownership (#633)', () => {
     const controls = footer.children.filter(ts.isJsxSelfClosingElement)
     expect(controls.map(node => node.tagName.getText(source))).toEqual(['Composer', 'UsageFooter'])
     expect(controls[1].attributes.getText(source)).toContain('status={status}')
-    expect(avoiding.openingElement.attributes.getText(source)).toContain("behavior={Platform.OS === 'ios' ? 'padding' : undefined}")
+    expect(avoiding.openingElement.attributes.getText(source)).toContain("behavior={Platform.OS === 'ios' ? 'padding' : 'height'}")
   })
 
   it('owns the safe-area inset after both controls and drops it with the keyboard', () => {

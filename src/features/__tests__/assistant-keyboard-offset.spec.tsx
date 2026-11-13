@@ -46,6 +46,7 @@ beforeEach(() => { mockKeyboard = false; resetAssistantSpecState() })
 it('uses window coordinates with no modal offset', async () => {
   installBackend()
   const view = await renderAssistant(<AssistantRoute />)
+  expect(view.getByTestId('keyboard-avoiding').props.behavior).toBe('padding')
   expect(view.getByTestId('keyboard-avoiding').props.keyboardVerticalOffset).toBe(0)
   expect(view.getByTestId('assistant-screen')).toHaveStyle({ paddingTop: 47 })
   await settle()
