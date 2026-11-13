@@ -80,44 +80,44 @@ Tests:       5 passed, 5 total
 | --- | --- |
 | `pnpm typecheck` | PASS, exit 0 |
 | `pnpm lint` | PASS, exit 0; 0 errors, 4 warnings `no-require-imports` có sẵn ở các test keyboard-offset/usage-footer |
-| `pnpm test` (Vitest) | FAIL, exit 1; 152 files passed, 1 failed, 1 skipped; 1.811 tests passed, 3 failed, 39 skipped (1.853 total) |
+| `pnpm test` (Vitest) | PASS (DEV ngoài sandbox); 153 files passed, 1 skipped; 1.814 tests passed, 39 skipped |
 | `pnpm exec vitest run src/features/assistant/__tests__/credit-footer.test.ts` | PASS; 1 file, 2 tests |
 | `pnpm test:ui --runInBand` (full Jest) | PASS, exit 0; 259 suites, 3.983 tests passed, 0 failed; 328,789 giây |
 
-Ba lỗi Vitest đều ở `src/shared/config/__tests__/distribute-wrapper.test.ts`:
+DEV chạy `pnpm test` ngoài sandbox trên head
+`1a3b32074d1be031bc0014699b5f8ce8b547cc8a`: 153 files passed, 1 skipped;
+1.814 tests passed, 39 skipped. Quality gates PASS theo kết quả DEV này và
+các kết quả typecheck/lint/Jest ở trên.
 
-- `refuses while the owner is alive`: `.stdout.trim()` gặp `undefined` tại dòng 208.
-- `refuses recovery while a recorded build process group is still alive`: exit 0 thay vì khác 0 tại dòng 234.
-- `keeps the lock and run files when a recorded build group is still alive after the child exits`: exit 0 thay vì khác 0 tại dòng 258.
-
-Các test này cần xem process/start time/process group của máy. Kiểm tra độc lập
-trong cùng sandbox xác nhận `spawnSync('ps', ...)` trả `status: null`,
-`error: EPERM`; `pgrep` trả exit 3, `sysmon request failed with error: sysmond
-service not found` / `Cannot get process list`. `scripts/distribute.sh` dùng
-`ps` trong `proc_start` và `pgrep` trong `surviving_groups`. Những hạn chế này
-giải thích các lỗi process/lock; không sửa hoặc skip chúng để làm xanh gate.
-Toàn bộ quality gate vì vậy **chưa xanh** trong môi trường này.
+Ba lỗi Vitest ở `src/shared/config/__tests__/distribute-wrapper.test.ts`
+trong lượt sandbox trước đó là lỗi môi trường: sandbox chặn truy vấn
+process (`ps`: `EPERM`; `pgrep`: không lấy được process list). Lượt DEV ngoài
+sandbox đã PASS; không sửa hoặc skip test để làm xanh gate.
 
 Log local của lượt kiểm tra: `/tmp/issue-400-before.log`,
 `/tmp/issue-400-after.log`, `/tmp/issue-400-typecheck.log`,
 `/tmp/issue-400-lint.log`, `/tmp/issue-400-vitest.log`,
 `/tmp/issue-400-footer.log`, `/tmp/issue-400-jest.log`.
 
-## Device AC — chưa đo, chưa accepted
+## Device AC — PASS trên Android emulator
 
-**AC trên Samsung SM-A226B / Android 13 vẫn cần đo trên build có bản sửa.**
-Jest không chạy native layout/IME và không chứng minh vị trí thực tế của chữ,
-input, nút Send hoặc credit trên thiết bị.
+Theo quyết định owner ngày 2026-11-13, dùng emulator thay cho SM-A226B.
+Số đo và bảng dưới đây được chép từ
+`/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-400/emu/MEASUREMENT.md`.
+Screenshots và node dumps nằm trong thư mục
+`/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-400/emu/` (số file theo bảng).
 
-Khi nghiệm thu, ghi build SHA, flavor/environment, phiên bản bàn phím,
-chế độ điều hướng và tọa độ accessibility/screenshot khi bàn phím mở:
+- Build: debug dev client from worktree mobile-400 head 1a3b32074d1be031bc0014699b5f8ce8b547cc8a (branch bugfix/GOGO-400-ai-android-keyboard), JS served by Metro :8087, EXPO_PUBLIC_ASSISTANT_MOCK=off (verified inlined "off" in bundle), API https://api-dev.gogo.id.vn/v1 (DEV BE 2c7bfdc).
+- Device: AVD gogo218, sdk_gphone64_arm64, Android 14 (API 34), Physical size: 1080x2400, gesture navigation, Gboard. Account: DEV test account "Bình Test GoGo".
+- Note: first pass (files 10–14) ran with the dev mock assistant backend (default ON in dev debug builds); layout identical, reply was scripted. Real-backend pass = files 20–22.
 
-1. Mở GoGo AI, chạm “Hỏi GoGo bất cứ điều gì…”.
-2. Nhập nội dung; xác nhận chữ nhìn thấy, toàn bộ input, Send và credit footer
-   nằm phía trên mép trên IME. Đo lại ở cả màn welcome và conversation.
-3. Bấm Send khi IME đang mở; xác nhận gửi thành công mà không tự đóng IME trước.
-4. Mở/đóng lại IME, kiểm tra footer trở về vị trí và inset đúng, không có khoảng
-   trống thừa; kiểm tra thêm input nhiều dòng và chuyển cỡ bàn phím.
+| Step | Keyboard | Input bounds | Send bounds | Credit footer | Result |
+|---|---|---|---|---|---|
+| GoGo AI opened (20) | hidden | [213,1941][795,2055] | [934,1942][1050,2058] | y 2160–2281 | — |
+| Tap input, type "Pizza 4Ps Ben Thanh may gio mo cua" (21) | shown, IME content top y=1389 (keys from ~1515) | [213,1065][795,1235] | [934,1123][1050,1239] | y 1341–1462 | input, Send, footer above keyboard; typed text visible — PASS |
+| Tap Send with keyboard shown (22) | shown → hidden after send | — | — | free sends 1/5 → reply | message sent without closing keyboard; DEV place_qa confirm reply with Pizza 4P's cards — PASS |
+
+AC #400 on Android emulator: PASS. SM-A226B not measured (owner decision 2026-11-13).
 
 Rollback UI: khôi phục nhánh Android behavior trước bản sửa; không có thay đổi
 schema, contract hay dữ liệu cần rollback.
