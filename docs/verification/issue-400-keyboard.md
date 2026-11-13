@@ -5,7 +5,107 @@ Worktree: `dev/worktrees/mobile-400`. Branch/base do người giao việc cung c
 `bugfix/GOGO-400-ai-android-keyboard`, `origin/re-design` tại `0ec27a61`.
 Không chạy lệnh git; không tự xác minh branch/SHA, commit hoặc push.
 
-## Nguyên nhân
+## Vòng 2 — Regression sau khi đóng keyboard (2026-11-13)
+
+Owner giao sửa trên branch `bugfix/GOGO-400-ai-android-keyboard`, head
+`145c3742` (thông tin được cung cấp; không chạy git để xác minh).
+Phạm vi chỉ UI, không dependency mới; iOS giữ hành vi cũ và giữ view/style split.
+
+### Defect và bằng chứng owner
+
+Pixel AVD Android 14, 1080×2400, density 420, gesture navigation;
+nav bar inset bottom 63px, frame `[0,2337][1080,2400]`:
+
+- Trước IME: input `[213,1941][795,2055]`, footer credit kết thúc y=2281.
+- IME mở: input `[213,1065][795,1235]`, tránh bàn phím được.
+- Sau Send/hide và nhiều phút sau: input `[213,1750][795,1864]`, footer
+  kết thúc y=2090; vẫn cao hơn ban đầu 191px. Lượt khác input bắt đầu y=1811.
+
+Evidence owner cung cấp trong
+`/Users/maxnguyen/MyWorks/GoGo/dev/test-evidence/mobile-400/emu/`:
+`20-nodes.txt`, `21-nodes.txt`, `22-nodes.txt`, `30-now-nodes.txt`,
+`30-now.png`, `22-real-after-send.png`.
+
+### Root cause từ mã RN đã cài
+
+Trong `node_modules/react-native/Libraries/Components/Keyboard/KeyboardAvoidingView.js`
+(RN 0.81.5), Android đăng ký `keyboardDidHide` bằng `_onKeyboardChange`,
+giữ hide event để tính overlap; chỉ iOS dùng `_onKeyboardHide` để xóa event.
+Nhánh `height` tính `max(state.bottom + frame.y + frame.height - keyboardY, 0)`:
+phụ thuộc cả bottom cũ và thứ tự layout callback của khung đang bị co.
+Hide không bảo đảm reset bottom về 0.
+
+Native `ReactAndroid/src/main/java/com/facebook/react/ReactRootView.java`
+phát hide với `screenY = mVisibleViewArea.height()` và keyboard height 0.
+Đây là chiều cao visible frame, không phải tọa độ mép dưới khung chat;
+system bars và edge-to-edge có thể làm hai giá trị khác nhau. Vì thế stale
+bottom có thể tiếp tục áp dụng sau hide. Không có bằng chứng rằng inset footer
+là nguyên nhân: inset đã được hook keyboard khôi phục riêng, còn KAV vẫn co.
+
+Test cũ phát hide bằng `{}`: thiếu tọa độ làm phép tính thành `NaN`, nhánh
+`state.bottom > 0` không còn áp height, nên assertion cũ vô tình PASS.
+Regression mới chạy KAV thật với hide payload đủ tọa độ, tái hiện việc không
+khôi phục layout. Đây là bằng chứng cơ chế từ code/test; chưa khẳng định test
+mô phỏng chính xác mức lệch 191px của emulator.
+
+### Bản sửa
+
+- KAV dùng `behavior="padding"`, offset 0: khung ngoài vẫn flex, phần đệm
+  nhường chỗ cho IME và cả composer/credit.
+- `enabled={Platform.OS !== 'android' || keyboard}`: khi Android hidden,
+  avoidance bị tắt và padding trở về 0 dù tọa độ hide còn overlap; layout callback
+  muộn cũng không áp lại khoảng đệm. Chỉ đổi sang padding chưa đủ vì hide native
+  có thể báo visible frame ngắn hơn khung chat.
+- iOS luôn enabled, vẫn behavior padding và offset 0 như trước. Footer vẫn
+  sở hữu inset sau cả hai control và chỉ bỏ inset khi keyboard visible.
+- Không đổi dismiss/blur khi Send, API hoặc business logic. Không thêm style
+  vào view; chỉ đổi props KAV.
+
+### Regression FAIL trước / PASS sau
+
+`src/features/__tests__/assistant-android-keyboard.spec.tsx`:
+khung y=100/h=744; show tại y=500, sau đó hide với y=820/height=0.
+Test yêu cầu style sau hide bằng hệt trước show, footer inset trở lại 34;
+lặp lại với IME y=460 và phát layout muộn h=720 rồi h=744.
+
+Trước sửa production code trên worktree được giao:
+
+```text
+FAIL assistant-android-keyboard.spec.tsx
+Expected: {"flex": 1}
+Received: [{"flex": 1}, {"flex": 0, "height": 376}]
+Tests: 1 failed, 1 passed, 2 total
+```
+
+Sau sửa: test Android mở keyboard/gửi tin vẫn kiểm tra 344pt avoidance
+(744−344=400pt khả dụng), credit và Send cùng ở trong khung tránh IME.
+Test offset iOS còn kiểm tra padding, offset 0 và enabled luôn true.
+
+### Quality gates vòng 2
+
+| Lệnh | Kết quả vòng 2 |
+| --- | --- |
+| `pnpm typecheck` | PASS |
+| `pnpm lint` | PASS; 0 errors, 4 warnings `no-require-imports` có sẵn trong test keyboard-offset/usage-footer |
+| `pnpm test:ui --runInBand` | PASS; 259 suites, 3.984 tests, 11 snapshots; 179,956 giây |
+| `pnpm exec vitest run src/features/assistant/__tests__/credit-footer.test.ts` | PASS; 1 file, 2 tests |
+
+Lượt focused Android + offset sau sửa: 2 suites / 6 tests PASS.
+Full Jest phía trên cũng chạy lại cả hai suite với phiên bản test cuối cùng.
+Không chạy full Vitest trong vòng 2; kết quả full Vitest vòng 1 bên dưới chỉ là lịch sử.
+Log: `/tmp/issue-400-round2-{before,focused,typecheck,lint,footer,jest}.log`.
+
+### Device AC vòng 2 — PENDING
+
+DEV cần chạy lại emulator chứa bản sửa vòng 2: đo input/Send/credit trước show,
+khi IME mở, sau Send/hide và sau chờ; lặp mở/đóng IME. Khi hidden, tọa độ phải
+trở về đúng baseline trong cùng trạng thái nội dung. **Chưa đo lại emulator;
+chưa công nhận AC thiết bị PASS.**
+
+Rollback vòng 2: khôi phục props KAV và assertion tương ứng về bản vòng 1;
+không có thay đổi schema/contract/data.
+
+## Vòng 1 — Nguyên nhân (lịch sử)
 
 `src/features/assistant/assistant.view.tsx` truyền `behavior="padding"` cho iOS,
 nhưng `undefined` cho Android. Trong RN 0.81.5,
@@ -99,7 +199,7 @@ Log local của lượt kiểm tra: `/tmp/issue-400-before.log`,
 `/tmp/issue-400-lint.log`, `/tmp/issue-400-vitest.log`,
 `/tmp/issue-400-footer.log`, `/tmp/issue-400-jest.log`.
 
-## Device AC — PASS trên Android emulator
+## Vòng 1 — Device AC (kết quả cũ, bị regression vòng 2 thay thế)
 
 Theo quyết định owner ngày 2026-11-13, dùng emulator thay cho SM-A226B.
 Số đo và bảng dưới đây được chép từ
@@ -117,7 +217,9 @@ Screenshots và node dumps nằm trong thư mục
 | Tap input, type "Pizza 4Ps Ben Thanh may gio mo cua" (21) | shown, IME content top y=1389 (keys from ~1515) | [213,1065][795,1235] | [934,1123][1050,1239] | y 1341–1462 | input, Send, footer above keyboard; typed text visible — PASS |
 | Tap Send with keyboard shown (22) | shown → hidden after send | — | — | free sends 1/5 → reply | message sent without closing keyboard; DEV place_qa confirm reply with Pizza 4P's cards — PASS |
 
-AC #400 on Android emulator: PASS. SM-A226B not measured (owner decision 2026-11-13).
+Kết quả mở IME/gửi tin vòng 1 đã PASS, nhưng chưa kiểm tra việc khôi phục tọa độ sau hide.
+Owner phát hiện regression bên dưới nên không còn coi đây là AC PASS toàn bộ.
+SM-A226B không đo (quyết định owner 2026-11-13).
 
 Rollback UI: khôi phục nhánh Android behavior trước bản sửa; không có thay đổi
 schema, contract hay dữ liệu cần rollback.

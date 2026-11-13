@@ -285,7 +285,10 @@ function AssistantChat({ account }: { account: string }) {
       {!online ? <OfflineBanner /> : null}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
+        // Android hide coordinates describe the visible display frame, not an
+        // IME overlap. Clear avoidance explicitly when the keyboard is hidden.
+        enabled={Platform.OS !== 'android' || keyboard}
         keyboardVerticalOffset={0}
       >
         <View style={styles.flex}>

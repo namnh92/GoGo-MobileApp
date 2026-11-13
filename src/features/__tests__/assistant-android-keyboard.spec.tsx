@@ -1,7 +1,7 @@
 import { act, fireEvent, waitFor, within } from '@testing-library/react-native'
 import { DeviceEventEmitter } from 'react-native'
 
-// Exercise RN's real IME height calculation, rather than its default Jest stub.
+// Exercise RN's real IME overlap calculation, rather than its default Jest stub.
 jest.unmock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView')
 jest.mock('react-native/Libraries/Utilities/Platform', () => ({
   __esModule: true,
@@ -50,8 +50,8 @@ it('shrinks the full-screen chat above the Android IME, keeps both footer contro
       endCoordinates: { screenX: 0, screenY: 500, width: 390, height: 344 },
     })
   })
-  // The real RN component must reduce 744 by the 344pt IME overlap.
-  expect(host()).toHaveStyle({ height: 400, flex: 0 })
+  // Keep the outer flex frame stable; 744 - 344 leaves 400pt for chat/footer.
+  expect(host()).toHaveStyle({ flex: 1, paddingBottom: 344 })
   const footer = within(host()).getByTestId('assistant-footer')
   expect(footer).toHaveStyle({ paddingBottom: 0 })
   expect(within(footer).getByTestId('credit-balance-row')).toBeTruthy()
@@ -64,8 +64,56 @@ it('shrinks the full-screen chat above the Android IME, keeps both footer contro
   await waitFor(() => expect(callsTo(backend, 'sendMessage')).toHaveLength(1))
   // No keyboardDidHide was needed before pressing Send. Existing submit may
   // dismiss it afterwards; keep that interaction unchanged.
-  await act(async () => { DeviceEventEmitter.emit('keyboardDidHide', {}) })
-  expect(host()).not.toHaveStyle({ height: 400 })
+  await act(async () => {
+    DeviceEventEmitter.emit('keyboardDidHide', {
+      duration: 0,
+      easing: 'keyboard',
+      endCoordinates: { screenX: 0, screenY: 820, width: 390, height: 0 },
+    })
+  })
+  expect(host()).toHaveStyle({ flex: 1, paddingBottom: 0 })
   expect(screen.getByTestId('assistant-footer')).toHaveStyle({ paddingBottom: 34 })
+  await settle()
+})
+
+// Android's native hide payload uses the visible display frame height, which
+// can exclude system bars. An empty {} hide event misses RN's stale-bottom path.
+it('restores the original flex layout after native hide coordinates and later layouts across repeated cycles', async () => {
+  installBackend({ seed: false })
+  const screen = await renderAssistant(<AssistantRoute />)
+  const host = () => screen.getByTestId('assistant-footer').parent!
+  const layout = async (height = 744) => {
+    await fireEvent(host(), 'layout', {
+      persist: () => {},
+      nativeEvent: { layout: { x: 0, y: 100, width: 390, height } },
+    })
+  }
+  await act(async () => { await layout() })
+  const originalStyle = host().props.style
+  for (const screenY of [500, 460]) {
+    await act(async () => {
+      DeviceEventEmitter.emit('keyboardDidShow', {
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: { screenX: 0, screenY, width: 390, height: 844 - screenY },
+      })
+    })
+    expect(screen.getByTestId('assistant-footer')).toHaveStyle({ paddingBottom: 0 })
+    await act(async () => {
+      DeviceEventEmitter.emit('keyboardDidHide', {
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: { screenX: 0, screenY: 820, width: 390, height: 0 },
+      })
+    })
+    expect(host().props.style).toEqual(originalStyle)
+    expect(host()).toHaveStyle({ flex: 1 })
+    expect(screen.getByTestId('assistant-footer')).toHaveStyle({ paddingBottom: 34 })
+    // A later layout must not reapply overlap from the retained hide payload.
+    await act(async () => { await layout(720) })
+    expect(host().props.style).toEqual(originalStyle)
+    await act(async () => { await layout() })
+    expect(host().props.style).toEqual(originalStyle)
+  }
   await settle()
 })
