@@ -293,3 +293,24 @@ details render the stored `photo` with author attribution using expo-image
 show remaining hours or expiry. Place Detail uses stored `photos` plus approved
 `userPhotos`, with community uploader credit. The removed provider-photos endpoint/query is no longer used;
 `google-provider-photo` remains limited to link-paste candidate previews.
+
+## Place QA follow-up selection (GoGo-MobileApp #652)
+
+Vendored `GoGo-BE` `origin/re-design:openapi/gogo.v1.yaml` at
+`10.2.0-alpha.1`; regenerate with `pnpm api:types`, verify with `pnpm api:check`.
+`AssistantFollowUpGroup.field` is the group discriminator (there is no separate
+`kind`): `place_choice`, `place_confirm`, and `place_topic` have localized vi/en
+headers. Other groups keep their server label.
+
+Selecting an option with an `id` sends its owning assistant message's
+`replyToMessageId` and its `followUpOptionId` together. The failed-send draft
+retains the pair for an identical retry; typed messages and legacy options
+without an id omit both. Identical typed text is a distinct intent from a failed
+chip selection.
+
+Place results already use the shared `PlaceCardSmall`. Its adapter maps verified
+`facts.photoUrl`, `addressText`, provider and community ratings; the new Jest
+coverage checks supplied facts, missing facts, navigation and image caching.
+These fields are optional in the DTO, so a name-only response cannot supply a
+photo, address or rating; no substitute facts are fetched or invented. No DTO
+gap was found. Simulator/DEV chat acceptance remains with the owner.

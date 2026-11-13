@@ -15,6 +15,7 @@ import {
   useStopAssistantReply,
   useUploadImage,
   type AssistantConversation,
+  type AssistantFollowUpSelection,
 } from '@/shared/api'
 import { useOnlineStatus } from '@/shared/api/queries/use-online-status'
 import { isAssistantEntryOn } from '@/shared/config/features'
@@ -160,7 +161,7 @@ function AssistantChat({ account }: { account: string }) {
   const locale = i18n.language === 'en' ? 'en' : 'vi'
 
   const submit = useCallback(
-    (text: string) => {
+    (text: string, followUp?: AssistantFollowUpSelection) => {
       const trimmed = text.trim()
       if (!trimmed || sendDisabled) return
       const ready = images.filter((image): image is { uri: string; uploadKey: string } => image.uploadKey !== null)
@@ -168,6 +169,7 @@ function AssistantChat({ account }: { account: string }) {
       void send({
         text: trimmed,
         locale,
+        ...(followUp ? { followUp } : {}),
         ...(context ? { context: { placeId: context.placeId } } : {}),
         images: ready,
       }).then(result => {

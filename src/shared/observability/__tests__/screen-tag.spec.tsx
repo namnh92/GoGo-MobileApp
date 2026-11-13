@@ -585,7 +585,7 @@ describe('route templates', () => {
   // Adding such a route needs a new guard first, not a new entry in the list.
   it('no non-index leaf template is a strict prefix of another template', () => {
     const prefixes = files.filter(f => templates.some(t => t !== f.template && t.startsWith(f.template === '/' ? '/' : `${f.template}/`)))
-    expect(prefixes.map(f => f.template).sort()).toEqual(['/', '/(tabs)', '/plans/[planId]', '/room/[roomId]'])
+    expect(prefixes.map(f => f.template).sort()).toEqual(['/', '/(tabs)', '/me/contributions', '/plans/[planId]', '/room/[roomId]'])
     expect(prefixes.filter(f => !f.isIndex)).toEqual([])
   })
 })

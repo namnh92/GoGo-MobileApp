@@ -1,14 +1,12 @@
 import { Chip } from '@/shared/ui/chip.view'
+import type { AssistantFollowUpGroup } from '@/shared/api'
 import { View } from 'react-native'
 
 import { Text } from '@/shared/ui/text'
 
 import { styles } from './follow-ups.style'
 
-export interface FollowUpItem {
-  label: string
-  /** Sent as the next message when tapped. */
-  text: string
+export type FollowUpItem = AssistantFollowUpGroup['options'][number] & {
   accent?: boolean
 }
 
@@ -25,7 +23,7 @@ export function FollowUps({
 }: {
   label?: string
   items: FollowUpItem[]
-  onSelect: (text: string) => void
+  onSelect: (text: string, optionId?: string) => void
   disabled?: boolean
 }) {
   return (
@@ -33,10 +31,10 @@ export function FollowUps({
       {label ? <Text variant="label" color="text.secondary">{label}</Text> : null}
       <View style={styles.chips}>
         {items.map(item => (
-          <Chip key={`${item.label}-${item.text}`} label={item.label}
+          <Chip key={item.id ?? `${item.label}-${item.text}`} label={item.label}
             accessibilityLabel={label ? `${label} ${item.label}` : item.label}
             variant={disabled ? 'disabled' : item.accent ? 'info' : 'default'}
-            onPress={() => onSelect(item.text)} />
+            onPress={() => item.id === undefined ? onSelect(item.text) : onSelect(item.text, item.id)} />
         ))}
       </View>
     </View>

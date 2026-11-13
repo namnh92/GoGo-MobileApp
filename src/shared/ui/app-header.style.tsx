@@ -3,6 +3,12 @@ import { StyleSheet } from 'react-native-unistyles'
 import { radius, spacing, tabRootSpacing, touchTarget } from './tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  heroRoot: { position: 'absolute', top: 0, left: 0, right: 0 },
+  heroRow: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  heroBack: { backgroundColor: theme.surface.card, borderRadius: radius.pill },
+  heroPill: { backgroundColor: theme.surface.card, padding: 8, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.status.warning },
+  dangerDot: { backgroundColor: theme.status.danger },
   root: { backgroundColor: theme.surface.canvas },
   tabRoot: { paddingBottom: tabRootSpacing.headerContent },
   row: { minHeight: touchTarget.min + spacing[3], paddingHorizontal: spacing[4], paddingVertical: spacing[1], flexDirection: 'row', alignItems: 'center', gap: spacing[2] },

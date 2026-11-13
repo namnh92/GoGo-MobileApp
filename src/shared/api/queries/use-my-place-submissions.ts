@@ -5,7 +5,7 @@ import { getMyPlaceSubmission, isSubmissionDetailRetryable, listMyPlaceSubmissio
  * Keep a per-ID memory cache across filters; a new decision gets a new key.
  * Budget/deferred outcomes stay fresh until this private memory cache is evicted.
  */
-export function useMyPlaceSubmission(item: MyPlaceSubmission, enabled: boolean) {
+export function useMyPlaceSubmission(item: Pick<MyPlaceSubmission, 'id'> & Partial<Pick<MyPlaceSubmission, 'updatedAt'>>, enabled: boolean) {
   return useQuery({
     queryKey: ['my-place-submissions', item.id, 'detail', item.updatedAt],
     queryFn: ({ signal }) => getMyPlaceSubmission(item.id, signal),

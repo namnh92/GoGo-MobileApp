@@ -74,7 +74,7 @@ it('keeps English controls and empty review actions readable with dark tokens', 
 })
 
 
-it('renders snapshot rating and CDN credits while omitting hours with dark card tokens', async () => {
+it('renders snapshot rating and CDN credits and hours with dark card tokens', async () => {
   mockSnapshot = {
     googleRating: 4.7, googleRatingCount: 123, attributions: ['Google Maps'],
     openingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, openMinute: 0, closeMinute: 1440, isOvernight: false })),
@@ -85,7 +85,7 @@ it('renders snapshot rating and CDN credits while omitting hours with dark card 
   await renderScreen(<MyContributionsScreen />)
   expect(StyleSheet.flatten(screen.getByTestId('place-google-rating').props.style).backgroundColor).toBe(themes.orangeDark.surface.container)
   expect(screen.getByLabelText('★ 4,7 (123) Google')).toBeTruthy()
-  expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
+  expect(screen.getByTestId('place-card-hours-badge')).toBeTruthy()
   expect(screen.getByTestId('place-photo-image').props.source).toEqual([{ uri: 'https://cdn.example.com/cover.jpg', cacheKey: 'https://cdn.example.com/cover.jpg' }])
   expect(screen.getByTestId('saved-photo-attribution').props.accessibilityLabel).toContain('CDN photographer')
   expect(screen.queryByText('Xác minh')).toBeNull()

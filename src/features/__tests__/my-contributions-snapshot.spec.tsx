@@ -54,7 +54,7 @@ it('renders pending/rejected snapshot facts and stored CDN photo credits in ligh
   const view = await renderScreen(<MyContributionsScreen />)
   expect(StyleSheet.flatten(screen.getByTestId('place-google-rating').props.style).backgroundColor).toBe(themes.orange.surface.container)
   expect(screen.getByLabelText('★ 4,7 (123) Google')).toBeTruthy()
-  expect(screen.queryByTestId('place-card-hours-badge')).toBeNull()
+  expect(screen.getByTestId('place-card-hours-badge')).toBeTruthy()
   expect(screen.getByTestId('place-photo-image').props.source).toEqual([{ uri: photo.url, cacheKey: photo.url }])
   expect(api.get).not.toHaveBeenCalled()
   expect(screen.getByTestId('place-photo-image').props.cachePolicy).toBe('memory-disk')

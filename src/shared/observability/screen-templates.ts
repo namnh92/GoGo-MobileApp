@@ -29,6 +29,7 @@ export const SCREEN_TEMPLATES: ReadonlySet<string> = new Set([
   '/l/[slug]',
   '/notifications',
   '/me/contributions',
+  '/me/contributions/[submissionId]',
   '/me/credits',
   '/onboarding',
   '/places/[placeId]',

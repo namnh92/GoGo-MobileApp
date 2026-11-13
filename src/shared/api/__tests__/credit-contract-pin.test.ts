@@ -5,7 +5,7 @@ import type { AssistantStatus, AssistantConversationCredits, AssistantTurnCredit
 
 it('pins the D contract and required full-conversation/insufficient-credit facts', () => {
   const contract = readFileSync(new URL('../../../../openapi/gogo.v1.yaml', import.meta.url), 'utf8')
-  expect(contract).toMatch(/version: 10\.0\.0-alpha\.1/)
+  expect(contract).toMatch(/version: 10\.2\.0-alpha\.1/)
   for (const schema of ['AssistantTurnCredits', 'AssistantConversationCredits', 'AssistantInsufficientCreditDetails']) {
     expect(contract).toContain(`    ${schema}:`)
   }

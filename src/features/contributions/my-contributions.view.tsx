@@ -64,7 +64,7 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
   const photo = item.status !== 'rejected' || canUpdate ? display.photo : undefined
   const card = detailToPlaceCard({
     id: item.id, name, addressText: address,
-    rating: provider?.googleRating ?? undefined, ratingCount: provider?.googleRatingCount ?? undefined,
+    rating: provider?.googleRating ?? undefined, ratingCount: provider?.googleRatingCount ?? undefined, hours: provider?.openingHours,
     ...detail.data,
     // Submission photos are stored CDN covers, never provider preview references.
     photos: photo ? [photo] : item.status === 'rejected' ? [] : detail.data?.photos,
@@ -85,7 +85,8 @@ function ContributionPlace({ item }: { item: MyPlaceSubmission }) {
     sourceUrl: photo?.googleMapsUri ?? url,
     onSupplement: url ? () => router.push({ pathname: '/places/import', params: { url } }) : undefined,
   }
-  if (!canonical) return <ContributionPlaceCard {...common} place={card}>{progress}
+  if (!canonical) return <ContributionPlaceCard {...common} place={card}
+    onPress={item.status === 'pending' || canUpdate ? () => router.push({ pathname: '/me/contributions/[submissionId]', params: { submissionId: item.id } }) : undefined}>{progress}
     {item.status === 'rejected' && Number.isFinite(deadline) ? <Text testID="contribution-update-deadline" variant="introCaption" color="text.secondary">
       {canUpdate ? t('contributions.updateRemaining', { hours: Math.ceil((deadline - now.getTime()) / 3_600_000) }) : t('contributions.updateExpired')}
     </Text> : null}

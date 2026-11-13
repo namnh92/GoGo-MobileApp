@@ -1,3 +1,4 @@
+import { viMessages } from './vi'
 import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 
 /**
@@ -9,6 +10,28 @@ import type { MessageKey, LocaleContent } from '@/shared/i18n/types'
 type EnglishSingulars = Partial<Record<`${MessageKey}_one`, string>>
 
 export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
+  "submissionDetail.title": viMessages["submissionDetail.title"],
+  "submissionDetail.maps": viMessages["submissionDetail.maps"],
+  "submissionDetail.pending": viMessages["submissionDetail.pending"],
+  "submissionDetail.pendingBody": viMessages["submissionDetail.pendingBody"],
+  "submissionDetail.deadline": viMessages["submissionDetail.deadline"],
+  "submissionDetail.notFound": viMessages["submissionDetail.notFound"],
+  "submissionDetail.todayHours": viMessages["submissionDetail.todayHours"],
+  "submissionDetail.added": viMessages["submissionDetail.added"],
+  "submissionDetail.personal": viMessages["submissionDetail.personal"],
+  "submissionDetail.price": viMessages["submissionDetail.price"],
+  "submissionDetail.purposes": viMessages["submissionDetail.purposes"],
+  "submissionDetail.vibes": viMessages["submissionDetail.vibes"],
+  "submissionDetail.amenities": viMessages["submissionDetail.amenities"],
+  "submissionDetail.all": viMessages["submissionDetail.all"],
+  "submissionDetail.less": viMessages["submissionDetail.less"],
+  "submissionDetail.service": viMessages["submissionDetail.service"],
+  "submissionDetail.space": viMessages["submissionDetail.space"],
+  "submissionDetail.dishes": viMessages["submissionDetail.dishes"],
+  "submissionDetail.tips": viMessages["submissionDetail.tips"],
+  "submissionDetail.quote": viMessages["submissionDetail.quote"],
+  "submissionDetail.footer": viMessages["submissionDetail.footer"],
+
   "auth.recovery.forgotTitle": "Forgot password",
   "auth.recovery.forgotBody": "Enter your registered email. GoGo will send a 6-digit password reset code.",
   "auth.recovery.codeSent": "Code sent to {{email}}",
@@ -1932,6 +1955,9 @@ export const enMessages: Record<MessageKey, string> & EnglishSingulars = {
   'assistant.sources.placeData': 'From GoGo place data · Last checked {{date}}',
   'assistant.cite': 'Source {{n}}',
   'assistant.followUps.typeInstead': 'Or type your own.',
+  'assistant.followUps.placeChoice': 'Choose a place',
+  'assistant.followUps.placeConfirm': 'Confirm a place',
+  'assistant.followUps.placeTopic': 'More information',
   'assistant.card.openNow': 'Open now',
   'assistant.card.closedNow': 'Closed now',
   'assistant.card.unavailable': 'No longer available',

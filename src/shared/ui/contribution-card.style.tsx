@@ -6,6 +6,7 @@ export const styles = StyleSheet.create(theme => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   flex: { flex: 1, minWidth: 0 },
   reason: { marginTop: 10, padding: 8, borderRadius: 12, borderWidth: 1, borderColor: theme.status.dangerSoft, backgroundColor: theme.status.dangerSoft, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  singleLineCredits: { backgroundColor: overlay.scrimText, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   credits: { marginTop: 6, gap: 2 },
   photoCredits: { position: 'absolute', bottom: 10, left: 10, right: 10, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: overlay.scrimText },
   skeleton: { padding: 16, gap: 10 },
