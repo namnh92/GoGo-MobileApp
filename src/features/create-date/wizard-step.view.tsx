@@ -1,6 +1,7 @@
+import { FormKeyboardAvoider } from '@/shared/ui/form-keyboard-avoider.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useTranslation } from 'react-i18next'
-import { BackHandler, KeyboardAvoidingView, Platform, View } from 'react-native'
+import { BackHandler, View } from 'react-native'
 import { createContext, useCallback, useContext, useEffect } from 'react'
 import { useFocusEffect } from 'expo-router'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -81,6 +82,6 @@ export function WizardStep({ step, onBack }: { step: WizardStepKey; onBack: () =
 export function WizardScreen({ step, avoidKeyboard = false, children }: { step: WizardStepKey; avoidKeyboard?: boolean; children: ReactNode }) {
   const headerHeight = useContext(WizardHeaderOffset)
   const content = <View testID="wizard-content" style={styles.content}>{children}</View>
-  return avoidKeyboard ? <KeyboardAvoidingView testID={`create-${step}-keyboard`} style={styles.content}
-      keyboardVerticalOffset={headerHeight} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{content}</KeyboardAvoidingView> : content
+  return avoidKeyboard ? <FormKeyboardAvoider testID={`create-${step}-keyboard`} style={styles.content}
+      keyboardVerticalOffset={headerHeight}>{content}</FormKeyboardAvoider> : content
 }

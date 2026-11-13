@@ -1,10 +1,11 @@
+import { FormKeyboardAvoider } from '@/shared/ui/form-keyboard-avoider.view'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { verifyPasswordRecovery } from '@/shared/api/endpoints/password-recovery'
 import { ApiError } from '@/shared/api/errors'
@@ -96,7 +97,7 @@ export default function ForgotPasswordScreen() {
       if (flow?.invalidCode) setFocusRequest(value => value + 1)
     }} />
     <AppHeader title={t('auth.recovery.forgotTitle')} centerTitle titleColor="accent.primary" showNotifications={false} onBack={back} backDisabled={pending} />
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <FormKeyboardAvoider style={styles.fill}>
       <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>
         <ScrollView ref={scrollRef} onLayout={schedule} onContentSizeChange={schedule} onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag}
           scrollEventThrottle={16} keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing[4] }]} keyboardShouldPersistTaps="handled">
@@ -121,6 +122,6 @@ export default function ForgotPasswordScreen() {
           </View>
         </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+    </FormKeyboardAvoider>
   </Atmosphere>
 }

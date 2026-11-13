@@ -1,3 +1,4 @@
+import { FormKeyboardAvoider } from '@/shared/ui/form-keyboard-avoider.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -5,7 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { Controller, useForm, type UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { AccessibilityInfo, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
+import { AccessibilityInfo, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { track } from '@/shared/analytics'
@@ -193,7 +194,7 @@ export default function SignInScreen() {
         <AppHeader title={t(mode === 'signIn' ? 'auth.signInTab' : 'auth.signUpTab')} onBack={() => goBackOrHome(router)}
           showNotifications={false} />
       </View>
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <FormKeyboardAvoider style={styles.fill}>
         <View ref={viewportRef} testID="auth-viewport" style={styles.fill} onLayout={schedule}>
           <ScrollView ref={scrollRef} onLayout={schedule} onContentSizeChange={schedule} onScroll={onScroll} onScrollBeginDrag={onScrollBeginDrag} scrollEventThrottle={16} keyboardDismissMode="on-drag" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
             <View style={styles.tabs}>
@@ -244,7 +245,7 @@ export default function SignInScreen() {
             <View style={styles.note}><InfoBanner body={t('auth.guestFootnote')} footerLeft={t('auth.support')} footerRight={t('auth.curation')} /></View>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </FormKeyboardAvoider>
     </Atmosphere>
   )
 }
