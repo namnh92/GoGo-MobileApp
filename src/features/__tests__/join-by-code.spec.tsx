@@ -49,7 +49,7 @@ async function submitCode() {
     await fireEvent.changeText(view.getByLabelText('Mã mời'), CODE)
   })
   await act(async () => {
-    await fireEvent.press(view.getByText('Tham gia'))
+    await fireEvent.press(view.getByText('Vào phòng'))
   })
   return view
 }
@@ -79,7 +79,7 @@ describe('join by code × error code', () => {
       await fireEvent.changeText(view.getByLabelText('Tên hiển thị'), 'Lan')
     })
     await act(async () => {
-      await fireEvent.press(view.getByText('Tham gia'))
+      await fireEvent.press(view.getByText('Vào phòng'))
     })
     expect(await view.findByText(ROOM_EXPIRED)).toBeTruthy()
     expect(view.queryByText(EXPIRED)).toBeNull()

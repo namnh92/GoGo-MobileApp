@@ -1,3 +1,5 @@
+import { dayLabel } from '@/features/create-date/day-format'
+
 /** Local calendar input; never parse a locale-formatted string with Date.parse. */
 export function localScheduleToIso(value: string): string | null {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(value.trim())
@@ -33,8 +35,25 @@ function parsed(value: string | undefined): Date | null {
   return Number.isFinite(date.getTime()) ? date : null
 }
 
-export function roomScheduleLabel(value: string | undefined, locale: string): string | null {
-  return parsed(value)?.toLocaleString(locale, DATE_TIME) ?? null
+export function roomScheduleLabel(
+  value: string | undefined,
+  locale: string,
+  options?: { compact: boolean; endAt?: string },
+): string | null {
+  const start = parsed(value)
+  if (!start) return null
+  if (!options?.compact) return start.toLocaleString(locale, DATE_TIME)
+  // Keep the range's invalid-end and DST rules shared with the lobby.
+  const range = roomScheduleRange(value, options.endAt, locale)!
+  const end = range.end ? parsed(options.endAt) : null
+  if (end && start.getTimezoneOffset() !== end.getTimezoneOffset()) return `${range.start} – ${range.end}`
+  const time = (date: Date) => date.toLocaleTimeString(locale, TIME_ONLY)
+  const day = (date: Date, withYear = true) => `${dayLabel(date, locale)}${withYear ? `/${date.getFullYear()}` : ''}`
+  if (!end) return `${time(start)} · ${day(start)}`
+  const sameDay = start.getFullYear() === end.getFullYear()
+    && start.getMonth() === end.getMonth() && start.getDate() === end.getDate()
+  if (sameDay) return `${time(start)} – ${time(end)} · ${day(start)}`
+  return `${time(start)} ${day(start, start.getFullYear() !== end.getFullYear())} – ${time(end)} ${day(end)}`
 }
 
 export interface RoomScheduleRange {

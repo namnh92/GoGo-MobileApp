@@ -12,7 +12,7 @@ describe('InviteExpired', () => {
     await render(<InviteExpired />)
     expect(screen.getByRole('header')).toHaveTextContent('Lời mời đã hết hạn')
     expect(screen.getByText('Về trang chủ')).toBeTruthy()
-    expect(screen.getByText('Vào phòng bằng mã')).toBeTruthy()
+    expect(screen.getByText('Vào phòng bằng mã khác')).toBeTruthy()
     expect(screen.queryByRole('textbox')).toBeNull()
   })
 })

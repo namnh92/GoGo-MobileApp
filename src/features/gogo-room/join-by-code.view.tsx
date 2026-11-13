@@ -1,29 +1,28 @@
+import * as Clipboard from 'expo-clipboard'
 import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { isApiError, useJoinRoom } from '@/shared/api'
+import { isApiError, isOffline, useJoinRoom } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn, SecondaryBtn, IconBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { styles } from './join-by-code.style'
+import { JoinInput } from './join-input.view'
 
 const MAX_NAME = 50
 
 export default function JoinByCodeScreen() {
-  const { theme } = useUnistyles()
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -55,6 +54,7 @@ export default function JoinByCodeScreen() {
     // Expired, revoked or spent (`INVITE_NOT_USABLE`); any other 410 as before.
     if (isApiError(caught) && caught.status === 410) return t('joinByCode.expired')
     if (isApiError(caught) && caught.status === 404) return t('joinByCode.notFound')
+    if (isOffline(caught)) return t('common.offlineBody')
     if (isApiError(caught) && caught.status === 429) return t('auth.rateLimited')
     return t('joinByCode.failed')
   }
@@ -98,8 +98,7 @@ export default function JoinByCodeScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={{
-            flexGrow: 1,
-            paddingHorizontal: spacing[5],
+            ...styles.content,
             paddingBottom: insets.bottom + spacing[6],
           }}
           keyboardShouldPersistTaps="handled"
@@ -113,34 +112,36 @@ export default function JoinByCodeScreen() {
               <Icon name="unlock" size={20} color="accent.primary" />
               <Text variant="title2">{t('joinByCode.codeLabel')}</Text>
             </View>
-            <TextInput
+            <JoinInput
+              fieldTestID="join-code-field"
               value={code}
               onChangeText={value => {
                 setCode(value)
                 if (error) setError(null)
               }}
               placeholder={t('joinByCode.codePlaceholder')}
-              placeholderTextColor={theme.text.secondary}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!pending}
               accessibilityLabel={t('joinByCode.codeLabel')}
-              style={styles.input}
+              trailing={<>
+                {code ? <IconBtn accessibilityLabel={t('inviteCode.clear')} disabled={pending} onPress={() => setCode('')}><Icon name="x" /></IconBtn> : null}
+                <SecondaryBtn size="small" variant="neutralPill" label={t('inviteCode.paste')} disabled={pending} onPress={() => { void Clipboard.getStringAsync().then(value => { setCode(value); setError(null) }).catch(() => setError(t('inviteCode.pasteFailed'))) }} />
+              </>}
             />
 
             {!asUser ? (
               <>
                 <Text variant="label">{t('guestJoin.nameLabel')}</Text>
-                <TextInput
+                <JoinInput
+                  fieldTestID="join-name-field"
                   value={displayName}
                   onChangeText={value => setDisplayName(value.slice(0, MAX_NAME))}
                   placeholder={t('guestJoin.namePlaceholder')}
-                  placeholderTextColor={theme.text.secondary}
                   autoCapitalize="words"
                   autoCorrect={false}
                   editable={!pending}
                   accessibilityLabel={t('guestJoin.nameLabel')}
-                  style={styles.input}
                 />
               </>
             ) : null}
@@ -155,9 +156,12 @@ export default function JoinByCodeScreen() {
             </View>
           ) : null}
 
-          <View style={{ marginTop: spacing[5], gap: spacing[3] }}>
+          {!asUser ? <View style={styles.tip}><Icon name="lock" color="status.successText" /><View style={styles.tipText}><Text variant="label">{t('inviteCode.instant')}</Text><Text variant="caption" color="text.secondary">{t('guestJoin.noAccount')}</Text></View></View> : null}
+
+          <View style={styles.actions}>
             <PrimaryBtn
-              label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
+              variant="pill"
+              label={pending ? t('guestJoin.joining') : t('inviteCode.join')}
               onPress={submit}
               icon="arrowRight"
               loading={pending}

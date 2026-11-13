@@ -2,24 +2,24 @@ import { BlockingLoadingOverlay } from '@/shared/ui/blocking-loading-overlay.vie
 import { Chip } from '@/shared/ui/chip.view'
 import { AppHeader } from '@/shared/ui/app-header.view'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, View } from 'react-native'
-import { TextInput } from '@/shared/ui/text-input'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { isApiError, useJoinRoom } from '@/shared/api'
+import { isApiError, isOffline, useJoinRoom, useInvitePreview } from '@/shared/api'
 import { track } from '@/shared/analytics'
 import { useSession } from '@/shared/providers/session-provider'
 import { useRecentRoomsStore } from '@/shared/store/recentRoomsStore'
 import { LoadingState } from '@/shared/ui/async-state.view'
+import { InvitePreview, InvitePreviewSkeleton } from './invite-preview.view'
 import { Icon } from '@/shared/ui/icons'
-import { Atmosphere, Card, PrimaryBtn } from '@/shared/ui/primitives'
+import { Atmosphere, Card, PrimaryBtn, SecondaryBtn } from '@/shared/ui/primitives'
 import { Text } from '@/shared/ui/text'
 import { spacing } from '@/shared/ui/tokens'
 
 import { InviteExpired } from './invite-expired.view'
+import { JoinInput } from './join-input.view'
 import { styles } from './guest-join.style'
 import { GuestReplaceNotice, useConfirmReplaceGuest } from './guest-replace-notice.view'
 import { goBackOrHome } from '@/shared/navigation/go-back-or-home'
@@ -36,7 +36,21 @@ const MAX_DISPLAY_NAME = 50
  * own account by opening an invite.
  */
 export default function GuestJoinScreen() {
-  const { theme } = useUnistyles()
+  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  // A join in flight outlives a warm link (#596 F-05): a guest join persists its
+  // session when it lands, which cancels any request started meanwhile under the
+  // old session generation. So the lock lives here, above the per-code remount,
+  // and invite B cannot submit until attempt A has settled.
+  const [pending, setPending] = useState(false)
+  // A warm link starts a separate attempt: errors, preview and dialog reset.
+  return <GuestJoinInvite key={inviteCode} inviteCode={inviteCode} pending={pending} setPending={setPending} />
+}
+
+function GuestJoinInvite({ inviteCode, pending, setPending }: {
+  inviteCode: string
+  pending: boolean
+  setPending: (value: boolean) => void
+}) {
   const { t } = useTranslation()
   const { confirmReplaceGuest, dialog } = useConfirmReplaceGuest()
   const router = useRouter()
@@ -45,11 +59,17 @@ export default function GuestJoinScreen() {
   const { status, guestRoomId, joinAsGuest } = useSession()
   const joinRoom = useJoinRoom()
   const forget = useRecentRoomsStore(state => state.forget)
-  const { inviteCode } = useLocalSearchParams<{ inviteCode: string }>()
+  const active = useRef(true)
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
 
   const [displayName, setDisplayName] = useState('')
-  const [pending, setPending] = useState(false)
   const [expired, setExpired] = useState(false)
+  const preview = useInvitePreview(inviteCode, status !== 'hydrating')
+  const [blockedRoom, setBlockedRoom] = useState(false)
+  const [unusable, setUnusable] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const asUser = status === 'user'
@@ -78,6 +98,7 @@ export default function GuestJoinScreen() {
     // Any other 410 keeps that reading, as before.
     if (isApiError(caught) && caught.status === 410) return t('guestJoin.expiredBody')
     if (isApiError(caught) && caught.status === 404) return t('guestJoin.notFoundBody')
+    if (isOffline(caught)) return t('common.offlineBody')
     if (isApiError(caught) && caught.status === 429) return t('auth.rateLimited')
     return t('guestJoin.failed')
   }
@@ -98,6 +119,7 @@ export default function GuestJoinScreen() {
     try {
       if (asUser) {
         const result = await joinRoom.mutateAsync({ inviteCode })
+        if (!active.current) return
         // GoGo-BE#607: count a join only when the server says this request created
         // the membership. A member or the host reopening the invite gets
         // `alreadyMember: true`; a server older than alpha.49 sends no flag, which is
@@ -114,9 +136,11 @@ export default function GuestJoinScreen() {
       }
 
       if (holdsGuestRoom && !(await confirmReplaceGuest())) return
+      if (!active.current) return
       // Issues a room-scoped guest session and persists it to the Keychain —
       // no account, and the token reaches no other room.
       const session = await joinAsGuest({ inviteCode, displayName: trimmedName })
+      if (!active.current) return
       track('gogo_partner_joined', { role: 'guest' })
       // Routes carry the room id from here on; the invite code is a credential.
       // A grant without one would build `/room/undefined/...` and 400 on every read.
@@ -126,6 +150,9 @@ export default function GuestJoinScreen() {
       }
       if (stillHere()) router.replace(`/room/${session.roomId}/preference`)
     } catch (caught) {
+      if (!active.current) return
+      setBlockedRoom(isApiError(caught) && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(caught.code))
+      setUnusable(isApiError(caught) && (caught.status === 404 || (caught.status === 410 && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(caught.code))))
       setExpired(
         isApiError(caught) &&
           caught.status === 410 &&
@@ -134,6 +161,7 @@ export default function GuestJoinScreen() {
       )
       setError(toMessage(caught))
     } finally {
+      // Always release: the lock is shared with whichever invite is on screen now.
       setPending(false)
     }
   }
@@ -165,11 +193,17 @@ export default function GuestJoinScreen() {
     )
   }
 
-  if (expired) {
+  const previewFailure = preview.error
+  const unavailable = isApiError(previewFailure) && [404, 410].includes(previewFailure.status)
+  const previewExpired = isApiError(previewFailure) && previewFailure.status === 410 && !['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code)
+  // A terminal preview is a dead link for every session (G5-01).
+  if (expired || unusable || unavailable) {
     return (
       <Atmosphere>
         {header}
-        <InviteExpired />
+        <InviteExpired canRequestLink={!blockedRoom && !(isApiError(previewFailure) && ['ROOM_NOT_JOINABLE', 'ROOM_EXPIRED'].includes(previewFailure.code))} unusable={unusable || (unavailable && !previewExpired)} message={error ?? (previewFailure ? toMessage(previewFailure) : undefined)} />
+        {/* A late preview must not strand an awaited guest confirmation. */}
+        {dialog}
       </Atmosphere>
     )
   }
@@ -180,15 +214,16 @@ export default function GuestJoinScreen() {
       {header}
       <ScrollView
         contentContainerStyle={{
-          flexGrow: 1,
-          paddingTop: spacing[4],
-          paddingHorizontal: spacing[5],
+          ...styles.content,
           paddingBottom: insets.bottom + spacing[6],
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Chip icon="heart" label={t('guestJoin.badge')} />
-        <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title')}</Text>
+        {preview.data?.roomType ? <Chip style={styles.badge} appearance="discovery" icon={preview.data?.roomType === 'group' ? 'users' : 'heart'} label={t('guestJoin.badge', { context: preview.data?.roomType, count: preview.data?.participantCount })} /> : null}
+        <Text variant="display" accessibilityRole="header" style={styles.title}>{t('guestJoin.title', { context: preview.data?.roomType, count: preview.data?.participantCount })}</Text>
+
+        {preview.isPending ? <InvitePreviewSkeleton /> : preview.data ? <InvitePreview data={preview.data} /> : null}
+        {previewFailure ? <View testID="invite-preview-error" style={[styles.errorBox, styles.previewError]}><Text variant="bodySmall" color="status.dangerText" accessibilityLiveRegion="polite" style={styles.errorText}>{toMessage(previewFailure)}</Text><SecondaryBtn label={t('common.retry')} onPress={() => { void preview.refetch() }} /></View> : null}
 
         {holdsGuestRoom ? <GuestReplaceNotice guestRoomId={guestRoomId} /> : null}
 
@@ -197,15 +232,15 @@ export default function GuestJoinScreen() {
             <Text variant="bodySmall" color="text.secondary">{t('guestJoin.asAccount')}</Text>
           ) : (
             <>
-              <Text variant="title2" style={styles.detailsTitle}>{t('guestJoin.nameLabel')}</Text>
-              <TextInput
+              <View style={styles.hostHeading}><Text variant="title2" style={styles.factText}>{t('guestJoin.nameLabel')}</Text><Text variant="caption" color="text.secondary">{t('invitePreview.required')}</Text></View>
+              <JoinInput
+                fieldTestID="invite-name-field"
                 value={displayName}
                 onChangeText={value => {
                   setDisplayName(value)
                   if (error) setError(null)
                 }}
                 placeholder={t('guestJoin.namePlaceholder')}
-                placeholderTextColor={theme.text.secondary}
                 maxLength={MAX_DISPLAY_NAME}
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -213,7 +248,6 @@ export default function GuestJoinScreen() {
                 onSubmitEditing={join}
                 editable={!pending}
                 accessibilityLabel={t('guestJoin.nameLabel')}
-                style={styles.nameInput}
               />
             </>
           )}
@@ -228,6 +262,7 @@ export default function GuestJoinScreen() {
           ) : null}
 
           <PrimaryBtn
+            variant="pill"
             label={pending ? t('guestJoin.joining') : t('guestJoin.join')}
             onPress={join}
             icon="arrowRight"

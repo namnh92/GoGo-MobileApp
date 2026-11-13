@@ -1,21 +1,15 @@
 import { StyleSheet } from 'react-native-unistyles'
 
-import { radius, spacing, touchTarget, type } from '@/shared/ui/tokens'
+import { radius, spacing } from '@/shared/ui/tokens'
 
 export const styles = StyleSheet.create(theme => ({
+  content: { flexGrow: 1, paddingHorizontal: spacing[4] },
+  actions: { marginTop: spacing[6], gap: spacing[3] },
+  tip: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: theme.surface.low, padding: spacing[3], borderRadius: radius.compact, marginTop: spacing[4] },
+  tipText: { flex: 1 },
   body: { marginBottom: spacing[4], marginTop: spacing[4], textAlign: 'center' },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  card: { padding: spacing[5], gap: spacing[3] },
-  input: {
-    ...type.body,
-    // A line height on a single-line field makes iOS wrap a long value; the fixed height centres it.
-    lineHeight: undefined,
-    height: touchTarget.min,
-    borderRadius: radius.compact,
-    paddingHorizontal: spacing[4],
-    color: theme.text.primary,
-    backgroundColor: theme.surface.subtle,
-  },
+  card: { borderRadius: radius.compact, padding: spacing[4], gap: spacing[3] },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

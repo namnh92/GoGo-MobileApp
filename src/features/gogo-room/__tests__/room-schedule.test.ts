@@ -123,6 +123,35 @@ it('shows 12:00Z as 19:00 in Asia/Ho_Chi_Minh and sends 19:00 back as the same i
  */
 const localIso = (hour: number, minute = 5, day = 10) => new Date(2026, 8, day, hour, minute).toISOString()
 
+// #638 owner sim: exact compact labels, using local dates in any device zone.
+const inviteIso = (hour: number, day = 11, year = 2026, month = 10) => new Date(year, month, day, hour).toISOString()
+it.each([
+  ['vi-VN', inviteIso(22), '20:00 – 22:00 · T4, 11/11/2026'],
+  ['vi-VN', inviteIso(1, 12), '20:00 T4, 11/11 – 01:00 T5, 12/11/2026'],
+  ['vi-VN', undefined, '20:00 · T4, 11/11/2026'],
+  ['en-US', inviteIso(22), '08:00 PM – 10:00 PM · Wed, 11/11/2026'],
+  ['en-US', inviteIso(1, 12), '08:00 PM Wed, 11/11 – 01:00 AM Thu, 11/12/2026'],
+  ['en-US', undefined, '08:00 PM · Wed, 11/11/2026'],
+])('compact owner sim schedule in %s ending %s', (locale, endAt, label) => {
+  expect(roomScheduleLabel(inviteIso(20), locale, { compact: true, endAt })).toBe(label)
+})
+
+it('compact schedules omit invalid ends and require a valid start', () => {
+  for (const endAt of ['bad', inviteIso(20), inviteIso(19)]) {
+    expect(roomScheduleLabel(inviteIso(20), 'vi', { compact: true, endAt })).toBe('20:00 · T4, 11/11/2026')
+  }
+  for (const start of [undefined, 'bad']) expect(roomScheduleLabel(start, 'vi', { compact: true, endAt: inviteIso(22) })).toBeNull()
+})
+
+it('compact schedules retain both years across New Year and both zones across DST', () => {
+  expect(roomScheduleLabel(inviteIso(23, 31, 2026, 11), 'vi', { compact: true, endAt: inviteIso(1, 1, 2027, 0) })).toBe('23:00 T5, 31/12/2026 – 01:00 T6, 01/01/2027')
+  inZone('America/Los_Angeles', () => {
+    const label = roomScheduleLabel('2026-11-01T08:30:00Z', 'en', { compact: true, endAt: '2026-11-01T09:15:00Z' })
+    expect(label).toContain('01:30 AM PDT')
+    expect(label).toContain('01:15 AM PST')
+  })
+})
+
 it('pins the date and time label in both languages, around the 12-hour edges', () => {
   expect(roomScheduleLabel(localIso(19), 'vi')).toBe('19:05 10/09/2026')
   expect(roomScheduleLabel(localIso(0), 'vi')).toBe('00:05 10/09/2026')
