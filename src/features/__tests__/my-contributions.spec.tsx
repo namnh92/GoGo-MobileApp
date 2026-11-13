@@ -213,3 +213,34 @@ it.each([0, 34])('keeps the child route dock-free and the CTA above bottom safe 
   expect(screen.queryByTestId('app-tab-dock')).toBeNull()
   expect(StyleSheet.flatten(screen.getByTestId('my-contributions-reviews').props.contentContainerStyle).paddingBottom).toBe(bottom + 24)
 })
+
+// Issue #570: a private submission has no canonical placeId.
+it('opens pending submissions in the private detail route', async () => {
+  await renderScreen(<MyContributionsScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Pending café' }))
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/me/contributions/[submissionId]', params: { submissionId: 'Pending café' } })
+})
+it('opens rejected submissions only before the update deadline', async () => {
+  mockQuery.data.pages[0].items = [row('Editable', 'rejected', { updateDeadline: '2099-01-01T00:00:00Z' }), row('Expired', 'rejected', { updateDeadline: '2000-01-01T00:00:00Z' })]
+  await renderScreen(<MyContributionsScreen />)
+  await fireEvent.press(screen.getByRole('button', { name: 'Editable' }))
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/me/contributions/[submissionId]', params: { submissionId: 'Editable' } })
+  expect(screen.queryByRole('button', { name: 'Expired' })).toBeNull()
+})
+it.each(['Approved café', 'Merged café'])('keeps %s on canonical detail', async name => {
+  await renderScreen(<MyContributionsScreen />)
+  await fireEvent.press(screen.getAllByRole('button', { name: 'Catalogue café' })[name === 'Approved café' ? 0 : 1]!)
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/places/[placeId]', params: { placeId: name === 'Approved café' ? 'p1' : 'p2' } })
+})
+
+it('shows the pending cover, Google rating and hours returned by the API', async () => {
+  jest.setSystemTime(new Date('2026-11-13T05:00:00Z'))
+  mockQuery.data.pages[0].items = [row('Pending café', 'pending', {
+    addressShort: 'Hà Nội', photo: { id: 'stored', url: 'https://cdn.example.com/cover.jpg', source: 'google', attribution: 'Google Maps' },
+    providerDisplay: { googleRating: 4.4, googleRatingCount: 12, openingHours: [{ dayOfWeek: 5, openMinute: 480, closeMinute: 1380, isOvernight: false }] },
+  })]
+  await renderScreen(<MyContributionsScreen />)
+  expect(JSON.stringify(screen.getByTestId('place-photo-image').props.source)).toContain('https://cdn.example.com/cover.jpg')
+  expect(screen.getByTestId('place-google-rating')).toBeTruthy()
+  expect(screen.getByTestId('place-card-hours-badge')).toBeTruthy()
+})

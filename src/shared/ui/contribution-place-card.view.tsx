@@ -6,7 +6,7 @@ import { Badge } from './badge.view'
 import { ContributionCredits, ContributionReason } from './contribution-card.view'
 import { styles as shared } from './contribution-card.style'
 import { MaterialIcon } from './material-icon'
-import { CardImage, useCardData, type PlaceCardProps } from './place-card.view'
+import { CardImage, PlaceCardStatus, useCardData, type PlaceCardProps } from './place-card.view'
 import { RatingChips } from './rating-chips.view'
 import { Text } from './text'
 import { styles } from './contribution-place-card.style'
@@ -42,6 +42,7 @@ export function ContributionPlaceCard(props: Props) {
           <Text variant="avatarSubtitle" color="text.secondary" numberOfLines={1} style={shared.flex}>{place.addressText}</Text>
         </View> : null}
         <RatingChips place={place} />
+        <PlaceCardStatus place={place} inline />
       </View>
     </Target>
     <View style={styles.details}>
